@@ -57,20 +57,66 @@ function showPreviewTab() {
 
 const saveError = ref('')
 const saving = ref(false)
+const createdSlug = ref('')
+
+/** Ленивая материализация темы: создаём на диске при первом сохранении/вложении. */
+async function ensureCreated(): Promise<string> {
+  if (createdSlug.value) return createdSlug.value
+  const created = await $fetch<{ material: { slug: string } }>(
+    `/api/courses/${slug.value}/topics`,
+    { method: 'POST', body: { title: form.title, type: 'doc', content: form.content } },
+  )
+  createdSlug.value = created.material.slug
+  return createdSlug.value
+}
 
 async function save() {
   saving.value = true
   saveError.value = ''
   try {
-    const created = await $fetch<{ material: { slug: string } }>(
-      `/api/courses/${slug.value}/topics`,
-      { method: 'POST', body: { title: form.title, type: 'doc', content: form.content } },
-    )
-    await navigateTo(`/courses/${slug.value}/topics/${created.material.slug}`)
+    const existed = !!createdSlug.value
+    const target = await ensureCreated()
+    if (existed) {
+      // тема создана лениво при вложении — досохраняем последние правки
+      await $fetch(`/api/courses/${slug.value}/topics/${target}`, {
+        method: 'PATCH',
+        body: { title: form.title, content: form.content },
+      })
+    }
+    await navigateTo(`/courses/${slug.value}/topics/${target}`)
   } catch (e) {
     saveError.value = errText(e, 'Не удалось создать тему')
   } finally {
     saving.value = false
+  }
+}
+
+// --- вложения (ленивое создание темы) ---
+const fileInput = ref<HTMLInputElement | null>(null)
+const uploadError = ref('')
+const uploadBusy = ref(false)
+
+async function attachFile() {
+  const file = fileInput.value?.files?.[0]
+  if (!file) return
+  uploadError.value = ''
+  if (form.title.trim().length < 3) {
+    uploadError.value = 'Укажите название темы, чтобы прикрепить файл'
+    return
+  }
+  uploadBusy.value = true
+  try {
+    const target = await ensureCreated()
+    const fd = new FormData()
+    fd.append('file', file)
+    await $fetch(`/api/courses/${slug.value}/topics/${target}/attachments`, {
+      method: 'POST',
+      body: fd,
+    })
+    await navigateTo(`/courses/${slug.value}/topics/${target}?edit=1`)
+  } catch (e) {
+    uploadError.value = errText(e, 'Не удалось прикрепить файл')
+    uploadBusy.value = false
   }
 }
 </script>
@@ -79,7 +125,7 @@ async function save() {
   <PageShell>
     <template #title>Новая тема</template>
 
-    <p class="muted">Вложения и тип «конспект» — после сохранения тема откроется как обычная.</p>
+    <p class="muted">При сохранении или прикреплении файла тема создастся автоматически.</p>
 
     <div class="editor-tabs" role="tablist" style="margin-top: 14px;">
       <button
@@ -115,6 +161,18 @@ async function save() {
           :preview="false"
           :toolbars="toolbars"
         />
+      </div>
+      <div style="margin-top: 12px;">
+        <h3 style="margin-bottom: 6px;">Вложения</h3>
+        <p class="muted" style="margin: 0 0 6px;">
+          В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
+          Тема создастся при загрузке — укажите название.
+        </p>
+        <input ref="fileInput" type="file" style="margin-bottom: 8px;">
+        <button class="small" :disabled="uploadBusy" @click="attachFile">
+          {{ uploadBusy ? 'Загрузка…' : 'Приложить файл' }}
+        </button>
+        <p v-if="uploadError" class="error">{{ uploadError }}</p>
       </div>
     </div>
 
