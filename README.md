@@ -15,6 +15,7 @@ Self-hosted платформа для дистанционных занятий 
 | [`specs/05-mvp-scope.md`](./specs/05-mvp-scope.md) | границы MVP и дорожная карта |
 | [`specs/06-deployment.md`](./specs/06-deployment.md) | деплой, бэкапы, безопасность |
 | [`specs/07-schedule.md`](./specs/07-schedule.md) | недельное расписание курса, месячный календарь |
+| [`specs/08-roles-permissions.md`](./specs/08-roles-permissions.md) | роли, каталог пермишенов, механика can() |
 
 Статус: шаг 1 MVP (каркас + аутентификация + управление аккаунтами) реализован
 и протестирован смоук-тестом. Далее — шаг 2: курсы (порт ContentStore).
