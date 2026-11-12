@@ -95,16 +95,12 @@ async function removeStudent(username: string) {
 const materials = ref<Array<{ slug: string, title: string, type: string, updatedAt: string }>>([])
 const materialsError = ref('')
 const canMaterials = computed(() => coursePageData.value?.canMaterials ?? false)
-const matTypes = ref<Array<{ type: string, title: string }>>([{ type: 'doc', title: 'Конспект (markdown)' }])
-const newMat = reactive({ title: '', type: 'doc' })
-const newMatError = ref('')
-const newMatBusy = ref(false)
 
 async function loadMaterials() {
   materialsError.value = ''
   try {
     const res = await $fetch<{ materials: typeof materials.value }>(
-      `/api/courses/${course.value?.slug}/materials`,
+      `/api/courses/${course.value?.slug}/topics`,
     )
     materials.value = res.materials
   } catch (e) {
@@ -112,26 +108,14 @@ async function loadMaterials() {
   }
 }
 
-async function loadMaterialTypes() {
-  try {
-    const res = await $fetch<{ types: Array<{ type: string, title: string }> }>('/api/material-types')
-    matTypes.value = res.types
-  } catch {
-    // при ошибке оставляем единственный известный тип
-  }
-}
-
 watch(activeTab, (tab) => {
-  if (tab === 'topics' && course.value) {
-    void loadMaterials()
-    void loadMaterialTypes()
-  }
+  if (tab === 'topics' && course.value) void loadMaterials()
 }, { immediate: true })
 
 type MaterialRow = { slug: string, title: string, type: string, updatedAt: string }
 
 function materialUrl(m: MaterialRow): string {
-  return `/courses/${course.value?.slug}/materials/${m.slug}`
+  return `/courses/${course.value?.slug}/topics/${m.slug}`
 }
 
 function openMaterial(m: MaterialRow) {
@@ -150,23 +134,6 @@ async function deleteMaterial(m: MaterialRow) {
     await loadMaterials()
   } catch (e) {
     materialsError.value = errText(e, 'Не удалось удалить материал')
-  }
-}
-
-async function createMaterial() {
-  newMatError.value = ''
-  newMatBusy.value = true
-  try {
-    const created = await $fetch<{ material: { slug: string } }>(
-      `/api/courses/${course.value?.slug}/materials`,
-      { method: 'POST', body: { title: newMat.title, type: newMat.type, content: '' } },
-    )
-    newMat.title = ''
-    await navigateTo(`/courses/${course.value?.slug}/materials/${created.material.slug}`)
-  } catch (e) {
-    newMatError.value = errText(e, 'Не удалось создать материал')
-  } finally {
-    newMatBusy.value = false
   }
 }
 
@@ -228,16 +195,11 @@ const scaleLabel: Record<GradingScale['type'], string> = {
     <div v-else-if="activeTab === 'topics'" class="card">
       <h2>Темы</h2>
 
-      <div v-if="canMaterials" class="row" style="gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
-        <input v-model="newMat.title" placeholder="Название новой темы" style="flex: 2; min-width: 200px;">
-        <select v-model="newMat.type" style="flex: 1; min-width: 160px;">
-          <option v-for="t in matTypes" :key="t.type" :value="t.type">{{ t.title }}</option>
-        </select>
-        <button class="primary" :disabled="newMatBusy || !newMat.title" @click="createMaterial">
-          Создать
+      <div v-if="canMaterials" style="margin-bottom: 14px;">
+        <button class="primary" @click="navigateTo(`/courses/${course.slug}/topics/new`)">
+          Добавить тему
         </button>
       </div>
-      <p v-if="newMatError" class="error" style="margin-bottom: 10px;">{{ newMatError }}</p>
 
       <p v-if="materialsError" class="error">{{ materialsError }}</p>
       <table v-if="materials.length" class="data-table">

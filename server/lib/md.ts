@@ -56,7 +56,7 @@ function rewriteWikiLinks(source: string, ctx: RenderCtx): string {
   return source.replace(/\[\[([a-z0-9][a-z0-9-]*)\]\]/gi, (_, slug: string) => {
     const s = slug.toLowerCase()
     const title = ctx.linkTitles?.[s] ?? s
-    return `[${title}](/courses/${ctx.courseSlug}/materials/${s})`
+    return `[${title}](/courses/${ctx.courseSlug}/topics/${s})`
   })
 }
 
@@ -67,7 +67,7 @@ function rewriteAttachments(source: string, ctx: RenderCtx): string {
     const name = decodeURIComponent(target)
     if (!known.has(name)) return full
     const encoded = encodeURIComponent(name)
-    return `${open}/api/courses/${ctx.courseSlug}/materials/${ctx.materialSlug}/attachments/${encoded}${close}`
+    return `${open}/api/courses/${ctx.courseSlug}/topics/${ctx.materialSlug}/attachments/${encoded}${close}`
   })
 }
 

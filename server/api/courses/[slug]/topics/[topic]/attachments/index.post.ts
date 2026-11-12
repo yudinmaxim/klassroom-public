@@ -8,7 +8,7 @@ const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 export default defineEventHandler(async (event) => {
   const actor = await requireUser(event)
   const slug = courseSlugSchema.parse(getRouterParam(event, 'slug'))
-  const materialSlug = materialSlugSchema.parse(getRouterParam(event, 'material'))
+  const materialSlug = materialSlugSchema.parse(getRouterParam(event, 'topic'))
 
   const parts = await readMultipartFormData(event)
   const filePart = parts?.find(p => p.filename && p.name === 'file')

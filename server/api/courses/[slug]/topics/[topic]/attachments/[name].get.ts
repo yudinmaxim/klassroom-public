@@ -9,7 +9,7 @@ import { httpError } from '../../../../../../lib/errors'
 export default defineEventHandler(async (event) => {
   const actor = await requireUser(event)
   const slug = courseSlugSchema.parse(getRouterParam(event, 'slug'))
-  const materialSlug = materialSlugSchema.parse(getRouterParam(event, 'material'))
+  const materialSlug = materialSlugSchema.parse(getRouterParam(event, 'topic'))
   const name = attachmentNameSchema.parse(decodeURIComponent(getRouterParam(event, 'name') ?? ''))
 
   const file = await useContentStore().getAttachment(actor, slug, materialSlug, name)

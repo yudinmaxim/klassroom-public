@@ -6,13 +6,13 @@ import 'md-editor-v3/lib/style.css'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
-const materialSlug = computed(() => String(route.params.material))
+const materialSlug = computed(() => String(route.params.topic))
 
 const { data, refresh, error: loadError } = await useFetch(
-  `/api/courses/${slug.value}/materials/${materialSlug.value}`,
+  `/api/courses/${slug.value}/topics/${materialSlug.value}`,
 )
 if (loadError.value) {
-  throw createError({ statusCode: 404, message: 'Материал не найден', fatal: true })
+  throw createError({ statusCode: 404, message: 'Тема не найдена', fatal: true })
 }
 
 const { data: courseData } = await useFetch(`/api/courses/${slug.value}`)
@@ -99,14 +99,14 @@ async function save() {
   saving.value = true
   saveError.value = ''
   try {
-    await $fetch(`/api/courses/${slug.value}/materials/${materialSlug.value}`, {
+    await $fetch(`/api/courses/${slug.value}/topics/${materialSlug.value}`, {
       method: 'PATCH',
       body: { title: form.title, content: form.content },
     })
     editing.value = false
     await refresh()
   } catch (e) {
-    saveError.value = errText(e, 'Не удалось сохранить материал')
+    saveError.value = errText(e, 'Не удалось сохранить тему')
   } finally {
     saving.value = false
   }
@@ -115,13 +115,13 @@ async function save() {
 const deleting = ref(false)
 
 async function removeMaterial() {
-  if (!window.confirm('Удалить материал вместе с вложениями? Восстановить можно только из git-журнала.')) return
+  if (!window.confirm('Удалить тему вместе с вложениями? Восстановить можно только из git-журнала.')) return
   deleting.value = true
   try {
-    await $fetch(`/api/courses/${slug.value}/materials/${materialSlug.value}`, { method: 'DELETE' })
+    await $fetch(`/api/courses/${slug.value}/topics/${materialSlug.value}`, { method: 'DELETE' })
     await navigateTo(`/courses/${slug.value}`)
   } catch (e) {
-    saveError.value = errText(e, 'Не удалось удалить материал')
+    saveError.value = errText(e, 'Не удалось удалить тему')
     deleting.value = false
   }
 }
@@ -139,7 +139,7 @@ async function uploadAttachment() {
   try {
     const fd = new FormData()
     fd.append('file', file)
-    await $fetch(`/api/courses/${slug.value}/materials/${materialSlug.value}/attachments`, {
+    await $fetch(`/api/courses/${slug.value}/topics/${materialSlug.value}/attachments`, {
       method: 'POST',
       body: fd,
     })
@@ -156,7 +156,7 @@ async function removeAttachment(name: string) {
   uploadError.value = ''
   try {
     await $fetch(
-      `/api/courses/${slug.value}/materials/${materialSlug.value}/attachments/${encodeURIComponent(name)}`,
+      `/api/courses/${slug.value}/topics/${materialSlug.value}/attachments/${encodeURIComponent(name)}`,
       { method: 'DELETE' },
     )
     await refresh()
@@ -166,7 +166,7 @@ async function removeAttachment(name: string) {
 }
 
 const attachmentUrl = (name: string) =>
-  `/api/courses/${slug.value}/materials/${materialSlug.value}/attachments/${encodeURIComponent(name)}`
+  `/api/courses/${slug.value}/topics/${materialSlug.value}/attachments/${encodeURIComponent(name)}`
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
 </script>
