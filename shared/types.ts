@@ -99,3 +99,55 @@ export interface DocPayload {
   content: string
   attachments: string[]
 }
+
+// --- Домашние задания (шаг 4, specs/02-data-model.md) ---
+
+/** Тип задания: общее — всему курсу, частное — выбранным ученикам (audience). */
+export type AssignmentType = 'general' | 'private'
+
+/** Статус жизненного цикла задания. «Выдано/Не выдано» — для UI. */
+export type AssignmentStatus = 'draft' | 'published'
+
+/** Краткое представление задания в списке курса. */
+export interface AssignmentSummary {
+  slug: string
+  title: string
+  type: AssignmentType
+  status: AssignmentStatus
+  /** ISO-дата дедлайна или null. */
+  due: string | null
+  submissionCount: number
+  /** Свой статус сдачи для ученика: none|submitted|returned. */
+  myStatus?: 'none' | 'submitted' | 'returned'
+  updatedAt: string
+}
+
+/** Задание целиком: метаданные + отрендеренное описание. */
+export interface Assignment {
+  slug: string
+  title: string
+  type: AssignmentType
+  /** username'ы для частного задания; для general — пусто. */
+  audience: string[]
+  status: AssignmentStatus
+  due: string | null
+  maxPoints: number | null
+  createdAt: string
+  updatedAt: string
+  /** markdown-описание. */
+  description: string
+  /** санитизированный HTML описания. */
+  html: string
+}
+
+/** Сдача ученика. */
+export interface Submission {
+  username: string
+  /** submitted — сдано, ждёт проверки; returned — проверено/возвращено. */
+  status: 'submitted' | 'returned'
+  grade: number | null
+  feedback: string
+  answer: string
+  submittedAt: string | null
+  updatedAt: string | null
+}

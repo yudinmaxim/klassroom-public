@@ -166,3 +166,33 @@ export async function requireRole(event: H3Event, ...roles: string[]): Promise<U
   if (!roles.includes(user.role)) httpError(403, 'Недостаточно прав')
   return user
 }
+
+// --- Задания (шаг 4) ---
+
+export const assignmentSlugSchema = materialSlugSchema
+
+export const assignmentTypeSchema = z.enum(['general', 'private'])
+
+export const assignmentStatusSchema = z.enum(['draft', 'published'])
+
+export const createAssignmentBodySchema = z.object({
+  title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120),
+  type: assignmentTypeSchema.default('general'),
+  audience: z.array(usernameSchema).max(200).default([]),
+  due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата: ГГГГ-ММ-ДД').nullable().optional(),
+  maxPoints: z.number().int().min(1).max(1000).nullable().optional(),
+  description: z.string().max(MAX_MD_CHARS, 'Описание слишком длинное').default(''),
+})
+
+export const updateAssignmentBodySchema = createAssignmentBodySchema
+  .partial()
+  .extend({ status: assignmentStatusSchema.optional() })
+
+export const submitAssignmentBodySchema = z.object({
+  answer: z.string().min(1, 'Ответ пустой').max(MAX_MD_CHARS, 'Ответ слишком длинный'),
+})
+
+export const gradeSubmissionBodySchema = z.object({
+  grade: z.number().min(0).max(1000).nullable(),
+  feedback: z.string().max(4000).default(''),
+})

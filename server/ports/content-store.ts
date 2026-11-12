@@ -1,4 +1,4 @@
-import type { Course, CourseSummary, GradingScale, Material, MaterialSummary, UserPublic } from '#shared/types'
+import type { Assignment, AssignmentSummary, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -83,4 +83,68 @@ export interface ContentStore {
     materialSlug: string,
     name: string,
   ): Promise<{ data: Buffer, mime: string } | null>
+
+  // --- Домашние задания (шаг 4) ---
+
+  /** Задания курса: учитель видит все, ученик — только выданные ему. */
+  listAssignments(actor: UserPublic, courseSlug: string): Promise<AssignmentSummary[]>
+
+  /** Задание целиком (учитель — любое, ученик — выданное ему). */
+  getAssignment(actor: UserPublic, courseSlug: string, assignmentSlug: string): Promise<Assignment | null>
+
+  /** Создать задание (assignments.create, владелец курса или admin). */
+  createAssignment(
+    actor: UserPublic,
+    courseSlug: string,
+    input: {
+      title: string
+      type: 'general' | 'private'
+      audience?: string[]
+      due?: string | null
+      maxPoints?: number | null
+      description?: string
+    },
+  ): Promise<AssignmentSummary>
+
+  /** Обновить задание: поля, описание и/или статус draft↔published. */
+  updateAssignment(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    patch: {
+      title?: string
+      type?: 'general' | 'private'
+      audience?: string[]
+      due?: string | null
+      maxPoints?: number | null
+      description?: string
+      status?: 'draft' | 'published'
+    },
+  ): Promise<Assignment>
+
+  /** Удалить задание вместе со сдачами. */
+  deleteAssignment(actor: UserPublic, courseSlug: string, assignmentSlug: string): Promise<void>
+
+  /** Ученик сдаёт/пересдаёт работу (только по выданному заданию). */
+  submitAssignment(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    answer: string,
+  ): Promise<Submission>
+
+  /** Своя сдача ученика по заданию (или null). */
+  getOwnSubmission(actor: UserPublic, courseSlug: string, assignmentSlug: string): Promise<Submission | null>
+
+  /** Сдачи по заданию — только учителю (submissions.view.all). */
+  listSubmissions(actor: UserPublic, courseSlug: string, assignmentSlug: string): Promise<Submission[]>
+
+  /** Поставить оценку и комментарий, вернуть работу ученику. */
+  gradeSubmission(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+    input: { grade: number | null, feedback: string },
+  ): Promise<Submission>
 }

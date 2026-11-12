@@ -1,4 +1,4 @@
-import type { RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, UserPublic } from '#shared/types'
+import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, UserPublic } from '#shared/types'
 import { readdir, rename, rm, type Dirent } from 'node:fs/promises'
 import { slugify } from '../lib/slug'
 import { httpError } from '../lib/errors'
@@ -269,7 +269,140 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     }
   }
 
-  return {
+
+  // --- задания (шаг 4) ---
+
+  interface AssignmentFile {
+    slug: string
+    title: string
+    type: 'general' | 'private'
+    audience: string[]
+    status: 'draft' | 'published'
+    due: string | null
+    maxPoints: number | null
+    createdAt: string
+    updatedAt: string
+  }
+  interface SubmissionFile {
+    status: 'submitted' | 'returned'
+    grade: number | null
+    feedback: string
+    submittedAt: string | null
+    updatedAt: string | null
+  }
+
+  function assignmentsRoot(courseSlug: string): string {
+    return resolveDataPath(courseDir(baseDir, courseSlug), 'assignments')
+  }
+  function assignmentDir(courseSlug: string, aid: string): string {
+    return resolveDataPath(assignmentsRoot(courseSlug), aid)
+  }
+  function assignmentYmlPath(courseSlug: string, aid: string): string {
+    return resolveDataPath(assignmentDir(courseSlug, aid), 'assignment.yml')
+  }
+  function readAssignmentFile(courseSlug: string, aid: string): Promise<AssignmentFile | null> {
+    return readYaml<AssignmentFile>(assignmentYmlPath(courseSlug, aid))
+  }
+  function writeAssignmentFile(courseSlug: string, f: AssignmentFile): Promise<void> {
+    return writeYaml(assignmentYmlPath(courseSlug, f.slug), f)
+  }
+  function assignmentDescriptionPath(courseSlug: string, aid: string): string {
+    return resolveDataPath(assignmentDir(courseSlug, aid), 'description.md')
+  }
+  function submissionsDir(courseSlug: string, aid: string): string {
+    return resolveDataPath(assignmentDir(courseSlug, aid), 'submissions')
+  }
+  function submissionDir(courseSlug: string, aid: string, username: string): string {
+    return resolveDataPath(submissionsDir(courseSlug, aid), username)
+  }
+
+  /** Учитель управляет заданиями курса; ученик — только по назначению. */
+  function canManageAssignment(actor: UserPublic, role: RoleDef, course: CourseFile): boolean {
+    if (role.name === 'admin') return true
+    if (!role.permissions.includes('assignments.create')) return false
+    if (role.scope === 'owner') return course.teacher === actor.username
+    return false
+  }
+
+  /** Ученик видит задание: выдано + (общее или он в audience). */
+  function canSeeAssignment(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], f: AssignmentFile): boolean {
+    if (role.name === 'admin') return true
+    if (role.scope === 'owner') return course.teacher === actor.username
+    if (!role.permissions.includes('assignments.view')) return false
+    if (role.scope !== 'member' || !roster.includes(actor.username)) return false
+    if (f.status !== 'published') return false
+    return f.type === 'general' || f.audience.includes(actor.username)
+  }
+
+  /** Ученику можно сдавать: то же, что видеть + submissions.create. */
+  function canSubmit(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], f: AssignmentFile): boolean {
+    return canSeeAssignment(actor, role, course, roster, f)
+      && role.permissions.includes('submissions.create')
+  }
+
+  /** Учитель проверяет сдачи. */
+  function canGrade(actor: UserPublic, role: RoleDef, course: CourseFile): boolean {
+    if (role.name === 'admin') return true
+    if (!role.permissions.includes('submissions.grade')) return false
+    if (role.scope === 'owner') return course.teacher === actor.username
+    return false
+  }
+
+  async function readSubmissionFile(courseSlug: string, aid: string, username: string): Promise<SubmissionFile | null> {
+    return readYaml<SubmissionFile>(resolveDataPath(submissionDir(courseSlug, aid, username), 'submission.yml'))
+  }
+  function writeSubmissionFile(courseSlug: string, aid: string, username: string, f: SubmissionFile): Promise<void> {
+    return writeYaml(resolveDataPath(submissionDir(courseSlug, aid, username), 'submission.yml'), f)
+  }
+  function submissionAnswerPath(courseSlug: string, aid: string, username: string): string {
+    return resolveDataPath(submissionDir(courseSlug, aid, username), 'answer.md')
+  }
+
+  async function listSubmissionUsers(courseSlug: string, aid: string): Promise<string[]> {
+    try {
+      const dirs = await readdir(submissionsDir(courseSlug, aid), { withFileTypes: true })
+      return dirs.filter(d => d.isDirectory()).map(d => d.name).sort()
+    } catch {
+      return []
+    }
+  }
+
+  async function loadAssignmentForManage(actor: UserPublic, courseSlug: string, aid: string): Promise<AssignmentFile> {
+    const norm = normalizeSlug(courseSlug)
+    const course = await readCourse(baseDir, norm)
+    if (!course) httpError(404, 'Курс не найден')
+    const role = await roleOf(actor)
+    if (!canManageAssignment(actor, role, course)) httpError(403, 'Недостаточно прав')
+    const f = await readAssignmentFile(norm, normalizeSlug(aid))
+    if (!f) httpError(404, 'Задание не найдено')
+    return f
+  }
+
+  async function loadAssignmentForActor(
+    actor: UserPublic,
+    courseSlug: string,
+    aid: string,
+    need: 'view' | 'submit',
+  ): Promise<{ course: CourseFile, f: AssignmentFile, role: RoleDef, roster: string[] }> {
+    const norm = normalizeSlug(courseSlug)
+    const course = await readCourse(baseDir, norm)
+    if (!course) httpError(404, 'Курс не найден')
+    const roster = await readRoster(baseDir, norm)
+    const role = await roleOf(actor)
+    const f = await readAssignmentFile(norm, normalizeSlug(aid))
+    if (!f) httpError(404, 'Задание не найдено')
+    const ok = need === 'submit'
+      ? canSubmit(actor, role, course, roster, f)
+      : canSeeAssignment(actor, role, course, roster, f) || canManageAssignment(actor, role, course)
+    if (!ok) httpError(404, 'Задание не найдено')
+    return { course, f, role, roster }
+  }
+
+  function toAssignmentSummary(f: AssignmentFile, submissionCount: number, myStatus?: AssignmentSummary['myStatus']): AssignmentSummary {
+    return { slug: f.slug, title: f.title, type: f.type, status: f.status, due: f.due, submissionCount, myStatus, updatedAt: f.updatedAt }
+  }
+
+  const store: ContentStore = {
     async listCourses(actor) {
       let slugs: Dirent[]
       try {
@@ -526,5 +659,222 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const data = await readBytes(path)
       return data ? { data, mime: mimeFor(clean) } : null
     },
+    // --- задания ---
+
+    async listAssignments(actor, courseSlug) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const roster = await readRoster(baseDir, norm)
+      const role = await roleOf(actor)
+      const manager = canManageAssignment(actor, role, course)
+
+      let dirs: Dirent[]
+      try {
+        dirs = await readdir(assignmentsRoot(norm), { withFileTypes: true })
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+        throw err
+      }
+
+      const result: AssignmentSummary[] = []
+      for (const d of dirs.filter(d => d.isDirectory())) {
+        const f = await readAssignmentFile(norm, d.name)
+        if (!f) continue
+        if (!manager && !canSeeAssignment(actor, role, course, roster, f)) continue
+        const users = await listSubmissionUsers(norm, f.slug)
+        let myStatus: AssignmentSummary['myStatus']
+        if (!manager && role.scope === 'member') {
+          const mine = await readSubmissionFile(norm, f.slug, actor.username)
+          myStatus = mine ? mine.status : 'none'
+        }
+        result.push(toAssignmentSummary(f, users.length, myStatus))
+      }
+      return result.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    },
+
+    async getAssignment(actor, courseSlug, assignmentSlug) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'view')
+      const description = (await readString(assignmentDescriptionPath(norm, f.slug))) ?? ''
+      const { renderDocMarkdown } = await import('../lib/md')
+      const linkTitles: Record<string, string> = {}
+      try {
+        for (const d of await readdir(materialsRoot(norm), { withFileTypes: true })) {
+          if (!d.isDirectory()) continue
+          const m = await readMaterial(norm, d.name)
+          if (m) linkTitles[m.slug] = m.title
+        }
+      } catch { /* нет материалов — ок */ }
+      const rendered = renderDocMarkdown(description, {
+        courseSlug: norm,
+        materialSlug: f.slug,
+        linkTitles,
+        attachments: [],
+      })
+      return {
+        slug: f.slug, title: f.title, type: f.type, audience: f.audience,
+        status: f.status, due: f.due, maxPoints: f.maxPoints,
+        createdAt: f.createdAt, updatedAt: f.updatedAt,
+        description, html: rendered.html,
+      }
+    },
+
+    async createAssignment(actor, courseSlug, input) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const role = await roleOf(actor)
+      if (!canManageAssignment(actor, role, course)) httpError(403, 'Недостаточно прав')
+
+      const roster = await readRoster(baseDir, norm)
+      if (input.type === 'private') {
+        if (!input.audience?.length) httpError(400, 'Для частного задания выберите хотя бы одного ученика')
+        const unknown = input.audience.filter(u => !roster.includes(u))
+        if (unknown.length) httpError(400, `Не в составе курса: ${unknown.join(', ')}`)
+      }
+
+      const now = new Date().toISOString()
+      const f: AssignmentFile = {
+        slug: slugify(input.title),
+        title: input.title.trim(),
+        type: input.type,
+        audience: input.type === 'private' ? [...new Set(input.audience ?? [])] : [],
+        status: 'draft',
+        due: input.due ?? null,
+        maxPoints: input.maxPoints ?? null,
+        createdAt: now,
+        updatedAt: now,
+      }
+      if (await readAssignmentFile(norm, f.slug)) httpError(409, `Задание «${f.slug}» уже существует`)
+
+      await ensureDir(assignmentDir(norm, f.slug))
+      await writeAssignmentFile(norm, f)
+      await atomicWriteString(assignmentDescriptionPath(norm, f.slug), input.description ?? '')
+      journal.record(actor.pseudonym, `создал задание ${f.slug} в ${norm}`)
+      return toAssignmentSummary(f, 0)
+    },
+
+    async updateAssignment(actor, courseSlug, assignmentSlug, patch) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadAssignmentForManage(actor, norm, assignmentSlug)
+
+      const changes: string[] = []
+      if (patch.title !== undefined && patch.title.trim() !== f.title) {
+        f.title = patch.title.trim()
+        changes.push('переименовал')
+      }
+      if (patch.type !== undefined && patch.type !== f.type) {
+        f.type = patch.type
+        changes.push('сменил тип')
+      }
+      if (patch.audience !== undefined) {
+        f.audience = patch.type === 'private' || f.type === 'private' ? [...new Set(patch.audience)] : []
+        if (f.type === 'private' && !f.audience.length) httpError(400, 'Для частного задания нужен хотя бы один ученик')
+        changes.push('обновил состав')
+      }
+      if (patch.due !== undefined && patch.due !== f.due) {
+        f.due = patch.due
+        changes.push('обновил дедлайн')
+      }
+      if (patch.maxPoints !== undefined && patch.maxPoints !== f.maxPoints) {
+        f.maxPoints = patch.maxPoints
+        changes.push('обновил баллы')
+      }
+      if (patch.status !== undefined && patch.status !== f.status) {
+        f.status = patch.status
+        changes.push(patch.status === 'published' ? 'выдал задание' : 'снял с выдачи')
+      }
+      if (patch.description !== undefined) {
+        await atomicWriteString(assignmentDescriptionPath(norm, f.slug), patch.description)
+        changes.push('обновил описание')
+      }
+      if (changes.length) {
+        f.updatedAt = new Date().toISOString()
+        await writeAssignmentFile(norm, f)
+        journal.record(actor.pseudonym, `${changes.join(', ')} задание ${f.slug} в ${norm}`)
+      }
+
+      return store.getAssignment(actor, norm, f.slug)
+    },
+
+    async deleteAssignment(actor, courseSlug, assignmentSlug) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadAssignmentForManage(actor, norm, assignmentSlug)
+      await rm(assignmentDir(norm, f.slug), { recursive: true, force: true })
+      journal.record(actor.pseudonym, `удалил задание ${f.slug} из ${norm}`)
+    },
+
+    async submitAssignment(actor, courseSlug, assignmentSlug, answer) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
+      const now = new Date().toISOString()
+      const existing = await readSubmissionFile(norm, f.slug, actor.username)
+      const sub: SubmissionFile = {
+        status: 'submitted',
+        grade: existing?.grade ?? null,
+        feedback: existing?.feedback ?? '',
+        submittedAt: now,
+        updatedAt: now,
+      }
+      await ensureDir(submissionDir(norm, f.slug, actor.username))
+      await writeSubmissionFile(norm, f.slug, actor.username, sub)
+      await atomicWriteString(submissionAnswerPath(norm, f.slug, actor.username), answer)
+      journal.record(actor.pseudonym, `сдал задание ${f.slug} в ${norm}`)
+      const answerText = (await readString(submissionAnswerPath(norm, f.slug, actor.username))) ?? ''
+      return { username: actor.username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer: answerText, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
+    },
+
+    async getOwnSubmission(actor, courseSlug, assignmentSlug) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
+      const sub = await readSubmissionFile(norm, f.slug, actor.username)
+      if (!sub) return null
+      const answer = (await readString(submissionAnswerPath(norm, f.slug, actor.username))) ?? ''
+      return { username: actor.username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
+    },
+
+    async listSubmissions(actor, courseSlug, assignmentSlug) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const role = await roleOf(actor)
+      if (!canGrade(actor, role, course) && !(role.scope === 'owner' && role.permissions.includes('submissions.view.all'))) {
+        httpError(403, 'Недостаточно прав')
+      }
+      const f = await readAssignmentFile(norm, normalizeSlug(assignmentSlug))
+      if (!f) httpError(404, 'Задание не найдено')
+
+      const result: Submission[] = []
+      for (const username of await listSubmissionUsers(norm, f.slug)) {
+        const sub = await readSubmissionFile(norm, f.slug, username)
+        if (!sub) continue
+        const answer = (await readString(submissionAnswerPath(norm, f.slug, username))) ?? ''
+        result.push({ username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt })
+      }
+      return result.sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))
+    },
+
+    async gradeSubmission(actor, courseSlug, assignmentSlug, username, input) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const role = await roleOf(actor)
+      if (!canGrade(actor, role, course)) httpError(403, 'Недостаточно прав')
+      const f = await readAssignmentFile(norm, normalizeSlug(assignmentSlug))
+      if (!f) httpError(404, 'Задание не найдено')
+      const sub = await readSubmissionFile(norm, f.slug, username)
+      if (!sub) httpError(404, 'Сдача не найдена')
+
+      sub.status = 'returned'
+      sub.grade = input.grade
+      sub.feedback = input.feedback
+      sub.updatedAt = new Date().toISOString()
+      await writeSubmissionFile(norm, f.slug, username, sub)
+      journal.record(actor.pseudonym, `оценил задание ${f.slug} у ${username} в ${norm}`)
+      const answer = (await readString(submissionAnswerPath(norm, f.slug, username))) ?? ''
+      return { username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
+    },
   }
+  return store
 }
