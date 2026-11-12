@@ -190,8 +190,9 @@ th { color: var(--muted); font-weight: 600; }
   white-space: nowrap;
 }
 
+.sidebar-foot > .tip { margin-left: auto; }
+
 .icon-btn {
-  margin-left: auto;
   width: 32px;
   height: 32px;
   padding: 0;
