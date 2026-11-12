@@ -21,7 +21,11 @@ export function useGitJournal(): GitJournal {
 
 export function useContentStore(): ContentStore {
   if (!storeInstance) {
-    storeInstance = createFilesContentStore(resolve(useRuntimeConfig().contentDir), useGitJournal())
+    storeInstance = createFilesContentStore(
+      resolve(useRuntimeConfig().contentDir),
+      useGitJournal(),
+      useRoleStore(),
+    )
   }
   return storeInstance
 }

@@ -1,8 +1,9 @@
-import { requireRole, parseJson, createCourseBodySchema } from '../../lib/validation'
+import { parseJson, createCourseBodySchema } from '../../lib/validation'
+import { requirePermission } from '../../utils/can'
 
-/** Создать курс (admin/teacher). */
+/** Создать курс (пермишен courses.create). */
 export default defineEventHandler(async (event) => {
-  const actor = await requireRole(event, 'admin', 'teacher')
+  const actor = await requirePermission(event, 'courses.create')
   const body = await parseJson(event, createCourseBodySchema)
   const course = await useContentStore().createCourse(actor, body)
   return { course }

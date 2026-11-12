@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
-import type { Role, UserPublic } from '#shared/types'
+import type { UserPublic } from '#shared/types'
+import { PERMISSION_CATALOG } from '#shared/permissions-catalog'
 import { z } from 'zod'
 import { httpError } from './errors'
 import { readSessionUser } from './sessions'
@@ -28,7 +29,25 @@ export const passwordSchema = z
   .min(8, 'Пароль: минимум 8 символов')
   .max(128, 'Пароль: максимум 128 символов')
 
-export const roleSchema = z.enum(['admin', 'teacher', 'student'])
+export const roleSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z][a-z0-9-]{1,31}$/, 'Код роли: строчные латинские буквы, цифры, дефис; 2–32 символа')
+
+export const roleScopeSchema = z.enum(['none', 'owner', 'member'])
+
+export const saveRoleBodySchema = z.object({
+  title: z.string().trim().min(2).max(40),
+  scope: roleScopeSchema,
+  permissions: z.array(z.string()).max(PERMISSION_CATALOG.length),
+})
+
+export const roleNameParamSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z][a-z0-9-]{1,31}$/)
 
 export const setupBodySchema = z.object({
   username: usernameSchema,
@@ -102,7 +121,7 @@ export async function requireUser(event: H3Event): Promise<UserPublic> {
   return user
 }
 
-export async function requireRole(event: H3Event, ...roles: Role[]): Promise<UserPublic> {
+export async function requireRole(event: H3Event, ...roles: string[]): Promise<UserPublic> {
   const user = await requireUser(event)
   if (!roles.includes(user.role)) httpError(403, 'Недостаточно прав')
   return user

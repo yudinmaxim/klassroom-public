@@ -127,6 +127,13 @@ export function createFilesUserStore(baseDir: string): UserStore {
       return generatedPassword ? { generatedPassword } : {}
     },
 
+    async changeRole(username, role) {
+      const user = await assertUserExists(normalizeUsername(username))
+      user.role = role
+      await writeUserFile(baseDir, user)
+      return toPublic(user)
+    },
+
     async authenticate(username, password) {
       const normalized = normalizeUsername(username)
       const user = await readUserFile(baseDir, normalized)

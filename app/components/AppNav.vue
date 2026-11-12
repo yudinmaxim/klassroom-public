@@ -19,9 +19,13 @@ const isAdminArea = computed(() => route.path.startsWith('/admin'))
       <NuxtLink v-if="user?.role === 'admin' && !isAdminArea" to="/admin/users" class="nav-link">
         Пользователи
       </NuxtLink>
+      <NuxtLink v-if="user?.role === 'admin' && !isAdminArea" to="/admin/roles" class="nav-link">
+        Роли
+      </NuxtLink>
       <NuxtLink v-if="user?.role === 'admin' && isAdminArea" to="/" class="nav-link">
         ← На главную
       </NuxtLink>
+      <template v-if="user && isAdminArea && route.path !== '/admin/users' && route.path !== '/admin/roles'" />
       <div class="spacer" />
       <template v-if="user">
         <span class="muted">{{ user.pseudonym }}</span>

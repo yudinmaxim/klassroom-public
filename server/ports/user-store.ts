@@ -26,6 +26,9 @@ export interface UserStore {
   /** Сбросить пароль аккаунта. */
   resetPassword(username: string, password?: string): Promise<{ generatedPassword?: string }>
 
+  /** Сменить роль аккаунта (роль должна существовать — проверяет роут). */
+  changeRole(username: string, role: string): Promise<UserPublic>
+
   /** Проверить вход: null при неверных учётных данных. */
   authenticate(username: string, password: string): Promise<UserPublic | null>
 }

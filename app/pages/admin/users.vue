@@ -3,8 +3,11 @@ import type { UserPublic } from '#shared/types'
 import { errText } from '#shared/errors'
 
 const { data, refresh } = await useFetch('/api/users')
+const { data: rolesData } = await useFetch('/api/roles')
 
 const users = computed(() => data.value?.users ?? [])
+const roles = computed(() => rolesData.value?.roles ?? [])
+const roleTitle = (name: string) => roles.value.find(r => r.name === name)?.title ?? name
 
 const form = reactive({ username: '', pseudonym: '', role: 'student' })
 const error = ref('')
@@ -84,9 +87,7 @@ async function copySecret() {
           <label style="min-width: 130px;">
             Роль
             <select v-model="form.role">
-              <option value="student">student</option>
-              <option value="teacher">teacher</option>
-              <option value="admin">admin</option>
+              <option v-for="r in roles" :key="r.name" :value="r.name">{{ r.title }}</option>
             </select>
           </label>
         </div>
@@ -113,8 +114,8 @@ async function copySecret() {
         <tbody>
           <tr v-for="u in users" :key="u.username">
             <td>{{ u.username }}</td>
-            <td>{{ u.pseudonym }}</td>
-            <td>{{ u.role }}</td>
+            <td><strong>{{ u.pseudonym }}</strong></td>
+            <td>{{ roleTitle(u.role) }}</td>
             <td class="muted">{{ new Date(u.createdAt).toLocaleDateString('ru-RU') }}</td>
             <td>
               <button class="small" :disabled="resetting === u.username" @click="resetPassword(u)">

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { parse, stringify } from 'yaml'
@@ -50,6 +50,13 @@ export async function readYaml<T>(path: string): Promise<T | null> {
 
 export function writeYaml(path: string, data: unknown): Promise<void> {
   return atomicWriteString(path, stringify(data))
+}
+
+/** Атомарное «удаление» — через ту же очередь записи. */
+export async function atomicDelete(path: string): Promise<void> {
+  await enqueue(async () => {
+    await rm(path, { force: true })
+  })
 }
 
 export function resolveDataPath(base: string, ...parts: string[]): string {

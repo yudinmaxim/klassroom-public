@@ -1,20 +1,18 @@
-import { requireRole, parseJson, rosterBodySchema, courseSlugSchema, usernameSchema } from '../../../lib/validation'
-import { httpError } from '../../../lib/errors'
+import { requireUser, parseJson, rosterBodySchema, courseSlugSchema, usernameSchema } from '../../../lib/validation'
 
 /**
- * Зачислить/исключить ученика (владелец курса или admin).
- * Существование аккаунта и его роль проверяются здесь (UserStore), сам roster
- * меняет ContentStore — два порта, каждый про своё (specs/01).
+ * Зачислить/исключить участника курса. Право (courses.roster.manage)
+ * проверяет адаптер по области роли. Зачислять можно любой существующий
+ * аккаунт — его возможности определяются его ролью (спека 08).
  */
 export default defineEventHandler(async (event) => {
-  const actor = await requireRole(event, 'admin', 'teacher')
+  const actor = await requireUser(event)
   const slug = courseSlugSchema.parse(getRouterParam(event, 'slug'))
   const body = await parseJson(event, rosterBodySchema)
 
   if (body.action === 'add') {
     const target = await useUserStore().getUser(body.username)
     if (!target) httpError(404, `Пользователь «${body.username}» не найден`)
-    if (target.role !== 'student') httpError(400, 'Зачислить можно только ученика (student)')
   }
 
   const store = useContentStore()

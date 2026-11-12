@@ -1,4 +1,4 @@
-import type { Course, CourseSummary, GradingScale, UserPublic } from '#shared/types'
+import type { RoleDef, Course, CourseSummary, GradingScale, UserPublic } from '#shared/types'
 import { readdir, type Dirent } from 'node:fs/promises'
 import { slugify } from '../lib/slug'
 import { httpError } from '../lib/errors'
@@ -10,6 +10,7 @@ import {
   writeYaml,
 } from '../lib/atomic'
 import type { ContentStore } from '../ports/content-store'
+import type { RoleStore } from '../ports/role-store'
 
 /**
  * Файловый адаптер порта ContentStore (specs/02-data-model.md):
@@ -55,14 +56,19 @@ async function readRoster(baseDir: string, slug: string): Promise<string[]> {
   return roster?.students ?? []
 }
 
-function canSee(actor: UserPublic, course: CourseFile, roster: string[]): boolean {
-  if (actor.role === 'admin') return true
-  if (actor.role === 'teacher') return course.teacher === actor.username
-  return actor.role === 'student' && roster.includes(actor.username)
+function canSee(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[]): boolean {
+  if (role.name === 'admin') return true
+  if (!role.permissions.includes('courses.view')) return false
+  if (role.scope === 'owner') return course.teacher === actor.username
+  if (role.scope === 'member') return roster.includes(actor.username)
+  return false
 }
 
-function canManage(actor: UserPublic, course: CourseFile): boolean {
-  return actor.role === 'admin' || (actor.role === 'teacher' && course.teacher === actor.username)
+function canManage(actor: UserPublic, role: RoleDef, course: CourseFile): boolean {
+  if (role.name === 'admin') return true
+  if (!role.permissions.includes('courses.manage')) return false
+  if (role.scope === 'owner') return course.teacher === actor.username
+  return false
 }
 
 function toCourse(f: CourseFile, students: string[]): Course {
@@ -77,19 +83,25 @@ function toCourse(f: CourseFile, students: string[]): Course {
   }
 }
 
-export function createFilesContentStore(baseDir: string, journal: GitJournal): ContentStore {
+export function createFilesContentStore(baseDir: string, journal: GitJournal, roles: RoleStore): ContentStore {
+  async function roleOf(actor: UserPublic): Promise<RoleDef> {
+    const def = await roles.getRole(actor.role)
+    if (!def) httpError(403, 'Роль аккаунта не найдена')
+    return def
+  }
+
   async function loadCourseFor(actor: UserPublic, slug: string): Promise<Course | null> {
     const f = await readCourse(baseDir, slug)
     if (!f) return null
     const roster = await readRoster(baseDir, slug)
-    if (!canSee(actor, f, roster)) return null
+    if (!canSee(actor, await roleOf(actor), f, roster)) return null
     return toCourse(f, roster)
   }
 
   async function loadForManage(actor: UserPublic, slug: string): Promise<CourseFile> {
     const f = await readCourse(baseDir, slug)
     if (!f) httpError(404, 'Курс не найден')
-    if (!canManage(actor, f)) httpError(403, 'Недостаточно прав')
+    if (!canManage(actor, await roleOf(actor), f)) httpError(403, 'Недостаточно прав')
     return f
   }
 
@@ -133,7 +145,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal): C
     },
 
     async createCourse(actor, input) {
-      if (actor.role === 'student') httpError(403, 'Только учитель или администратор может создать курс')
+      const role = await roleOf(actor)
+      if (!role.permissions.includes('courses.create')) {
+        httpError(403, 'Недостаточно прав для создания курса')
+      }
 
       const slug = normalizeSlug(input.slug || slugify(input.title))
       if (await readCourse(baseDir, slug)) httpError(409, `Курс «${slug}» уже существует`)

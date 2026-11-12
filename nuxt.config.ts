@@ -25,6 +25,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // каталог аккаунтов users/ — вне content/, в git не попадает (specs/02-data-model.md)
     usersDir: './users',
+    // роли (переопределения и собственные) — specs/08-roles-permissions.md
+    rolesDir: './roles',
     // учебный контент — отдельный git-репозиторий, журнал истории (specs/03)
     contentDir: './content',
   },

@@ -1,7 +1,11 @@
 import { requireUser, courseSlugSchema } from '../../../lib/validation'
 import { httpError } from '../../../lib/errors'
+import { canOnCourse } from '../../../utils/can'
 
-/** Детали курса. roster обогащается псевдонимами из UserStore. */
+/**
+ * Детали курса. roster отдаётся при пермишене courses.roster.view,
+ * флаг canManage — при courses.manage (обе проверки — с учётом области роли).
+ */
 export default defineEventHandler(async (event) => {
   const actor = await requireUser(event)
   const slug = courseSlugSchema.parse(getRouterParam(event, 'slug'))
@@ -9,14 +13,18 @@ export default defineEventHandler(async (event) => {
   const course = await useContentStore().getCourse(actor, slug)
   if (!course) httpError(404, 'Курс не найден')
 
-  const userStore = useUserStore()
+  const canViewRoster = await canOnCourse(actor, 'courses.roster.view', course)
+  const canManage = await canOnCourse(actor, 'courses.manage', course)
+
   const roster: Array<{ username: string, pseudonym: string }> = []
-  for (const username of course.students) {
-    const u = await userStore.getUser(username)
-    // аккаунт мог быть удалён — оставляем только живых участников
-    if (u) roster.push({ username: u.username, pseudonym: u.pseudonym })
+  if (canViewRoster) {
+    const userStore = useUserStore()
+    for (const username of course.students) {
+      const u = await userStore.getUser(username)
+      // аккаунт мог быть удалён — оставляем только живых участников
+      if (u) roster.push({ username: u.username, pseudonym: u.pseudonym })
+    }
   }
 
-  const canManage = actor.role === 'admin' || (actor.role === 'teacher' && course.teacher === actor.username)
   return { course, roster, canManage }
 })
