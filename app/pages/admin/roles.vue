@@ -162,7 +162,7 @@ async function resetRole(role: RoleDef) {
           style="border: 1px solid var(--line); border-radius: 8px; padding: 12px;"
         >
           <legend style="padding: 0 6px; color: var(--muted); font-size: 13px;">{{ GROUP_TITLES[g] }}</legend>
-          <div v-for="p in PERMISSION_CATALOG.filter(p => p.group === g)" :key="p.code" style="margin: 4px 0;">
+          <div v-for="p in PERMISSION_CATALOG.filter(p => p.group === g)" :key="p.code" class="tip" style="margin: 4px 0;">
             <label style="display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 14px;">
               <input
                 type="checkbox"
@@ -173,6 +173,7 @@ async function resetRole(role: RoleDef) {
               <span>{{ p.title }}</span>
               <span class="muted">· {{ p.code }}</span>
             </label>
+            <span class="tip-body">{{ p.desc }}</span>
           </div>
         </fieldset>
 

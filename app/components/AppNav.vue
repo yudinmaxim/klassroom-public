@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { UserPublic } from '#shared/types'
 const route = useRoute()
+
 const { data } = useFetch('/api/auth/me', { key: 'me' })
-const user = computed(() => data.value?.user ?? null)
+const user = computed(() => (data.value?.user as UserPublic | null) ?? null)
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
@@ -9,23 +11,33 @@ async function logout() {
   await navigateTo('/login')
 }
 
-const isAdminArea = computed(() => route.path.startsWith('/admin'))
+const isActive = (path: string) =>
+  path === '/' ? route.path === '/' || route.path.startsWith('/courses/') : route.path.startsWith(path)
 </script>
 
 <template>
   <header class="topbar">
     <div class="topbar-inner">
       <NuxtLink to="/" class="brand">wikiroom</NuxtLink>
-      <NuxtLink v-if="user?.role === 'admin' && !isAdminArea" to="/admin/users" class="nav-link">
-        Пользователи
-      </NuxtLink>
-      <NuxtLink v-if="user?.role === 'admin' && !isAdminArea" to="/admin/roles" class="nav-link">
-        Роли
-      </NuxtLink>
-      <NuxtLink v-if="user?.role === 'admin' && isAdminArea" to="/" class="nav-link">
-        ← На главную
-      </NuxtLink>
-      <template v-if="user && isAdminArea && route.path !== '/admin/users' && route.path !== '/admin/roles'" />
+      <template v-if="user">
+        <NuxtLink to="/" class="nav-link" :class="{ active: isActive('/') }">Курсы</NuxtLink>
+        <NuxtLink
+          v-if="user.role === 'admin'"
+          to="/admin/users"
+          class="nav-link"
+          :class="{ active: isActive('/admin/users') }"
+        >
+          Пользователи
+        </NuxtLink>
+        <NuxtLink
+          v-if="user.role === 'admin'"
+          to="/admin/roles"
+          class="nav-link"
+          :class="{ active: isActive('/admin/roles') }"
+        >
+          Роли
+        </NuxtLink>
+      </template>
       <div class="spacer" />
       <template v-if="user">
         <span class="muted">{{ user.pseudonym }}</span>
