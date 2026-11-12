@@ -39,10 +39,16 @@ const isActive = (path: string) =>
           </NuxtLink>
         </template>
       </nav>
+      <div v-if="user" class="sidebar-foot">
+        <div class="muted" style="padding: 0 10px;">
+          {{ user.pseudonym }} · {{ user.role }}
+        </div>
+        <button class="small" style="margin: 8px 10px 0;" @click="logout">Выйти</button>
+      </div>
     </aside>
 
     <div class="main-col">
-      <header class="topbar">
+      <header v-if="crumbs.length" class="topbar">
         <nav v-if="crumbs.length" class="crumbs" aria-label="Хлебные крошки">
           <template v-for="(c, i) in crumbs" :key="i">
             <NuxtLink v-if="c.to" :to="c.to" class="crumb">{{ c.label }}</NuxtLink>
@@ -50,13 +56,6 @@ const isActive = (path: string) =>
             <span v-if="i < crumbs.length - 1" class="crumb-sep">/</span>
           </template>
         </nav>
-        <div class="spacer" />
-        <template v-if="user">
-          <span class="muted">{{ user.pseudonym }}</span>
-          <span class="muted">·</span>
-          <span class="muted">{{ user.role }}</span>
-          <button class="small" @click="logout">Выйти</button>
-        </template>
       </header>
       <main class="container">
         <slot />
