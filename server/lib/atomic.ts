@@ -26,17 +26,27 @@ export async function ensureDir(path: string): Promise<void> {
 
 /** Атомарная запись: temp-файл в том же каталоге + rename. */
 export async function atomicWriteString(path: string, data: string): Promise<void> {
+  await atomicWriteBytes(path, Buffer.from(data, 'utf8'))
+}
+
+/** То же для бинарных данных (вложения материалов). */
+export async function atomicWriteBytes(path: string, data: Buffer): Promise<void> {
   const tmp = `${path}.tmp-${randomBytes(6).toString('hex')}`
   await enqueue(async () => {
     await ensureDir(dirname(path))
-    await writeFile(tmp, data, 'utf8')
+    await writeFile(tmp, data)
     await rename(tmp, path)
   })
 }
 
 export async function readString(path: string): Promise<string | null> {
+  const buf = await readBytes(path)
+  return buf?.toString('utf8') ?? null
+}
+
+export async function readBytes(path: string): Promise<Buffer | null> {
   try {
-    return await readFile(path, 'utf8')
+    return await readFile(path)
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err

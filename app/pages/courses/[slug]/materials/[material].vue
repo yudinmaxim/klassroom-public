@@ -1,0 +1,221 @@
+<script setup lang="ts">
+import type { TocItem, DocPayload } from '#shared/types'
+import { errText } from '#shared/errors'
+
+const route = useRoute()
+const slug = computed(() => String(route.params.slug))
+const materialSlug = computed(() => String(route.params.material))
+
+const { data, refresh, error: loadError } = await useFetch(
+  `/api/courses/${slug.value}/materials/${materialSlug.value}`,
+)
+if (loadError.value) {
+  throw createError({ statusCode: 404, message: 'Материал не найден', fatal: true })
+}
+
+const { data: courseData } = await useFetch(`/api/courses/${slug.value}`)
+const canEdit = computed(() => courseData.value?.canMaterials ?? false)
+
+const material = computed(() => data.value?.material ?? null)
+const docPayload = computed<DocPayload | null>(() =>
+  material.value?.type === 'doc' ? (material.value.payload as DocPayload) : null,
+)
+
+// --- режим редактирования ---
+const editing = ref(false)
+const form = reactive({ title: '', content: '' })
+const preview = ref('')
+
+function startEdit() {
+  form.title = material.value?.title ?? ''
+  form.content = docPayload.value?.content ?? ''
+  preview.value = material.value?.html ?? ''
+  editing.value = true
+}
+
+function cancelEdit() {
+  editing.value = false
+}
+
+let previewTimer: ReturnType<typeof setTimeout> | null = null
+/** Предпросмотр с дебаунсом — рендер и санитизация на сервере. */
+watch(() => form.content, () => {
+  if (!editing.value) return
+  if (previewTimer) clearTimeout(previewTimer)
+  previewTimer = setTimeout(async () => {
+    try {
+      const res = await $fetch<{ html: string }>('/api/md/render', {
+        method: 'POST',
+        body: { course: slug.value, material: materialSlug.value, content: form.content },
+      })
+      preview.value = res.html
+    } catch {
+      // ошибка превью не блокирует редактирование
+    }
+  }, 400)
+})
+
+const saveError = ref('')
+const saving = ref(false)
+
+async function save() {
+  saving.value = true
+  saveError.value = ''
+  try {
+    await $fetch(`/api/courses/${slug.value}/materials/${materialSlug.value}`, {
+      method: 'PATCH',
+      body: { title: form.title, content: form.content },
+    })
+    editing.value = false
+    await refresh()
+  } catch (e) {
+    saveError.value = errText(e, 'Не удалось сохранить материал')
+  } finally {
+    saving.value = false
+  }
+}
+
+const deleting = ref(false)
+
+async function removeMaterial() {
+  if (!window.confirm('Удалить материал вместе с вложениями? Восстановить можно только из git-журнала.')) return
+  deleting.value = true
+  try {
+    await $fetch(`/api/courses/${slug.value}/materials/${materialSlug.value}`, { method: 'DELETE' })
+    await navigateTo(`/courses/${slug.value}`)
+  } catch (e) {
+    saveError.value = errText(e, 'Не удалось удалить материал')
+    deleting.value = false
+  }
+}
+
+// --- вложения ---
+const uploadError = ref('')
+const uploadBusy = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+async function uploadAttachment() {
+  const file = fileInput.value?.files?.[0]
+  if (!file) return
+  uploadError.value = ''
+  uploadBusy.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    await $fetch(`/api/courses/${slug.value}/materials/${materialSlug.value}/attachments`, {
+      method: 'POST',
+      body: fd,
+    })
+    if (fileInput.value) fileInput.value.value = ''
+    await refresh()
+  } catch (e) {
+    uploadError.value = errText(e, 'Не удалось загрузить файл')
+  } finally {
+    uploadBusy.value = false
+  }
+}
+
+async function removeAttachment(name: string) {
+  uploadError.value = ''
+  try {
+    await $fetch(
+      `/api/courses/${slug.value}/materials/${materialSlug.value}/attachments/${encodeURIComponent(name)}`,
+      { method: 'DELETE' },
+    )
+    await refresh()
+  } catch (e) {
+    uploadError.value = errText(e, 'Не удалось удалить файл')
+  }
+}
+
+const attachmentUrl = (name: string) =>
+  `/api/courses/${slug.value}/materials/${materialSlug.value}/attachments/${encodeURIComponent(name)}`
+
+const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+</script>
+
+<template>
+  <div v-if="material">
+    <p>
+      <NuxtLink to="/">← Все курсы</NuxtLink>
+      <span class="muted"> / </span>
+      <NuxtLink :to="`/courses/${slug}`">{{ courseData?.course?.title ?? 'Курс' }}</NuxtLink>
+    </p>
+
+    <div v-if="!editing" class="row" style="align-items: baseline; flex-wrap: wrap;">
+      <h1 style="margin: 0;">{{ material.title }}</h1>
+      <div class="spacer" />
+      <template v-if="canEdit">
+        <button class="small" @click="startEdit">Редактировать</button>
+        <button class="small" :disabled="deleting" @click="removeMaterial">Удалить</button>
+      </template>
+    </div>
+    <p v-if="!editing" class="muted">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
+
+    <p v-if="saveError && editing" class="error">{{ saveError }}</p>
+
+    <!-- Просмотр -->
+    <div v-if="!editing && docPayload" class="md-layout" style="margin-top: 14px;">
+      <ul v-if="material.toc.length" class="toc">
+        <li v-for="t in material.toc as TocItem[]" :key="t.id" :class="`level-${t.level}`">
+          <a :href="`#${t.id}`">{{ t.text }}</a>
+        </li>
+      </ul>
+      <div>
+        <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере (sanitize-html, server/lib/md.ts) -->
+        <div class="md-body" v-html="material.html" />
+
+        <div v-if="docPayload.attachments.length" style="margin-top: 26px; border-top: 1px solid var(--line); padding-top: 14px;">
+          <h2>Вложения</h2>
+          <ul>
+            <li v-for="a in docPayload.attachments" :key="a">
+              <a :href="attachmentUrl(a)" target="_blank" rel="noopener">{{ a }}</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Редактирование -->
+    <div v-if="editing" style="margin-top: 14px;">
+      <div class="md-split">
+        <div>
+          <label>
+            Название
+            <input v-model="form.title">
+          </label>
+          <label style="margin-top: 10px;">
+            Текст (markdown)
+            <textarea v-model="form.content" rows="22" />
+          </label>
+          <div v-if="canEdit" style="margin-top: 10px;">
+            <h3 style="margin-bottom: 6px;">Вложения</h3>
+            <p class="muted" style="margin: 0 0 6px;">
+              В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
+            </p>
+            <input ref="fileInput" type="file" style="margin-bottom: 8px;">
+            <button class="small" :disabled="uploadBusy" @click="uploadAttachment">Приложить файл</button>
+            <p v-if="uploadError" class="error">{{ uploadError }}</p>
+            <ul v-if="docPayload?.attachments.length" style="margin-top: 8px;">
+              <li v-for="a in docPayload.attachments" :key="a" class="row" style="gap: 8px;">
+                {{ a }}
+                <button class="small" @click="removeAttachment(a)">удалить</button>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <h3 style="margin-top: 0;">Предпросмотр</h3>
+          <!-- eslint-disable-next-line vue/no-v-html -- тот же серверный рендер, что и у просмотра -->
+          <div class="md-body" v-html="preview" />
+        </div>
+      </div>
+      <div class="row" style="margin-top: 14px;">
+        <button class="primary" :disabled="saving || !form.title" @click="save">
+          {{ saving ? 'Сохраняю…' : 'Сохранить' }}
+        </button>
+        <button @click="cancelEdit">Отмена</button>
+      </div>
+    </div>
+  </div>
+</template>

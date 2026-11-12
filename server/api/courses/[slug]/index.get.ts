@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const canViewRoster = await canOnCourse(actor, 'courses.roster.view', course)
   const canManage = await canOnCourse(actor, 'courses.manage', course)
+  const canMaterials = await canOnCourse(actor, 'materials.edit', course)
 
   const roster: Array<{ username: string, pseudonym: string }> = []
   if (canViewRoster) {
@@ -26,5 +27,5 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  return { course, roster, canManage }
+  return { course, roster, canManage, canMaterials }
 })

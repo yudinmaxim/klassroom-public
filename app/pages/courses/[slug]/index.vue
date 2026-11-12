@@ -5,14 +5,14 @@ import { errText } from '#shared/errors'
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
 
-const { data, refresh, error: loadError } = await useFetch(`/api/courses/${slug.value}`)
+const { data: coursePageData, refresh, error: loadError } = await useFetch(`/api/courses/${slug.value}`)
 if (loadError.value) {
   throw createError({ statusCode: 404, message: 'Курс не найден', fatal: true })
 }
 
-const course = computed(() => data.value?.course ?? null)
-const roster = computed(() => data.value?.roster ?? [])
-const canManage = computed(() => data.value?.canManage ?? false)
+const course = computed(() => coursePageData.value?.course ?? null)
+const roster = computed(() => coursePageData.value?.roster ?? [])
+const canManage = computed(() => coursePageData.value?.canManage ?? false)
 
 // --- настройки курса ---
 const form = reactive({
@@ -94,6 +94,62 @@ async function createStudentAndEnroll() {
     accError.value = errText(e, 'Не удалось создать ученика')
   } finally {
     accBusy.value = false
+  }
+}
+
+// --- материалы ---
+const materials = ref<Array<{ slug: string, title: string, type: string, updatedAt: string }>>([])
+const materialsError = ref('')
+const canMaterials = computed(() => coursePageData.value?.canMaterials ?? false)
+const matTypes = ref<Array<{ type: string, title: string }>>([{ type: 'doc', title: 'Конспект (markdown)' }])
+const newMat = reactive({ title: '', type: 'doc' })
+const newMatError = ref('')
+const newMatBusy = ref(false)
+
+async function loadMaterials() {
+  materialsError.value = ''
+  try {
+    const res = await $fetch<{ materials: typeof materials.value }>(
+      `/api/courses/${course.value?.slug}/materials`,
+    )
+    materials.value = res.materials
+  } catch (e) {
+    materialsError.value = errText(e, 'Не удалось загрузить материалы')
+  }
+}
+
+async function loadMaterialTypes() {
+  try {
+    const res = await $fetch<{ types: Array<{ type: string, title: string }> }>('/api/material-types')
+    matTypes.value = res.types
+  } catch {
+    // при ошибке оставляем единственный известный тип
+  }
+}
+
+watchEffect(() => {
+  if (course.value && canMaterials.value) {
+    void loadMaterials()
+    void loadMaterialTypes()
+  } else if (course.value) {
+    void loadMaterials()
+  }
+})
+
+async function createMaterial() {
+  newMatError.value = ''
+  newMatBusy.value = true
+  try {
+    const created = await $fetch<{ material: { slug: string } }>(
+      `/api/courses/${course.value?.slug}/materials`,
+      { method: 'POST', body: { title: newMat.title, type: newMat.type, content: '' } },
+    )
+    newMat.title = ''
+    await navigateTo(`/courses/${course.value?.slug}/materials/${created.material.slug}`)
+  } catch (e) {
+    newMatError.value = errText(e, 'Не удалось создать материал')
+  } finally {
+    newMatBusy.value = false
   }
 }
 
@@ -198,10 +254,37 @@ const scaleLabel: Record<GradingScale['type'], string> = {
     </div>
 
     <div class="card">
-      <h2>Материалы и задания</h2>
+      <h2>Материалы</h2>
+
+      <div v-if="canMaterials" class="row" style="gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+        <input v-model="newMat.title" placeholder="Название нового материала" style="flex: 2; min-width: 200px;">
+        <select v-model="newMat.type" style="flex: 1; min-width: 160px;">
+          <option v-for="t in matTypes" :key="t.type" :value="t.type">{{ t.title }}</option>
+        </select>
+        <button class="primary" :disabled="newMatBusy || !newMat.title" @click="createMaterial">
+          Создать
+        </button>
+      </div>
+      <p v-if="newMatError" class="error" style="margin-bottom: 10px;">{{ newMatError }}</p>
+
+      <p v-if="materialsError" class="error">{{ materialsError }}</p>
+      <table v-if="materials.length">
+        <tbody>
+          <tr v-for="m in materials" :key="m.slug">
+            <td>
+              <NuxtLink :to="`/courses/${course.slug}/materials/${m.slug}`">{{ m.title }}</NuxtLink>
+            </td>
+            <td class="muted">{{ m.type === 'doc' ? 'конспект' : m.type }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">Материалов пока нет.</p>
+    </div>
+
+    <div class="card">
+      <h2>Домашние задания</h2>
       <p class="muted">
-        Материалы (конспекты) и домашние задания появятся на следующих шагах —
-        здесь они будут видны списком.
+        Задания появятся на следующем шаге — здесь будет список с дедлайнами и статусами сдачи.
       </p>
     </div>
   </div>

@@ -59,3 +59,43 @@ export interface CourseSummary {
   teacher: string
   studentCount: number
 }
+
+// --- Материалы (шаг 3, specs/04-plugins.md) ---
+
+/** Пункт оглавления материала. */
+export interface TocItem {
+  /** anchor id (совпадает с id заголовка в html). */
+  id: string
+  text: string
+  /** 2 = «##», 3 = «###». */
+  level: number
+}
+
+/** Материал в списке курса. */
+export interface MaterialSummary {
+  slug: string
+  title: string
+  type: string
+  updatedAt: string
+}
+
+/**
+ * Материал целиком. `payload` — данные плагина типа (для doc:
+ * DocPayload). `html`/`toc` — отрендеренный и санитизированный контент.
+ */
+export interface Material {
+  slug: string
+  title: string
+  type: string
+  createdAt: string
+  updatedAt: string
+  payload: unknown
+  html: string
+  toc: TocItem[]
+}
+
+/** Payload плагина doc: markdown + список вложений. */
+export interface DocPayload {
+  content: string
+  attachments: string[]
+}

@@ -103,6 +103,46 @@ export const rosterBodySchema = z.object({
   action: z.enum(['add', 'remove']),
 })
 
+// --- Материалы (шаг 3, specs/04-plugins.md) ---
+
+/** Лимит на текст материала: ~100 страниц markdown. */
+const MAX_MD_CHARS = 200_000
+
+export const materialSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9-]{1,63}$/, 'Slug материала: строчные латинские буквы, цифры, дефис; 2–64 символа')
+
+export const materialTypeSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z][a-z0-9-]{0,31}$/, 'Некорректный тип материала')
+
+export const createMaterialBodySchema = z.object({
+  title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120),
+  type: materialTypeSchema.default('doc'),
+  content: z.string().max(MAX_MD_CHARS, 'Текст материала слишком длинный').default(''),
+})
+
+export const updateMaterialBodySchema = z.object({
+  title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120).optional(),
+  content: z.string().max(MAX_MD_CHARS, 'Текст материала слишком длинный').optional(),
+})
+
+export const renderMarkdownBodySchema = z.object({
+  course: courseSlugSchema,
+  material: materialSlugSchema.optional(),
+  content: z.string().max(MAX_MD_CHARS, 'Текст слишком длинный'),
+})
+
+/** Имя файла вложения (URL-параметр; строгую проверку делает адаптер). */
+export const attachmentNameSchema = z
+  .string()
+  .trim()
+  .regex(/^[^\\/%?#]{1,80}$/, 'Некорректное имя файла')
+
 /** Разобрать и провалидировать JSON-тело запроса. */
 export async function parseJson<S extends z.ZodTypeAny>(
   event: H3Event,

@@ -1,4 +1,4 @@
-import type { Course, CourseSummary, GradingScale, UserPublic } from '#shared/types'
+import type { Course, CourseSummary, GradingScale, Material, MaterialSummary, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -33,4 +33,54 @@ export interface ContentStore {
 
   /** Исключить ученика (владелец или admin). */
   removeStudent(actor: UserPublic, slug: string, username: string): Promise<Course>
+
+  // --- Материалы (шаг 3, specs/04-plugins.md) ---
+
+  /** Материалы курса (пермишен materials.view, область роли). */
+  listMaterials(actor: UserPublic, courseSlug: string): Promise<MaterialSummary[]>
+
+  /** Материал целиком: payload плагина + санитизированный html + оглавление. */
+  getMaterial(actor: UserPublic, courseSlug: string, materialSlug: string): Promise<Material | null>
+
+  /** Создать материал (materials.create, владелец курса или admin). */
+  createMaterial(
+    actor: UserPublic,
+    courseSlug: string,
+    input: { title: string, type: string, content: string },
+  ): Promise<MaterialSummary>
+
+  /** Обновить название и/или содержимое материала (materials.edit). */
+  updateMaterial(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    patch: { title?: string, content?: string },
+  ): Promise<Material>
+
+  /** Удалить материал вместе с содержимым (materials.edit). */
+  deleteMaterial(actor: UserPublic, courseSlug: string, materialSlug: string): Promise<void>
+
+  /** Приложить файл к материалу (materials.edit). Возвращает имя файла. */
+  addAttachment(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    file: { name: string, data: Buffer },
+  ): Promise<string>
+
+  /** Удалить вложение (materials.edit). */
+  removeAttachment(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    name: string,
+  ): Promise<void>
+
+  /** Выдать вложение (materials.view): данные + mime. */
+  getAttachment(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    name: string,
+  ): Promise<{ data: Buffer, mime: string } | null>
 }
