@@ -186,12 +186,15 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     <p v-if="saveError && editing" class="error" style="margin-bottom: 10px;">{{ saveError }}</p>
 
     <!-- Просмотр -->
-    <div v-if="!editing && docPayload" class="md-layout" style="margin-top: 14px;">
-      <ul v-if="material.toc.length" class="toc">
-        <li v-for="t in material.toc as TocItem[]" :key="t.id" :class="`level-${t.level}`">
-          <a :href="`#${t.id}`">{{ t.text }}</a>
-        </li>
-      </ul>
+    <div v-if="!editing && docPayload" class="md-layout">
+      <details v-if="material.toc.length" class="toc">
+        <summary>Содержание</summary>
+        <ul>
+          <li v-for="t in material.toc as TocItem[]" :key="t.id" :class="`level-${t.level}`">
+            <a :href="`#${t.id}`">{{ t.text }}</a>
+          </li>
+        </ul>
+      </details>
       <div>
         <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере (sanitize-html, server/lib/md.ts) -->
         <div class="md-body" v-html="material.html" />
