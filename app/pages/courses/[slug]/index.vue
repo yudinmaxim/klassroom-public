@@ -145,8 +145,8 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 </script>
 
 <template>
-  <div v-if="course">
-    <h1>{{ course.title }}</h1>
+  <PageShell v-if="course" :show-foot="activeTab === 'info' && canManage">
+    <template #title>{{ course.title }}</template>
 
     <nav class="tabs">
       <button
@@ -163,7 +163,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
     <template v-if="activeTab === 'info'">
       <div v-if="canManage" class="card">
         <h2>Настройки курса</h2>
-        <form class="form" @submit.prevent="saveSettings">
+        <form id="course-settings" class="form" @submit.prevent="saveSettings">
           <label>
             Название
             <input v-model="form.title" required>
@@ -181,7 +181,6 @@ const scaleLabel: Record<GradingScale['type'], string> = {
             </select>
           </label>
           <p v-if="saveError" class="error">{{ saveError }}</p>
-          <button class="primary" :disabled="saving">Сохранить</button>
         </form>
       </div>
       <div v-else class="card">
@@ -318,5 +317,11 @@ const scaleLabel: Record<GradingScale['type'], string> = {
       @close="newStudentOpen = false"
       @created="(pw) => { revealedSecret = pw ?? ''; newStudentOpen = false; refresh() }"
     />
-  </div>
+
+    <template #foot>
+      <button class="primary" form="course-settings" :disabled="saving">
+        {{ saving ? 'Сохранение…' : 'Сохранить' }}
+      </button>
+    </template>
+  </PageShell>
 </template>

@@ -238,6 +238,41 @@ th { color: var(--muted); font-weight: 600; }
 .side-panel .form { margin-top: 14px; }
 .side-panel .form button { margin-top: 10px; }
 
+/* Шаблон страницы (PageShell) */
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.page.is-full { max-width: none; }
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.page-title { margin: 0; }
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.page-body { margin-top: 14px; }
+.page-foot {
+  position: sticky;
+  bottom: 0;
+  margin-top: 20px;
+  padding: 12px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Каркас: левый сайдбар + правая колонка (шапка с крошками + контент) */
 .shell {
   display: grid;

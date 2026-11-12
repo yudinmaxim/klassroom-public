@@ -76,8 +76,9 @@ async function save() {
 </script>
 
 <template>
-  <div>
-    <h1>Новая тема</h1>
+  <PageShell>
+    <template #title>Новая тема</template>
+
     <p class="muted">Вложения и тип «конспект» — после сохранения тема откроется как обычная.</p>
 
     <div class="editor-tabs" role="tablist" style="margin-top: 14px;">
@@ -122,12 +123,12 @@ async function save() {
       <div class="md-body" v-html="preview" />
     </div>
 
-    <p v-if="saveError" class="error" style="margin-top: 12px;">{{ saveError }}</p>
-    <div class="row" style="margin-top: 14px;">
+    <template #foot>
+      <p v-if="saveError" class="error" style="margin: 0;">{{ saveError }}</p>
       <button class="primary" :disabled="saving || form.title.trim().length < 3" @click="save">
         {{ saving ? 'Сохраняю…' : 'Создать тему' }}
       </button>
       <button @click="navigateTo(`/courses/${slug}`)">Отмена</button>
-    </div>
-  </div>
+    </template>
+  </PageShell>
 </template>

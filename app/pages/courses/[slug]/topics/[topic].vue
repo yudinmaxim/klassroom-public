@@ -172,18 +172,18 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 </script>
 
 <template>
-  <div v-if="material">
-    <div v-if="!editing" class="row" style="align-items: baseline; flex-wrap: wrap;">
-      <h1 style="margin: 0;">{{ material.title }}</h1>
-      <div class="spacer" />
-      <template v-if="canEdit">
+  <PageShell v-if="material" :show-foot="editing">
+    <template #title>{{ material.title }}</template>
+    <template #actions>
+      <template v-if="!editing && canEdit">
         <button class="small" @click="startEdit">Редактировать</button>
         <button class="small" :disabled="deleting" @click="removeMaterial">Удалить</button>
       </template>
-    </div>
-    <p v-if="!editing" class="muted">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
+    </template>
 
-    <p v-if="saveError && editing" class="error">{{ saveError }}</p>
+    <p v-if="!editing" class="muted">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
+    <p v-if="saveError && !editing" class="error">{{ saveError }}</p>
+    <p v-if="saveError && editing" class="error" style="margin-bottom: 10px;">{{ saveError }}</p>
 
     <!-- Просмотр -->
     <div v-if="!editing && docPayload" class="md-layout" style="margin-top: 14px;">
@@ -265,13 +265,13 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         <!-- eslint-disable-next-line vue/no-v-html -- тот же серверный рендер, что и у просмотра -->
         <div class="md-body" v-html="preview" />
       </div>
-
-      <div class="row" style="margin-top: 14px;">
-        <button class="primary" :disabled="saving || !form.title" @click="save">
-          {{ saving ? 'Сохраняю…' : 'Сохранить' }}
-        </button>
-        <button @click="cancelEdit">Отмена</button>
-      </div>
     </div>
-  </div>
+
+    <template #foot>
+      <button class="primary" :disabled="saving || !form.title" @click="save">
+        {{ saving ? 'Сохраняю…' : 'Сохранить' }}
+      </button>
+      <button @click="cancelEdit">Отмена</button>
+    </template>
+  </PageShell>
 </template>
