@@ -134,7 +134,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         const f = await readCourse(baseDir, slug)
         if (!f) continue
         const roster = await readRoster(baseDir, slug)
-        if (!canSee(actor, f, roster)) continue
+        if (!canSee(actor, await roleOf(actor), f, roster)) continue
         result.push({ slug: f.slug, title: f.title, teacher: f.teacher, studentCount: roster.length })
       }
       return result.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
