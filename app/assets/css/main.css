@@ -310,7 +310,7 @@ th { color: var(--muted); font-weight: 600; }
   justify-content: space-between;
   gap: 16px;
 }
-.page-title { margin: 0; }
+.page-title { margin: 0; flex: 1; min-width: 0; }
 .page-actions {
   display: flex;
   align-items: center;
