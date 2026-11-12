@@ -72,6 +72,31 @@ async function changeRoster(username: string, action: 'add' | 'remove') {
   }
 }
 
+// --- создание нового ученика с авто-зачислением ---
+const newAcc = reactive({ username: '', pseudonym: '' })
+const accError = ref('')
+const accBusy = ref(false)
+const revealedSecret = ref('')
+
+async function createStudentAndEnroll() {
+  accError.value = ''
+  accBusy.value = true
+  try {
+    const created = await $fetch<{ generatedPassword?: string }>('/api/users', {
+      method: 'POST',
+      body: { username: newAcc.username, pseudonym: newAcc.pseudonym, role: 'student' },
+    })
+    await changeRoster(newAcc.username.trim().toLowerCase(), 'add')
+    if (created.generatedPassword) revealedSecret.value = created.generatedPassword
+    newAcc.username = ''
+    newAcc.pseudonym = ''
+  } catch (e) {
+    accError.value = errText(e, 'Не удалось создать ученика')
+  } finally {
+    accBusy.value = false
+  }
+}
+
 const scaleLabel: Record<GradingScale['type'], string> = {
   grade5: 'Оценки 2–5',
   points: 'Баллы (до 100)',
@@ -113,7 +138,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
     <div class="card">
       <h2>Ученики</h2>
       <div v-if="canManage" class="row" style="margin-bottom: 12px;">
-        <input v-model="newStudent" placeholder="Логин ученика, например ezhik-7" style="flex: 1;">
+        <input v-model="newStudent" placeholder="Логин существующего ученика" style="flex: 1;">
         <button class="primary" :disabled="rosterBusy || !newStudent" @click="changeRoster(newStudent.trim(), 'add')">
           Зачислить
         </button>
@@ -140,6 +165,36 @@ const scaleLabel: Record<GradingScale['type'], string> = {
         </tbody>
       </table>
       <p v-else class="muted">Учеников пока нет.</p>
+
+      <div v-if="canManage" style="margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px;">
+        <h2>Новый ученик</h2>
+        <p class="muted">Аккаунт будет создан и сразу зачислен на курс; пароль покажем один раз — передайте его лично.</p>
+        <div class="row" style="gap: 12px; flex-wrap: wrap;">
+          <label style="flex: 1; min-width: 140px;">
+            Логин
+            <input v-model="newAcc.username" autocomplete="off" placeholder="например ezhik-7">
+          </label>
+          <label style="flex: 2; min-width: 160px;">
+            Псевдоним
+            <input v-model="newAcc.pseudonym" placeholder="например Ёжик-7">
+          </label>
+        </div>
+        <p v-if="accError" class="error" style="margin-top: 10px;">{{ accError }}</p>
+        <button
+          class="primary"
+          style="margin-top: 10px;"
+          :disabled="accBusy || !newAcc.username || !newAcc.pseudonym"
+          @click="createStudentAndEnroll"
+        >
+          Создать и зачислить
+        </button>
+      </div>
+
+      <div v-if="revealedSecret" style="margin-top: 14px;">
+        <p class="muted" style="margin-bottom: 6px;">Пароль нового ученика (виден один раз):</p>
+        <div class="secret">{{ revealedSecret }}</div>
+        <button class="small" style="margin-top: 8px;" @click="revealedSecret = ''">Скрыть</button>
+      </div>
     </div>
 
     <div class="card">

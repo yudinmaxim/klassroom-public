@@ -17,6 +17,9 @@ content/
 # users/ и sessions/ — секреты и состояние рантайма, в git не попадают
 users/
 sessions/
+# изолированные данные для локальных тестов
+test-users/
+test-content/
 
 # --- Прочее ---
 .DS_Store
