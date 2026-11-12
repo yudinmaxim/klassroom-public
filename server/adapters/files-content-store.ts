@@ -1,5 +1,6 @@
 import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, UserPublic } from '#shared/types'
-import { readdir, rename, rm, type Dirent } from 'node:fs/promises'
+import { readdir, rm, type Dirent } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { slugify } from '../lib/slug'
 import { httpError } from '../lib/errors'
 import { getMaterialPlugin } from '../material-plugins'
@@ -8,8 +9,10 @@ import type { GitJournal } from '../lib/git-journal'
 import {
   atomicDelete,
   atomicWriteBytes,
+  atomicWriteString,
   ensureDir,
   readBytes,
+  readString,
   readYaml,
   resolveDataPath,
   writeYaml,
@@ -43,6 +46,8 @@ interface RosterFile {
 }
 
 interface MaterialFile {
+  /** Иммутабельный id = имя директории; slug — публичный, меняется при переименовании. */
+  id: string
   slug: string
   title: string
   type: string
@@ -147,6 +152,87 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     await writeYaml(resolveDataPath(courseDir(baseDir, f.slug), 'roster.yml'), { students: roster })
   }
 
+  // --- индексация: id/slug, _index.yml, write-очередь (specs/10) ---
+
+  /** Иммутабельный id сущности = имя её директории. */
+  function newEntityId(): string {
+    return randomBytes(8).toString('base64url')
+  }
+
+  interface CourseIndexFile {
+    materials?: Record<string, string>
+    assignments?: Record<string, string>
+  }
+
+  function indexPath(courseSlug: string): string {
+    return resolveDataPath(courseDir(baseDir, courseSlug), '_index.yml')
+  }
+
+  function readCourseIndex(courseSlug: string): Promise<CourseIndexFile | null> {
+    return readYaml<CourseIndexFile>(indexPath(courseSlug))
+  }
+
+  function writeCourseIndex(courseSlug: string, idx: CourseIndexFile): Promise<void> {
+    return writeYaml(indexPath(courseSlug), idx)
+  }
+
+  /** Пересобрать _index.yml сканом сущностей курса (slug → id=имя директории). */
+  async function refreshIndex(courseSlug: string): Promise<CourseIndexFile> {
+    const idx: CourseIndexFile = { materials: {}, assignments: {} }
+    for (const [kind, root] of [['materials', materialsRoot(courseSlug)], ['assignments', assignmentsRoot(courseSlug)]] as const) {
+      let dirs: Dirent[]
+      try {
+        dirs = await readdir(root, { withFileTypes: true })
+      } catch {
+        continue
+      }
+      for (const d of dirs.filter(d => d.isDirectory())) {
+        const f = kind === 'materials'
+          ? await readMaterial(courseSlug, d.name)
+          : await readAssignmentFile(courseSlug, d.name)
+        if (f?.slug) idx[kind]![f.slug] = d.name
+      }
+    }
+    await writeCourseIndex(courseSlug, idx)
+    return idx
+  }
+
+  /** Резолв slug → id (имя директории). Промах индекса → пересборка и повтор. */
+  async function resolveEntityDir(
+    courseSlug: string,
+    kind: 'materials' | 'assignments',
+    ref: string,
+  ): Promise<string | null> {
+    const norm = normalizeSlug(ref)
+    const idx = (await readCourseIndex(courseSlug)) ?? await refreshIndex(courseSlug)
+    const hit = idx[kind]?.[norm]
+    if (hit) return hit
+    const fresh = await refreshIndex(courseSlug)
+    return fresh[kind]?.[norm] ?? null
+  }
+
+  /** Свободный slug для сущности (коллизии → -2, -3…). selfId — свой id при переименовании. */
+  async function uniqueSlug(courseSlug: string, kind: 'materials' | 'assignments', desired: string, selfId?: string): Promise<string> {
+    let base = normalizeSlug(desired)
+    if (!base || base.startsWith('course-')) base = `${kind}-${newEntityId().slice(0, 6)}`
+    const idx = await refreshIndex(courseSlug)
+    let candidate = base
+    for (let i = 2; idx[kind]?.[candidate] && idx[kind]![candidate] !== selfId; i++) {
+      candidate = `${base}-${i}`
+    }
+    return candidate
+  }
+
+  /** Per-course write-очередь: все мутации контента курса сериализуются (specs/10). */
+  const locks = new Map<string, Promise<unknown>>()
+  function withCourseLock<T>(courseSlug: string, fn: () => Promise<T>): Promise<T> {
+    const key = `course:${normalizeSlug(courseSlug)}`
+    const prev = locks.get(key) ?? Promise.resolve()
+    const run = prev.then(fn, fn)
+    locks.set(key, run.then(() => undefined, () => undefined))
+    return run
+  }
+
   // --- материалы (шаг 3) ---
 
   const MIME_BY_EXT: Record<string, string> = {
@@ -181,12 +267,14 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     return resolveDataPath(materialsRoot(courseSlug), materialSlug)
   }
 
-  function readMaterial(courseSlug: string, materialSlug: string): Promise<MaterialFile | null> {
-    return readYaml<MaterialFile>(resolveDataPath(materialDir(courseSlug, materialSlug), 'material.yml'))
+  async function readMaterial(courseSlug: string, dirId: string): Promise<MaterialFile | null> {
+    const f = await readYaml<MaterialFile>(resolveDataPath(materialDir(courseSlug, dirId), 'material.yml'))
+    if (f && !f.id) f.id = dirId // legacy-файлы без id: id = имя директории
+    return f
   }
 
   function writeMaterial(courseSlug: string, f: MaterialFile): Promise<void> {
-    return writeYaml(resolveDataPath(materialDir(courseSlug, f.slug), 'material.yml'), f)
+    return writeYaml(resolveDataPath(materialDir(courseSlug, f.id), 'material.yml'), f)
   }
 
   /** Прочитать материал с проверкой права чтения (или 404/403). */
@@ -196,7 +284,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     const roster = await readRoster(baseDir, courseSlug)
     const role = await roleOf(actor)
     if (!canReadMaterial(actor, role, course, roster)) httpError(404, 'Курс не найден')
-    const f = await readMaterial(courseSlug, materialSlug)
+    const dirId = await resolveEntityDir(courseSlug, 'materials', materialSlug)
+    if (!dirId) httpError(404, 'Материал не найден')
+    const f = await readMaterial(courseSlug, dirId)
     if (!f) httpError(404, 'Материал не найден')
     return f
   }
@@ -212,7 +302,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     if (!course) httpError(404, 'Курс не найден')
     const role = await roleOf(actor)
     if (!canWriteMaterial(actor, role, course, code)) httpError(403, 'Недостаточно прав')
-    const f = await readMaterial(courseSlug, materialSlug)
+    const dirId = await resolveEntityDir(courseSlug, 'materials', materialSlug)
+    if (!dirId) httpError(404, 'Материал не найден')
+    const f = await readMaterial(courseSlug, dirId)
     if (!f) httpError(404, 'Материал не найден')
     return f
   }
@@ -259,7 +351,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       if (!f) continue
       const p = getMaterialPlugin(f.type)
       if (!p) continue
-      const dir = resolveDataPath(materialDir(courseSlug, f.slug), 'content')
+      const dir = resolveDataPath(materialDir(courseSlug, f.id), 'content')
       const payload = await p.io.read(dir) as { content?: unknown } | null
       if (!payload || typeof payload.content !== 'string') continue
       const next = payload.content.replace(pattern, `[[${newSlug}]]`)
@@ -273,6 +365,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   // --- задания (шаг 4) ---
 
   interface AssignmentFile {
+    /** Иммутабельный id = имя директории; slug — публичный. */
+    id: string
     slug: string
     title: string
     type: 'general' | 'private'
@@ -300,11 +394,13 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   function assignmentYmlPath(courseSlug: string, aid: string): string {
     return resolveDataPath(assignmentDir(courseSlug, aid), 'assignment.yml')
   }
-  function readAssignmentFile(courseSlug: string, aid: string): Promise<AssignmentFile | null> {
-    return readYaml<AssignmentFile>(assignmentYmlPath(courseSlug, aid))
+  async function readAssignmentFile(courseSlug: string, aid: string): Promise<AssignmentFile | null> {
+    const f = await readYaml<AssignmentFile>(assignmentYmlPath(courseSlug, aid))
+    if (f && !f.id) f.id = aid // legacy-файлы без id: id = имя директории
+    return f
   }
   function writeAssignmentFile(courseSlug: string, f: AssignmentFile): Promise<void> {
-    return writeYaml(assignmentYmlPath(courseSlug, f.slug), f)
+    return writeYaml(assignmentYmlPath(courseSlug, f.id), f)
   }
   function assignmentDescriptionPath(courseSlug: string, aid: string): string {
     return resolveDataPath(assignmentDir(courseSlug, aid), 'description.md')
@@ -373,7 +469,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     if (!course) httpError(404, 'Курс не найден')
     const role = await roleOf(actor)
     if (!canManageAssignment(actor, role, course)) httpError(403, 'Недостаточно прав')
-    const f = await readAssignmentFile(norm, normalizeSlug(aid))
+    const dirId = await resolveEntityDir(norm, 'assignments', aid)
+    if (!dirId) httpError(404, 'Задание не найдено')
+    const f = await readAssignmentFile(norm, dirId)
     if (!f) httpError(404, 'Задание не найдено')
     return f
   }
@@ -389,7 +487,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     if (!course) httpError(404, 'Курс не найден')
     const roster = await readRoster(baseDir, norm)
     const role = await roleOf(actor)
-    const f = await readAssignmentFile(norm, normalizeSlug(aid))
+    const dirId = await resolveEntityDir(norm, 'assignments', aid)
+    if (!dirId) httpError(404, 'Задание не найдено')
+    const f = await readAssignmentFile(norm, dirId)
     if (!f) httpError(404, 'Задание не найдено')
     const ok = need === 'submit'
       ? canSubmit(actor, role, course, roster, f)
@@ -402,7 +502,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     return { slug: f.slug, title: f.title, type: f.type, status: f.status, due: f.due, submissionCount, myStatus, updatedAt: f.updatedAt }
   }
 
-  const store: ContentStore = {
+  const impl: ContentStore = {
     async listCourses(actor) {
       let slugs: Dirent[]
       try {
@@ -537,7 +637,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const plugin = getMaterialPlugin(f.type)
       if (!plugin) httpError(500, `Неизвестный тип материала «${f.type}»`)
 
-      const dir = resolveDataPath(materialDir(norm, f.slug), 'content')
+      const dir = resolveDataPath(materialDir(norm, f.id), 'content')
       const payload = await plugin.io.read(dir)
       const rendered = plugin.render(payload, { courseSlug: norm, materialSlug: f.slug })
       return toMaterial(f, payload, rendered.html, rendered.toc)
@@ -554,20 +654,22 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const plugin = getMaterialPlugin(input.type)
       if (!plugin) httpError(400, `Неизвестный тип материала «${input.type}»`)
 
-      const mslug = slugify(input.title)
-      if (await readMaterial(norm, mslug)) httpError(409, `Материал «${mslug}» уже существует`)
+      const dirId = newEntityId()
+      const mslug = await uniqueSlug(norm, 'materials', slugify(input.title))
 
       const now = new Date().toISOString()
       const f: MaterialFile = {
+        id: dirId,
         slug: mslug,
         title: input.title.trim(),
         type: plugin.type,
         createdAt: now,
         updatedAt: now,
       }
-      await ensureDir(resolveDataPath(materialDir(norm, mslug), 'content'))
+      await ensureDir(resolveDataPath(materialDir(norm, dirId), 'content'))
       await writeMaterial(norm, f)
-      await plugin.io.write(resolveDataPath(materialDir(norm, mslug), 'content'), { content: input.content })
+      await plugin.io.write(resolveDataPath(materialDir(norm, dirId), 'content'), { content: input.content })
+      await refreshIndex(norm)
 
       journal.record(actor.pseudonym, `создал материал ${mslug} в ${norm}`)
       return { slug: f.slug, title: f.title, type: f.type, updatedAt: f.updatedAt }
@@ -584,16 +686,12 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         const oldSlug = f.slug
         f.title = patch.title.trim()
 
-        // slug следует за названием: перегенерируем и переносим каталог,
-        // иначе URL навсегда останется от первого названия («жопа» → «nyutona»).
+        // slug следует за названием и живёт только в yml + _index.yml —
+        // директория (id) не трогается, rename() не нужен (specs/10).
         const wanted = slugify(f.title)
         if (wanted !== oldSlug && !wanted.startsWith('course-')) {
-          let candidate = wanted
-          for (let i = 2; await readMaterial(norm, candidate); i++) {
-            candidate = `${wanted}-${i}`
-          }
+          const candidate = await uniqueSlug(norm, 'materials', wanted, f.id)
           if (candidate !== oldSlug) {
-            await rename(materialDir(norm, oldSlug), materialDir(norm, candidate))
             f.slug = candidate
             await rewriteWikiLinks(norm, oldSlug, candidate)
             changes.push(`переименовал (${oldSlug} → ${candidate})`)
@@ -605,16 +703,17 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         }
       }
       if (patch.content !== undefined) {
-        await plugin.io.write(resolveDataPath(materialDir(norm, f.slug), 'content'), { content: patch.content })
+        await plugin.io.write(resolveDataPath(materialDir(norm, f.id), 'content'), { content: patch.content })
         changes.push('обновил содержимое')
       }
       if (changes.length) {
         f.updatedAt = new Date().toISOString()
         await writeMaterial(norm, f)
+        await refreshIndex(norm)
         journal.record(actor.pseudonym, `${changes.join(', ')} материал ${f.slug} в ${norm}`)
       }
 
-      const dir = resolveDataPath(materialDir(norm, f.slug), 'content')
+      const dir = resolveDataPath(materialDir(norm, f.id), 'content')
       const payload = await plugin.io.read(dir)
       const rendered = plugin.render(payload, { courseSlug: norm, materialSlug: f.slug })
       return toMaterial(f, payload, rendered.html, rendered.toc)
@@ -623,7 +722,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     async deleteMaterial(actor, courseSlug, materialSlug) {
       const norm = normalizeSlug(courseSlug)
       const f = await loadMaterialForManage(actor, norm, materialSlug, 'materials.edit')
-      await rm(materialDir(norm, f.slug), { recursive: true, force: true })
+      await rm(materialDir(norm, f.id), { recursive: true, force: true })
+      await refreshIndex(norm)
       journal.record(actor.pseudonym, `удалил материал ${f.slug} из ${norm}`)
     },
 
@@ -632,9 +732,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const f = await loadMaterialForManage(actor, norm, normalizeSlug(materialSlug), 'materials.edit')
       const name = validateAttachmentName(file.name)
 
-      const dir = resolveDataPath(materialDir(norm, f.slug), 'content', ATTACHMENTS_DIR)
+      const dir = resolveDataPath(materialDir(norm, f.id), 'content', ATTACHMENTS_DIR)
       const target = resolveDataPath(dir, name)
-      const existing = await listAttachments(resolveDataPath(materialDir(norm, f.slug), 'content'))
+      const existing = await listAttachments(resolveDataPath(materialDir(norm, f.id), 'content'))
       if (existing.includes(name)) httpError(409, `Файл «${name}» уже приложен — сначала удалите его`)
 
       await atomicWriteBytes(target, file.data)
@@ -647,7 +747,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const norm = normalizeSlug(courseSlug)
       const f = await loadMaterialForManage(actor, norm, normalizeSlug(materialSlug), 'materials.edit')
       const clean = validateAttachmentName(name)
-      await atomicDelete(resolveDataPath(materialDir(norm, f.slug), 'content', ATTACHMENTS_DIR, clean))
+      await atomicDelete(resolveDataPath(materialDir(norm, f.id), 'content', ATTACHMENTS_DIR, clean))
       journal.record(actor.pseudonym, `удалил файл ${clean} из материала ${f.slug} в ${norm}`)
     },
 
@@ -655,7 +755,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const norm = normalizeSlug(courseSlug)
       const f = await loadMaterialForRead(actor, norm, normalizeSlug(materialSlug))
       const clean = validateAttachmentName(name)
-      const path = resolveDataPath(materialDir(norm, f.slug), 'content', ATTACHMENTS_DIR, clean)
+      const path = resolveDataPath(materialDir(norm, f.id), 'content', ATTACHMENTS_DIR, clean)
       const data = await readBytes(path)
       return data ? { data, mime: mimeFor(clean) } : null
     },
@@ -682,10 +782,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         const f = await readAssignmentFile(norm, d.name)
         if (!f) continue
         if (!manager && !canSeeAssignment(actor, role, course, roster, f)) continue
-        const users = await listSubmissionUsers(norm, f.slug)
+        const users = await listSubmissionUsers(norm, f.id)
         let myStatus: AssignmentSummary['myStatus']
         if (!manager && role.scope === 'member') {
-          const mine = await readSubmissionFile(norm, f.slug, actor.username)
+          const mine = await readSubmissionFile(norm, f.id, actor.username)
           myStatus = mine ? mine.status : 'none'
         }
         result.push(toAssignmentSummary(f, users.length, myStatus))
@@ -696,7 +796,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     async getAssignment(actor, courseSlug, assignmentSlug) {
       const norm = normalizeSlug(courseSlug)
       const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'view')
-      const description = (await readString(assignmentDescriptionPath(norm, f.slug))) ?? ''
+      const description = (await readString(assignmentDescriptionPath(norm, f.id))) ?? ''
       const { renderDocMarkdown } = await import('../lib/md')
       const linkTitles: Record<string, string> = {}
       try {
@@ -734,9 +834,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         if (unknown.length) httpError(400, `Не в составе курса: ${unknown.join(', ')}`)
       }
 
+      const dirId = newEntityId()
       const now = new Date().toISOString()
       const f: AssignmentFile = {
-        slug: slugify(input.title),
+        id: dirId,
+        slug: await uniqueSlug(norm, 'assignments', slugify(input.title)),
         title: input.title.trim(),
         type: input.type,
         audience: input.type === 'private' ? [...new Set(input.audience ?? [])] : [],
@@ -746,11 +848,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         createdAt: now,
         updatedAt: now,
       }
-      if (await readAssignmentFile(norm, f.slug)) httpError(409, `Задание «${f.slug}» уже существует`)
 
-      await ensureDir(assignmentDir(norm, f.slug))
+      await ensureDir(assignmentDir(norm, dirId))
       await writeAssignmentFile(norm, f)
-      await atomicWriteString(assignmentDescriptionPath(norm, f.slug), input.description ?? '')
+      await atomicWriteString(assignmentDescriptionPath(norm, dirId), input.description ?? '')
+      await refreshIndex(norm)
       journal.record(actor.pseudonym, `создал задание ${f.slug} в ${norm}`)
       return toAssignmentSummary(f, 0)
     },
@@ -761,8 +863,21 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
       const changes: string[] = []
       if (patch.title !== undefined && patch.title.trim() !== f.title) {
+        const oldSlug = f.slug
         f.title = patch.title.trim()
-        changes.push('переименовал')
+        // slug следует за названием — только yml + _index.yml, директория (id) не трогается
+        const wanted = slugify(f.title)
+        if (wanted !== oldSlug && !wanted.startsWith('course-')) {
+          const candidate = await uniqueSlug(norm, 'assignments', wanted, f.id)
+          if (candidate !== oldSlug) {
+            f.slug = candidate
+            changes.push(`переименовал (${oldSlug} → ${candidate})`)
+          } else {
+            changes.push('переименовал')
+          }
+        } else {
+          changes.push('переименовал')
+        }
       }
       if (patch.type !== undefined && patch.type !== f.type) {
         f.type = patch.type
@@ -786,22 +901,24 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         changes.push(patch.status === 'published' ? 'выдал задание' : 'снял с выдачи')
       }
       if (patch.description !== undefined) {
-        await atomicWriteString(assignmentDescriptionPath(norm, f.slug), patch.description)
+        await atomicWriteString(assignmentDescriptionPath(norm, f.id), patch.description)
         changes.push('обновил описание')
       }
       if (changes.length) {
         f.updatedAt = new Date().toISOString()
         await writeAssignmentFile(norm, f)
+        await refreshIndex(norm)
         journal.record(actor.pseudonym, `${changes.join(', ')} задание ${f.slug} в ${norm}`)
       }
 
-      return store.getAssignment(actor, norm, f.slug)
+      return impl.getAssignment(actor, norm, f.slug)
     },
 
     async deleteAssignment(actor, courseSlug, assignmentSlug) {
       const norm = normalizeSlug(courseSlug)
       const f = await loadAssignmentForManage(actor, norm, assignmentSlug)
-      await rm(assignmentDir(norm, f.slug), { recursive: true, force: true })
+      await rm(assignmentDir(norm, f.id), { recursive: true, force: true })
+      await refreshIndex(norm)
       journal.record(actor.pseudonym, `удалил задание ${f.slug} из ${norm}`)
     },
 
@@ -809,7 +926,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const norm = normalizeSlug(courseSlug)
       const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
       const now = new Date().toISOString()
-      const existing = await readSubmissionFile(norm, f.slug, actor.username)
+      const existing = await readSubmissionFile(norm, f.id, actor.username)
       const sub: SubmissionFile = {
         status: 'submitted',
         grade: existing?.grade ?? null,
@@ -817,20 +934,20 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         submittedAt: now,
         updatedAt: now,
       }
-      await ensureDir(submissionDir(norm, f.slug, actor.username))
-      await writeSubmissionFile(norm, f.slug, actor.username, sub)
-      await atomicWriteString(submissionAnswerPath(norm, f.slug, actor.username), answer)
+      await ensureDir(submissionDir(norm, f.id, actor.username))
+      await writeSubmissionFile(norm, f.id, actor.username, sub)
+      await atomicWriteString(submissionAnswerPath(norm, f.id, actor.username), answer)
       journal.record(actor.pseudonym, `сдал задание ${f.slug} в ${norm}`)
-      const answerText = (await readString(submissionAnswerPath(norm, f.slug, actor.username))) ?? ''
+      const answerText = (await readString(submissionAnswerPath(norm, f.id, actor.username))) ?? ''
       return { username: actor.username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer: answerText, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
     },
 
     async getOwnSubmission(actor, courseSlug, assignmentSlug) {
       const norm = normalizeSlug(courseSlug)
       const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
-      const sub = await readSubmissionFile(norm, f.slug, actor.username)
+      const sub = await readSubmissionFile(norm, f.id, actor.username)
       if (!sub) return null
-      const answer = (await readString(submissionAnswerPath(norm, f.slug, actor.username))) ?? ''
+      const answer = (await readString(submissionAnswerPath(norm, f.id, actor.username))) ?? ''
       return { username: actor.username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
     },
 
@@ -842,14 +959,16 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       if (!canGrade(actor, role, course) && !(role.scope === 'owner' && role.permissions.includes('submissions.view.all'))) {
         httpError(403, 'Недостаточно прав')
       }
-      const f = await readAssignmentFile(norm, normalizeSlug(assignmentSlug))
+      const dirId = await resolveEntityDir(norm, 'assignments', assignmentSlug)
+      if (!dirId) httpError(404, 'Задание не найдено')
+      const f = await readAssignmentFile(norm, dirId)
       if (!f) httpError(404, 'Задание не найдено')
 
       const result: Submission[] = []
-      for (const username of await listSubmissionUsers(norm, f.slug)) {
-        const sub = await readSubmissionFile(norm, f.slug, username)
+      for (const username of await listSubmissionUsers(norm, f.id)) {
+        const sub = await readSubmissionFile(norm, f.id, username)
         if (!sub) continue
-        const answer = (await readString(submissionAnswerPath(norm, f.slug, username))) ?? ''
+        const answer = (await readString(submissionAnswerPath(norm, f.id, username))) ?? ''
         result.push({ username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt })
       }
       return result.sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))
@@ -861,20 +980,38 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       if (!course) httpError(404, 'Курс не найден')
       const role = await roleOf(actor)
       if (!canGrade(actor, role, course)) httpError(403, 'Недостаточно прав')
-      const f = await readAssignmentFile(norm, normalizeSlug(assignmentSlug))
+      const dirId = await resolveEntityDir(norm, 'assignments', assignmentSlug)
+      if (!dirId) httpError(404, 'Задание не найдено')
+      const f = await readAssignmentFile(norm, dirId)
       if (!f) httpError(404, 'Задание не найдено')
-      const sub = await readSubmissionFile(norm, f.slug, username)
+      const sub = await readSubmissionFile(norm, f.id, username)
       if (!sub) httpError(404, 'Сдача не найдена')
 
       sub.status = 'returned'
       sub.grade = input.grade
       sub.feedback = input.feedback
       sub.updatedAt = new Date().toISOString()
-      await writeSubmissionFile(norm, f.slug, username, sub)
+      await writeSubmissionFile(norm, f.id, username, sub)
       journal.record(actor.pseudonym, `оценил задание ${f.slug} у ${username} в ${norm}`)
-      const answer = (await readString(submissionAnswerPath(norm, f.slug, username))) ?? ''
+      const answer = (await readString(submissionAnswerPath(norm, f.id, username))) ?? ''
       return { username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
     },
   }
-  return store
+
+  /**
+   * Write-очередь (specs/10): все методы ContentStore сериализуются по курсу
+   * (args[1] = courseSlug у всех методов кроме listCourses/createCourse).
+   * Внутренние кросс-вызовы идут через impl — без повторного захвата лока.
+   */
+  return new Proxy(impl, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver)
+      if (typeof value !== 'function') return value
+      return (...args: unknown[]) => {
+        const courseSlug = typeof args[1] === 'string' ? args[1] : ''
+        return withCourseLock(courseSlug, () =>
+          (value as (...a: unknown[]) => unknown).apply(target, args))
+      }
+    },
+  })
 }
