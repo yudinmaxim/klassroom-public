@@ -12,6 +12,7 @@ if (loadError.value) {
 
 const course = computed(() => coursePageData.value?.course ?? null)
 const roster = computed(() => coursePageData.value?.roster ?? [])
+const rosterUsernames = computed(() => roster.value.map(s => s.username))
 const canManage = computed(() => coursePageData.value?.canManage ?? false)
 
 const crumbs = useBreadcrumbs()
@@ -20,6 +21,16 @@ watchEffect(() => {
     ? [{ label: 'Курсы', to: '/' }, { label: course.value.title }]
     : [{ label: 'Курсы', to: '/' }]
 })
+
+// --- вкладки ---
+const tabs = [
+  { id: 'info', label: 'Информация' },
+  { id: 'topics', label: 'Темы' },
+  { id: 'assignments', label: 'Задания' },
+  { id: 'students', label: 'Учащиеся' },
+] as const
+type TabId = (typeof tabs)[number]['id']
+const activeTab = ref<TabId>('info')
 
 // --- настройки курса ---
 const form = reactive({
@@ -57,20 +68,21 @@ async function saveSettings() {
   }
 }
 
-// --- состав курса ---
-const newStudent = ref('')
+// --- участники курса ---
 const rosterError = ref('')
 const rosterBusy = ref(false)
+const enrollOpen = ref(false)
+const newStudentOpen = ref(false)
+const revealedSecret = ref('')
 
-async function changeRoster(username: string, action: 'add' | 'remove') {
+async function removeStudent(username: string) {
   rosterError.value = ''
   rosterBusy.value = true
   try {
     await $fetch(`/api/courses/${course.value?.slug}/roster`, {
       method: 'POST',
-      body: { username, action },
+      body: { username, action: 'remove' },
     })
-    newStudent.value = ''
     await refresh()
   } catch (e) {
     rosterError.value = errText(e, 'Не удалось изменить состав курса')
@@ -79,32 +91,7 @@ async function changeRoster(username: string, action: 'add' | 'remove') {
   }
 }
 
-// --- создание нового ученика с авто-зачислением ---
-const newAcc = reactive({ username: '', pseudonym: '' })
-const accError = ref('')
-const accBusy = ref(false)
-const revealedSecret = ref('')
-
-async function createStudentAndEnroll() {
-  accError.value = ''
-  accBusy.value = true
-  try {
-    const created = await $fetch<{ generatedPassword?: string }>('/api/users', {
-      method: 'POST',
-      body: { username: newAcc.username, pseudonym: newAcc.pseudonym, role: 'student' },
-    })
-    await changeRoster(newAcc.username.trim().toLowerCase(), 'add')
-    if (created.generatedPassword) revealedSecret.value = created.generatedPassword
-    newAcc.username = ''
-    newAcc.pseudonym = ''
-  } catch (e) {
-    accError.value = errText(e, 'Не удалось создать ученика')
-  } finally {
-    accBusy.value = false
-  }
-}
-
-// --- материалы ---
+// --- материалы (темы) ---
 const materials = ref<Array<{ slug: string, title: string, type: string, updatedAt: string }>>([])
 const materialsError = ref('')
 const canMaterials = computed(() => coursePageData.value?.canMaterials ?? false)
@@ -134,14 +121,12 @@ async function loadMaterialTypes() {
   }
 }
 
-watchEffect(() => {
-  if (course.value && canMaterials.value) {
+watch(activeTab, (tab) => {
+  if (tab === 'topics' && course.value) {
     void loadMaterials()
     void loadMaterialTypes()
-  } else if (course.value) {
-    void loadMaterials()
   }
-})
+}, { immediate: true })
 
 type MaterialRow = { slug: string, title: string, type: string, updatedAt: string }
 
@@ -195,108 +180,56 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 <template>
   <div v-if="course">
     <h1>{{ course.title }}</h1>
-    <p v-if="course.description" class="muted">{{ course.description }}</p>
-    <p class="muted">Шкала оценивания: {{ scaleLabel[course.gradingScale.type] }} · Учеников: {{ roster.length }}</p>
 
-    <div v-if="canManage" class="card">
-      <h2>Настройки курса</h2>
-      <form class="form" @submit.prevent="saveSettings">
-        <label>
-          Название
-          <input v-model="form.title" required>
-        </label>
-        <label>
-          Описание
-          <textarea v-model="form.description" rows="3" />
-        </label>
-        <label>
-          Шкала оценивания
-          <select v-model="form.scaleType">
-            <option value="grade5">Оценки 2–5</option>
-            <option value="points">Баллы (до 100)</option>
-            <option value="passfail">Зачёт / незачёт</option>
-          </select>
-        </label>
-        <p v-if="saveError" class="error">{{ saveError }}</p>
-        <button class="primary" :disabled="saving">Сохранить</button>
-      </form>
-    </div>
+    <nav class="tabs">
+      <button
+        v-for="t in tabs"
+        :key="t.id"
+        :class="{ active: activeTab === t.id }"
+        @click="activeTab = t.id"
+      >
+        {{ t.label }}
+      </button>
+    </nav>
 
-    <div class="card">
-      <h2>Ученики</h2>
-      <div v-if="canManage" class="row" style="margin-bottom: 12px;">
-        <input v-model="newStudent" placeholder="Логин существующего ученика" style="flex: 1;">
-        <button class="primary" :disabled="rosterBusy || !newStudent" @click="changeRoster(newStudent.trim(), 'add')">
-          Зачислить
-        </button>
-      </div>
-      <p v-if="rosterError" class="error" style="margin-bottom: 12px;">{{ rosterError }}</p>
-      <table v-if="roster.length" class="data-table">
-        <thead>
-          <tr>
-            <th>Псевдоним</th>
-            <th>Логин</th>
-            <th v-if="canManage" />
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="s in roster" :key="s.username">
-            <td>{{ s.pseudonym }}</td>
-            <td class="muted">{{ s.username }}</td>
-            <td v-if="canManage" class="row-actions">
-              <span class="tip">
-                <button
-                  class="icon-btn danger"
-                  aria-label="Исключить из курса"
-                  :disabled="rosterBusy"
-                  @click="changeRoster(s.username, 'remove')"
-                >
-                  <Icon name="lucide:trash-2" />
-                </button>
-                <span class="tip-body">Исключить</span>
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else class="muted">Учеников пока нет.</p>
-
-      <div v-if="canManage" style="margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px;">
-        <h2>Новый ученик</h2>
-        <p class="muted">Аккаунт будет создан и сразу зачислен на курс; пароль покажем один раз — передайте его лично.</p>
-        <div class="row" style="gap: 12px; flex-wrap: wrap;">
-          <label style="flex: 1; min-width: 140px;">
-            Логин
-            <input v-model="newAcc.username" autocomplete="off" placeholder="например ezhik-7">
+    <!-- Информация -->
+    <template v-if="activeTab === 'info'">
+      <div v-if="canManage" class="card">
+        <h2>Настройки курса</h2>
+        <form class="form" @submit.prevent="saveSettings">
+          <label>
+            Название
+            <input v-model="form.title" required>
           </label>
-          <label style="flex: 2; min-width: 160px;">
-            Псевдоним
-            <input v-model="newAcc.pseudonym" placeholder="например Ёжик-7">
+          <label>
+            Описание
+            <textarea v-model="form.description" rows="3" />
           </label>
-        </div>
-        <p v-if="accError" class="error" style="margin-top: 10px;">{{ accError }}</p>
-        <button
-          class="primary"
-          style="margin-top: 10px;"
-          :disabled="accBusy || !newAcc.username || !newAcc.pseudonym"
-          @click="createStudentAndEnroll"
-        >
-          Создать и зачислить
-        </button>
+          <label>
+            Шкала оценивания
+            <select v-model="form.scaleType">
+              <option value="grade5">Оценки 2–5</option>
+              <option value="points">Баллы (до 100)</option>
+              <option value="passfail">Зачёт / незачёт</option>
+            </select>
+          </label>
+          <p v-if="saveError" class="error">{{ saveError }}</p>
+          <button class="primary" :disabled="saving">Сохранить</button>
+        </form>
       </div>
-
-      <div v-if="revealedSecret" style="margin-top: 14px;">
-        <p class="muted" style="margin-bottom: 6px;">Пароль нового ученика (виден один раз):</p>
-        <div class="secret">{{ revealedSecret }}</div>
-        <button class="small" style="margin-top: 8px;" @click="revealedSecret = ''">Скрыть</button>
+      <div v-else class="card">
+        <h2>О курсе</h2>
+        <p v-if="course.description">{{ course.description }}</p>
+        <p class="muted">Шкала оценивания: {{ scaleLabel[course.gradingScale.type] }} · Учеников: {{ roster.length }}</p>
       </div>
-    </div>
+    </template>
 
-    <div class="card">
-      <h2>Материалы</h2>
+    <!-- Темы -->
+    <div v-else-if="activeTab === 'topics'" class="card">
+      <h2>Темы</h2>
 
       <div v-if="canMaterials" class="row" style="gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
-        <input v-model="newMat.title" placeholder="Название нового материала" style="flex: 2; min-width: 200px;">
+        <input v-model="newMat.title" placeholder="Название новой темы" style="flex: 2; min-width: 200px;">
         <select v-model="newMat.type" style="flex: 1; min-width: 160px;">
           <option v-for="t in matTypes" :key="t.type" :value="t.type">{{ t.title }}</option>
         </select>
@@ -310,7 +243,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
       <table v-if="materials.length" class="data-table">
         <thead>
           <tr>
-            <th>Материал</th>
+            <th>Тема</th>
             <th>Тип</th>
             <th v-if="canMaterials" />
           </tr>
@@ -330,7 +263,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
               <span class="tip">
                 <button
                   class="icon-btn"
-                  aria-label="Редактировать материал"
+                  aria-label="Редактировать тему"
                   @click.stop="editMaterial(m)"
                 >
                   <Icon name="lucide:pencil" />
@@ -340,7 +273,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
               <span class="tip">
                 <button
                   class="icon-btn danger"
-                  aria-label="Удалить материал"
+                  aria-label="Удалить тему"
                   @click.stop="deleteMaterial(m)"
                 >
                   <Icon name="lucide:trash-2" />
@@ -351,14 +284,77 @@ const scaleLabel: Record<GradingScale['type'], string> = {
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">Материалов пока нет.</p>
+      <p v-else class="muted">Тем пока нет.</p>
     </div>
 
-    <div class="card">
+    <!-- Задания -->
+    <div v-else-if="activeTab === 'assignments'" class="card">
       <h2>Домашние задания</h2>
       <p class="muted">
         Задания появятся на следующем шаге — здесь будет список с дедлайнами и статусами сдачи.
       </p>
     </div>
+
+    <!-- Учащиеся -->
+    <div v-else class="card">
+      <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <h2 style="margin: 0;">Учащиеся ({{ roster.length }})</h2>
+        <div v-if="canManage" class="row" style="gap: 8px;">
+          <button class="primary" @click="enrollOpen = true">Зачислить на курс</button>
+          <button @click="newStudentOpen = true">Новый ученик</button>
+        </div>
+      </div>
+
+      <p v-if="revealedSecret" class="muted" style="margin-bottom: 6px;">
+        Пароль нового ученика (виден один раз):
+      </p>
+      <div v-if="revealedSecret" class="secret" style="margin-bottom: 10px;">{{ revealedSecret }}</div>
+      <button v-if="revealedSecret" class="small" style="margin-bottom: 12px;" @click="revealedSecret = ''">Скрыть</button>
+
+      <p v-if="rosterError" class="error" style="margin-bottom: 12px;">{{ rosterError }}</p>
+      <table v-if="roster.length" class="data-table">
+        <thead>
+          <tr>
+            <th>Псевдоним</th>
+            <th>Логин</th>
+            <th v-if="canManage" />
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in roster" :key="s.username">
+            <td>{{ s.pseudonym }}</td>
+            <td class="muted">{{ s.username }}</td>
+            <td v-if="canManage" class="row-actions">
+              <span class="tip">
+                <button
+                  class="icon-btn danger"
+                  aria-label="Исключить из курса"
+                  :disabled="rosterBusy"
+                  @click="removeStudent(s.username)"
+                >
+                  <Icon name="lucide:trash-2" />
+                </button>
+                <span class="tip-body">Исключить</span>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">Учеников пока нет.</p>
+    </div>
+
+    <EnrollModal
+      v-if="enrollOpen && course"
+      :slug="course.slug"
+      :enrolled="rosterUsernames"
+      @close="enrollOpen = false"
+      @changed="enrollOpen = false; refresh()"
+    />
+    <NewStudentPanel
+      v-if="newStudentOpen && course"
+      :slug="course.slug"
+      @close="newStudentOpen = false"
+      @created="(pw) => { revealedSecret = pw ?? ''; newStudentOpen = false; refresh() }"
+    />
   </div>
 </template>

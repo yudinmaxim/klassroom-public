@@ -134,6 +134,110 @@ th { color: var(--muted); font-weight: 600; }
 .data-table .row-actions .tip { display: inline-flex; }
 .data-table .row-actions .tip + .tip { margin-left: 6px; }
 
+/* Вкладки страницы курса */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.tabs button {
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* Модалка и боковая панель */
+.modal-backdrop, .side-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 60;
+  display: flex;
+}
+.modal {
+  margin: auto;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px 22px;
+  width: min(560px, calc(100vw - 32px));
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.modal-head h2 { margin: 0; font-size: 17px; }
+.modal-search {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--bg);
+  color: var(--ink);
+}
+.enroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 120px;
+  max-height: 50vh;
+}
+.enroll-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.enroll-item:hover { background: var(--bg); }
+.enroll-item input { width: auto; margin: 0; }
+.enroll-name { font-weight: 600; }
+.enroll-login { font-size: 13px; }
+.enroll-badge {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.side-panel {
+  margin-left: auto;
+  background: var(--card);
+  width: min(max(20vw, 420px), 100vw);
+  height: 100%;
+  padding: 22px 24px;
+  overflow-y: auto;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
+}
+.side-panel .form { margin-top: 14px; }
+.side-panel .form button { margin-top: 10px; }
+
 /* Каркас: левый сайдбар + правая колонка (шапка с крошками + контент) */
 .shell {
   display: grid;
