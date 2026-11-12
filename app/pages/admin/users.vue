@@ -176,7 +176,7 @@ async function copySecret() {
 
     <div class="card">
       <h2>Все аккаунты</h2>
-      <table>
+      <table class="data-table">
         <thead>
           <tr>
             <th>Логин</th>
@@ -192,13 +192,28 @@ async function copySecret() {
             <td><strong>{{ u.pseudonym }}</strong></td>
             <td>{{ roleTitle(u.role) }}</td>
             <td class="muted">{{ new Date(u.createdAt).toLocaleDateString('ru-RU') }}</td>
-            <td>
-              <button class="small" :disabled="resetting === u.username" @click="resetPassword(u)">
-                {{ resetting === u.username ? 'Сброс...' : 'Сбросить пароль' }}
-              </button>
-              <button class="small" @click="qrUser = u; qrImage = ''; qrUrl = ''">
-                QR-вход
-              </button>
+            <td class="row-actions">
+              <span class="tip">
+                <button
+                  class="icon-btn"
+                  aria-label="Сбросить пароль"
+                  :disabled="resetting === u.username"
+                  @click="resetPassword(u)"
+                >
+                  <Icon name="lucide:key-round" />
+                </button>
+                <span class="tip-body">Сбросить пароль</span>
+              </span>
+              <span class="tip">
+                <button
+                  class="icon-btn"
+                  aria-label="QR-вход"
+                  @click="qrUser = u; qrImage = ''; qrUrl = ''"
+                >
+                  <Icon name="lucide:qr-code" />
+                </button>
+                <span class="tip-body">QR-вход</span>
+              </span>
             </td>
           </tr>
         </tbody>

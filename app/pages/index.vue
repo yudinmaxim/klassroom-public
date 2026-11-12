@@ -67,21 +67,39 @@ async function createCourse() {
     </div>
 
     <div v-if="courses.length" class="card">
-      <table>
+      <table class="data-table">
         <thead>
           <tr>
             <th>Курс</th>
             <th>Учитель</th>
             <th>Учеников</th>
+            <th />
           </tr>
         </thead>
         <tbody>
-          <tr v-for="c in courses" :key="c.slug">
-            <td>
-              <NuxtLink :to="`/courses/${c.slug}`"><strong>{{ c.title }}</strong></NuxtLink>
-            </td>
+          <tr
+            v-for="c in courses"
+            :key="c.slug"
+            class="is-clickable"
+            tabindex="0"
+            @click="navigateTo(`/courses/${c.slug}`)"
+            @keydown.enter="navigateTo(`/courses/${c.slug}`)"
+          >
+            <td><strong>{{ c.title }}</strong></td>
             <td class="muted">{{ c.teacher }}</td>
             <td>{{ c.studentCount }}</td>
+            <td class="row-actions">
+              <span class="tip">
+                <button
+                  class="icon-btn"
+                  aria-label="Открыть курс"
+                  @click.stop="navigateTo(`/courses/${c.slug}`)"
+                >
+                  <Icon name="lucide:eye" />
+                </button>
+                <span class="tip-body">Открыть</span>
+              </span>
+            </td>
           </tr>
         </tbody>
       </table>

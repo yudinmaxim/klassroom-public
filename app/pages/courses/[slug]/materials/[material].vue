@@ -64,6 +64,9 @@ function cancelEdit() {
   editing.value = false
 }
 
+// «Редактировать» из таблицы материалов ведёт сюда с ?edit=1
+if (route.query.edit === '1' && canEdit.value) startEdit()
+
 async function renderPreview() {
   try {
     const res = await $fetch<{ html: string }>('/api/md/render', {

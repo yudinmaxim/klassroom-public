@@ -143,6 +143,31 @@ watchEffect(() => {
   }
 })
 
+type MaterialRow = { slug: string, title: string, type: string, updatedAt: string }
+
+function materialUrl(m: MaterialRow): string {
+  return `/courses/${course.value?.slug}/materials/${m.slug}`
+}
+
+function openMaterial(m: MaterialRow) {
+  void navigateTo(materialUrl(m))
+}
+
+function editMaterial(m: MaterialRow) {
+  void navigateTo(`${materialUrl(m)}?edit=1`)
+}
+
+async function deleteMaterial(m: MaterialRow) {
+  if (!window.confirm(`Удалить материал «${m.title}» вместе с вложениями?`)) return
+  materialsError.value = ''
+  try {
+    await $fetch(materialUrl(m), { method: 'DELETE' })
+    await loadMaterials()
+  } catch (e) {
+    materialsError.value = errText(e, 'Не удалось удалить материал')
+  }
+}
+
 async function createMaterial() {
   newMatError.value = ''
   newMatBusy.value = true
@@ -206,7 +231,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
         </button>
       </div>
       <p v-if="rosterError" class="error" style="margin-bottom: 12px;">{{ rosterError }}</p>
-      <table v-if="roster.length">
+      <table v-if="roster.length" class="data-table">
         <thead>
           <tr>
             <th>Псевдоним</th>
@@ -218,10 +243,18 @@ const scaleLabel: Record<GradingScale['type'], string> = {
           <tr v-for="s in roster" :key="s.username">
             <td>{{ s.pseudonym }}</td>
             <td class="muted">{{ s.username }}</td>
-            <td v-if="canManage">
-              <button class="small" :disabled="rosterBusy" @click="changeRoster(s.username, 'remove')">
-                Исключить
-              </button>
+            <td v-if="canManage" class="row-actions">
+              <span class="tip">
+                <button
+                  class="icon-btn danger"
+                  aria-label="Исключить из курса"
+                  :disabled="rosterBusy"
+                  @click="changeRoster(s.username, 'remove')"
+                >
+                  <Icon name="lucide:trash-2" />
+                </button>
+                <span class="tip-body">Исключить</span>
+              </span>
             </td>
           </tr>
         </tbody>
@@ -274,13 +307,47 @@ const scaleLabel: Record<GradingScale['type'], string> = {
       <p v-if="newMatError" class="error" style="margin-bottom: 10px;">{{ newMatError }}</p>
 
       <p v-if="materialsError" class="error">{{ materialsError }}</p>
-      <table v-if="materials.length">
+      <table v-if="materials.length" class="data-table">
+        <thead>
+          <tr>
+            <th>Материал</th>
+            <th>Тип</th>
+            <th v-if="canMaterials" />
+          </tr>
+        </thead>
         <tbody>
-          <tr v-for="m in materials" :key="m.slug">
-            <td>
-              <NuxtLink :to="`/courses/${course.slug}/materials/${m.slug}`">{{ m.title }}</NuxtLink>
-            </td>
+          <tr
+            v-for="m in materials"
+            :key="m.slug"
+            class="is-clickable"
+            tabindex="0"
+            @click="openMaterial(m)"
+            @keydown.enter="openMaterial(m)"
+          >
+            <td><strong>{{ m.title }}</strong></td>
             <td class="muted">{{ m.type === 'doc' ? 'конспект' : m.type }}</td>
+            <td v-if="canMaterials" class="row-actions">
+              <span class="tip">
+                <button
+                  class="icon-btn"
+                  aria-label="Редактировать материал"
+                  @click.stop="editMaterial(m)"
+                >
+                  <Icon name="lucide:pencil" />
+                </button>
+                <span class="tip-body">Редактировать</span>
+              </span>
+              <span class="tip">
+                <button
+                  class="icon-btn danger"
+                  aria-label="Удалить материал"
+                  @click.stop="deleteMaterial(m)"
+                >
+                  <Icon name="lucide:trash-2" />
+                </button>
+                <span class="tip-body">Удалить</span>
+              </span>
+            </td>
           </tr>
         </tbody>
       </table>

@@ -103,7 +103,7 @@ async function resetRole(role: RoleDef) {
     </p>
 
     <div class="card">
-      <table>
+      <table class="data-table">
         <thead>
           <tr>
             <th>Название</th>
@@ -119,17 +119,24 @@ async function resetRole(role: RoleDef) {
             <td class="muted">{{ r.name }}</td>
             <td class="muted">{{ SCOPE_TITLES[r.scope] }}</td>
             <td>{{ r.name === 'admin' ? 'все' : r.permissions.length }}</td>
-            <td>
-              <button v-if="r.name !== 'admin'" class="small" @click="openEditor(r)">Редактировать</button>
-              <button
-                v-if="r.name !== 'admin'"
-                class="small"
-                :disabled="busy"
-                :title="r.builtin ? 'Сбросить к системному набору' : 'Удалить роль'"
-                @click="resetRole(r)"
-              >
-                {{ r.builtin ? 'Сбросить' : 'Удалить' }}
-              </button>
+            <td v-if="r.name !== 'admin'" class="row-actions">
+              <span class="tip">
+                <button class="icon-btn" aria-label="Редактировать роль" @click="openEditor(r)">
+                  <Icon name="lucide:pencil" />
+                </button>
+                <span class="tip-body">Редактировать</span>
+              </span>
+              <span class="tip">
+                <button
+                  class="icon-btn danger"
+                  :aria-label="r.builtin ? 'Сбросить к системной' : 'Удалить роль'"
+                  :disabled="busy"
+                  @click="resetRole(r)"
+                >
+                  <Icon name="lucide:trash-2" />
+                </button>
+                <span class="tip-body">{{ r.builtin ? 'Сбросить к системной' : 'Удалить' }}</span>
+              </span>
             </td>
           </tr>
         </tbody>

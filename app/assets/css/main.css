@@ -125,6 +125,14 @@ th, td {
 
 th { color: var(--muted); font-weight: 600; }
 
+/* Таблицы сущностей: ссылка без подчёркивания, строка ведёт к просмотру,
+   действия — иконки справа (.row-actions + .icon-btn + .tip) */
+.data-table td a { text-decoration: none; }
+.data-table tbody tr.is-clickable { cursor: pointer; }
+.data-table tbody tr.is-clickable:hover { background: var(--bg); }
+.data-table .row-actions { text-align: right; white-space: nowrap; }
+.data-table .row-actions .tip + .tip { margin-left: 6px; }
+
 /* Каркас: левый сайдбар + правая колонка (шапка с крошками + контент) */
 .shell {
   display: grid;
@@ -203,6 +211,8 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .icon-btn svg { width: 16px; height: 16px; }
+
+.icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
 
 /* тултип над элементом (для кнопок у нижнего края сайдбара) */
 .tip-up .tip-body {

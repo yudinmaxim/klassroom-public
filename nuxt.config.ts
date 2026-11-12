@@ -9,7 +9,16 @@ export default defineNuxtConfig({
     mode: 'css',
     serverBundle: { collections: ['lucide'] },
     clientBundle: {
-      icons: ['lucide:user', 'lucide:user-plus', 'lucide:key-round', 'lucide:log-out'],
+      icons: [
+        'lucide:user',
+        'lucide:user-plus',
+        'lucide:key-round',
+        'lucide:log-out',
+        'lucide:eye',
+        'lucide:pencil',
+        'lucide:trash-2',
+        'lucide:qr-code',
+      ],
     },
   },
 
