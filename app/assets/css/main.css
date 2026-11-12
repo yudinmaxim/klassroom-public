@@ -242,6 +242,58 @@ th { color: var(--muted); font-weight: 600; }
 .side-panel .form { margin-top: 14px; }
 .side-panel .form button { margin-top: 10px; }
 
+/* Заголовок секции внутри карточки */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.section-title { margin: 0; }
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Дропдаун-меню */
+.dropdown { position: relative; display: inline-block; }
+.dropdown-trigger { display: inline-flex; }
+.dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  min-width: 230px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dropdown-menu button {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dropdown-menu button:hover { background: var(--bg); }
+
 /* Шаблон страницы (PageShell) */
 .page {
   flex: 1;

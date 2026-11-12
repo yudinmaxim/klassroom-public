@@ -162,7 +162,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
     <!-- Информация -->
     <template v-if="activeTab === 'info'">
       <div v-if="canManage" class="card">
-        <h2>Настройки курса</h2>
+        <SectionHead>Настройки курса</SectionHead>
         <form id="course-settings" class="form" @submit.prevent="saveSettings">
           <label>
             Название
@@ -184,7 +184,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
         </form>
       </div>
       <div v-else class="card">
-        <h2>О курсе</h2>
+        <SectionHead>О курсе</SectionHead>
         <p v-if="course.description">{{ course.description }}</p>
         <p class="muted">Шкала оценивания: {{ scaleLabel[course.gradingScale.type] }} · Учеников: {{ roster.length }}</p>
       </div>
@@ -192,13 +192,21 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 
     <!-- Темы -->
     <div v-else-if="activeTab === 'topics'" class="card">
-      <h2>Темы</h2>
-
-      <div v-if="canMaterials" style="margin-bottom: 14px;">
-        <button class="primary" @click="navigateTo(`/courses/${course.slug}/topics/new`)">
-          Добавить тему
-        </button>
-      </div>
+      <SectionHead>
+        Темы
+        <template v-if="canMaterials" #actions>
+          <span class="tip">
+            <button
+              class="icon-btn"
+              aria-label="Добавить тему"
+              @click="navigateTo(`/courses/${course.slug}/topics/new`)"
+            >
+              <Icon name="lucide:plus" />
+            </button>
+            <span class="tip-body">Добавить тему</span>
+          </span>
+        </template>
+      </SectionHead>
 
       <p v-if="materialsError" class="error">{{ materialsError }}</p>
       <table v-if="materials.length" class="data-table">
@@ -250,7 +258,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 
     <!-- Задания -->
     <div v-else-if="activeTab === 'assignments'" class="card">
-      <h2>Домашние задания</h2>
+      <SectionHead>Домашние задания</SectionHead>
       <p class="muted">
         Задания появятся на следующем шаге — здесь будет список с дедлайнами и статусами сдачи.
       </p>
@@ -258,13 +266,25 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 
     <!-- Учащиеся -->
     <div v-else class="card">
-      <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <h2 style="margin: 0;">Учащиеся ({{ roster.length }})</h2>
-        <div v-if="canManage" class="row" style="gap: 8px;">
-          <button class="primary" @click="enrollOpen = true">Зачислить на курс</button>
-          <button @click="newStudentOpen = true">Новый ученик</button>
-        </div>
-      </div>
+      <SectionHead>
+        Учащиеся ({{ roster.length }})
+        <template v-if="canManage" #actions>
+          <AppDropdown>
+            <template #trigger>
+              <span class="tip">
+                <button class="icon-btn" aria-label="Действия с учащимися">
+                  <Icon name="lucide:plus" />
+                </button>
+                <span class="tip-body">Учащиеся</span>
+              </span>
+            </template>
+            <template #menu="{ close }">
+              <button @click="enrollOpen = true; close()">Записать учащегося на курс</button>
+              <button @click="newStudentOpen = true; close()">Добавить нового учащегося</button>
+            </template>
+          </AppDropdown>
+        </template>
+      </SectionHead>
 
       <p v-if="revealedSecret" class="muted" style="margin-bottom: 6px;">
         Пароль нового ученика (виден один раз):
