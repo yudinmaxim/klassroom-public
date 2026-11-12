@@ -8,6 +8,8 @@ if (!me.value?.user) {
 }
 
 const { data, refresh } = await useFetch('/api/courses')
+const crumbs = useBreadcrumbs()
+crumbs.value = [{ label: 'Курсы' }]
 const user = computed(() => me.value?.user ?? null)
 const courses = computed(() => data.value?.courses ?? [])
 const canCreate = computed(() => user.value?.role === 'teacher' || user.value?.role === 'admin')

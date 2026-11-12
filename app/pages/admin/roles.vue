@@ -6,6 +6,8 @@ import { errText } from '#shared/errors'
 const { data, refresh } = await useFetch('/api/roles')
 const roles = computed(() => data.value?.roles ?? [])
 
+useBreadcrumbs().value = [{ label: 'Курсы', to: '/' }, { label: 'Роли' }]
+
 const SCOPE_TITLES: Record<RoleScope, string> = {
   owner: 'Свои курсы (как учитель)',
   member: 'Зачисленные курсы (как ученик)',

@@ -4,6 +4,8 @@ import { errText } from '#shared/errors'
 const route = useRoute()
 const token = computed(() => String(route.query.t ?? ''))
 
+useBreadcrumbs().value = []
+
 const state = ref<'pending' | 'ok' | 'gone'>('pending')
 const pseudonym = ref('')
 

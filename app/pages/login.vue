@@ -4,6 +4,8 @@ import { errText } from '#shared/errors'
 const { data: setupInfo } = await useFetch('/api/setup')
 const setupAvailable = computed(() => setupInfo.value?.available ?? false)
 
+useBreadcrumbs().value = []
+
 const form = reactive({ username: '', password: '' })
 const error = ref('')
 const busy = ref(false)

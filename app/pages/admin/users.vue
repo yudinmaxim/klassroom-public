@@ -6,6 +6,8 @@ import QRCode from 'qrcode'
 const { data, refresh } = await useFetch('/api/users')
 const { data: rolesData } = await useFetch('/api/roles')
 
+useBreadcrumbs().value = [{ label: 'Курсы', to: '/' }, { label: 'Пользователи' }]
+
 const users = computed(() => data.value?.users ?? [])
 const roles = computed(() => rolesData.value?.roles ?? [])
 const roleTitle = (name: string) => roles.value.find(r => r.name === name)?.title ?? name

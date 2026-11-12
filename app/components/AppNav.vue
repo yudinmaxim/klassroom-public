@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { UserPublic } from '#shared/types'
 const route = useRoute()
+const crumbs = useBreadcrumbs()
 
 const { data } = useFetch('/api/auth/me', { key: 'me' })
 const user = computed(() => (data.value?.user as UserPublic | null) ?? null)
@@ -16,35 +17,50 @@ const isActive = (path: string) =>
 </script>
 
 <template>
-  <header class="topbar">
-    <div class="topbar-inner">
+  <div class="shell">
+    <aside class="sidebar">
       <NuxtLink to="/" class="brand">wikiroom</NuxtLink>
-      <template v-if="user">
+      <nav v-if="user" class="side-nav">
         <NuxtLink to="/" class="nav-link" :class="{ active: isActive('/') }">Курсы</NuxtLink>
-        <NuxtLink
-          v-if="user.role === 'admin'"
-          to="/admin/users"
-          class="nav-link"
-          :class="{ active: isActive('/admin/users') }"
-        >
-          Пользователи
-        </NuxtLink>
-        <NuxtLink
-          v-if="user.role === 'admin'"
-          to="/admin/roles"
-          class="nav-link"
-          :class="{ active: isActive('/admin/roles') }"
-        >
-          Роли
-        </NuxtLink>
-      </template>
-      <div class="spacer" />
-      <template v-if="user">
-        <span class="muted">{{ user.pseudonym }}</span>
-        <span class="muted">·</span>
-        <span class="muted">{{ user.role }}</span>
-        <button class="small" @click="logout">Выйти</button>
-      </template>
+        <template v-if="user.role === 'admin'">
+          <NuxtLink
+            to="/admin/users"
+            class="nav-link"
+            :class="{ active: isActive('/admin/users') }"
+          >
+            Пользователи
+          </NuxtLink>
+          <NuxtLink
+            to="/admin/roles"
+            class="nav-link"
+            :class="{ active: isActive('/admin/roles') }"
+          >
+            Роли
+          </NuxtLink>
+        </template>
+      </nav>
+    </aside>
+
+    <div class="main-col">
+      <header class="topbar">
+        <nav v-if="crumbs.length" class="crumbs" aria-label="Хлебные крошки">
+          <template v-for="(c, i) in crumbs" :key="i">
+            <NuxtLink v-if="c.to" :to="c.to" class="crumb">{{ c.label }}</NuxtLink>
+            <span v-else class="crumb current">{{ c.label }}</span>
+            <span v-if="i < crumbs.length - 1" class="crumb-sep">/</span>
+          </template>
+        </nav>
+        <div class="spacer" />
+        <template v-if="user">
+          <span class="muted">{{ user.pseudonym }}</span>
+          <span class="muted">·</span>
+          <span class="muted">{{ user.role }}</span>
+          <button class="small" @click="logout">Выйти</button>
+        </template>
+      </header>
+      <main class="container">
+        <slot />
+      </main>
     </div>
-  </header>
+  </div>
 </template>

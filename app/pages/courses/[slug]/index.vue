@@ -14,6 +14,13 @@ const course = computed(() => coursePageData.value?.course ?? null)
 const roster = computed(() => coursePageData.value?.roster ?? [])
 const canManage = computed(() => coursePageData.value?.canManage ?? false)
 
+const crumbs = useBreadcrumbs()
+watchEffect(() => {
+  crumbs.value = course.value
+    ? [{ label: 'Курсы', to: '/' }, { label: course.value.title }]
+    : [{ label: 'Курсы', to: '/' }]
+})
+
 // --- настройки курса ---
 const form = reactive({
   title: '',
@@ -162,7 +169,6 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 
 <template>
   <div v-if="course">
-    <p><NuxtLink to="/">← Все курсы</NuxtLink></p>
     <h1>{{ course.title }}</h1>
     <p v-if="course.description" class="muted">{{ course.description }}</p>
     <p class="muted">Шкала оценивания: {{ scaleLabel[course.gradingScale.type] }} · Учеников: {{ roster.length }}</p>

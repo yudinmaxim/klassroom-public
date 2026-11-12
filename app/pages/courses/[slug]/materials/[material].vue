@@ -23,6 +23,21 @@ const docPayload = computed<DocPayload | null>(() =>
   material.value?.type === 'doc' ? (material.value.payload as DocPayload) : null,
 )
 
+const crumbs = useBreadcrumbs()
+watchEffect(() => {
+  const courseTitle = courseData.value?.course?.title ?? slug.value
+  crumbs.value = material.value
+    ? [
+        { label: 'Курсы', to: '/' },
+        { label: courseTitle, to: `/courses/${slug.value}` },
+        { label: material.value.title },
+      ]
+    : [
+        { label: 'Курсы', to: '/' },
+        { label: courseTitle, to: `/courses/${slug.value}` },
+      ]
+})
+
 // --- режим редактирования ---
 const editing = ref(false)
 const editTab = ref<'edit' | 'preview'>('edit')
@@ -155,12 +170,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 
 <template>
   <div v-if="material">
-    <p>
-      <NuxtLink to="/">← Все курсы</NuxtLink>
-      <span class="muted"> / </span>
-      <NuxtLink :to="`/courses/${slug}`">{{ courseData?.course?.title ?? 'Курс' }}</NuxtLink>
-    </p>
-
     <div v-if="!editing" class="row" style="align-items: baseline; flex-wrap: wrap;">
       <h1 style="margin: 0;">{{ material.title }}</h1>
       <div class="spacer" />
