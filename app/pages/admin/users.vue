@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { UserPublic } from '#shared/types'
 import { errText } from '#shared/errors'
+import QRCode from 'qrcode'
 
 const { data, refresh } = await useFetch('/api/users')
 const { data: rolesData } = await useFetch('/api/roles')
@@ -37,6 +38,47 @@ async function createUser() {
 
 const resetting = ref<string | null>(null)
 
+// --- QR-вход ---
+const qrUser = ref<UserPublic | null>(null)
+const qrTtl = ref<'class' | 'home'>('class')
+const qrImage = ref('')
+const qrUrl = ref('')
+const qrExpires = ref('')
+const qrError = ref('')
+const qrBusy = ref(false)
+
+async function copyQrUrl() {
+  try {
+    await navigator.clipboard.writeText(qrUrl.value)
+  } catch {
+    // буфер обмена недоступен (например, без https) — ссылка и так видна на экране
+  }
+}
+
+function closeQr() {
+  qrUser.value = null
+  qrImage.value = ''
+  qrUrl.value = ''
+}
+async function generateQr() {
+  if (!qrUser.value) return
+  qrError.value = ''
+  qrBusy.value = true
+  try {
+    const res = await $fetch<{ token: string, expiresAt: string }>(
+      `/api/users/${qrUser.value.username}/qr`,
+      { method: 'POST', body: { ttl: qrTtl.value } },
+    )
+    qrUrl.value = `${window.location.origin}/login/qr?t=${res.token}`
+    qrImage.value = await QRCode.toDataURL(qrUrl.value, { width: 240, margin: 1 })
+    qrExpires.value = new Date(res.expiresAt).toLocaleString('ru-RU')
+  } catch (e) {
+    qrError.value = errText(e, 'Не удалось создать QR-код')
+  } finally {
+    qrBusy.value = false
+  }
+}
+
 async function resetPassword(u: UserPublic) {
   error.value = ''
   resetting.value = u.username
@@ -70,6 +112,37 @@ async function copySecret() {
         <button class="small" @click="copySecret">Скопировать</button>
         <button class="small" @click="revealedSecret = ''">Скрыть</button>
       </p>
+    </div>
+
+    <div v-if="qrUser" class="card">
+      <div class="row">
+        <h2 style="margin: 0;">QR-вход для {{ qrUser.pseudonym }}</h2>
+        <div class="spacer" />
+        <button class="small" @click="closeQr">Закрыть</button>
+      </div>
+      <p class="muted">
+        Одноразовая ссылка для входа без пароля. Ученик сканирует QR камерой телефона —
+        и сразу попадает в свой аккаунт. Новая генерация отменяет прежнюю ссылку.
+      </p>
+      <div class="row" style="gap: 12px; flex-wrap: wrap;">
+        <label style="min-width: 220px;">
+          Срок действия
+          <select v-model="qrTtl" @change="qrImage = ''">
+            <option value="class">15 минут (раздать в классе)</option>
+            <option value="home">7 дней (ссылка на дом)</option>
+          </select>
+        </label>
+        <button class="primary" :disabled="qrBusy" @click="generateQr">Создать QR</button>
+      </div>
+      <p v-if="qrError" class="error" style="margin-top: 10px;">{{ qrError }}</p>
+      <div v-if="qrImage" style="margin-top: 14px;">
+        <img :src="qrImage" alt="QR-код входа" style="border: 1px solid var(--line); border-radius: 8px;">
+        <p class="muted" style="margin: 8px 0 0;">Действует до {{ qrExpires }} · одноразовый</p>
+        <p class="muted" style="word-break: break-all; margin: 4px 0 0;">{{ qrUrl }}</p>
+        <button class="small" @click="copyQrUrl">
+          Скопировать ссылку
+        </button>
+      </div>
     </div>
 
     <div class="card">
@@ -120,6 +193,9 @@ async function copySecret() {
             <td>
               <button class="small" :disabled="resetting === u.username" @click="resetPassword(u)">
                 {{ resetting === u.username ? 'Сброс...' : 'Сбросить пароль' }}
+              </button>
+              <button class="small" @click="qrUser = u; qrImage = ''; qrUrl = ''">
+                QR-вход
               </button>
             </td>
           </tr>

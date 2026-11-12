@@ -29,5 +29,7 @@ export default defineNuxtConfig({
     rolesDir: './roles',
     // учебный контент — отдельный git-репозиторий, журнал истории (specs/03)
     contentDir: './content',
+    // одноразовые QR-токены входа (specs/09)
+    qrTokensDir: './qr-tokens',
   },
 })

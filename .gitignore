@@ -18,6 +18,7 @@ content/
 users/
 sessions/
 roles/
+qr-tokens/
 # изолированные данные для локальных тестов
 test-users/
 test-content/
