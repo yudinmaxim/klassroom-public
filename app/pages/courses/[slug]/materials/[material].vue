@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { TocItem, DocPayload } from '#shared/types'
 import { errText } from '#shared/errors'
+import { MdEditor } from 'md-editor-v3'
+import 'md-editor-v3/lib/style.css'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -23,13 +25,23 @@ const docPayload = computed<DocPayload | null>(() =>
 
 // --- режим редактирования ---
 const editing = ref(false)
+const editTab = ref<'edit' | 'preview'>('edit')
 const form = reactive({ title: '', content: '' })
 const preview = ref('')
+
+/** Базовый набор инструментов панели (спеки/04: без тяжёлого WYSIWYG). */
+const toolbars = [
+  'bold', 'underline', 'italic', 'strikeThrough', '-',
+  'title', 'unorderedList', 'orderedList', 'task', 'quote', '-',
+  'codeRow', 'code', 'link', 'image', 'table', '-',
+  'revoke', 'next',
+]
 
 function startEdit() {
   form.title = material.value?.title ?? ''
   form.content = docPayload.value?.content ?? ''
   preview.value = material.value?.html ?? ''
+  editTab.value = 'edit'
   editing.value = true
 }
 
@@ -37,23 +49,30 @@ function cancelEdit() {
   editing.value = false
 }
 
+async function renderPreview() {
+  try {
+    const res = await $fetch<{ html: string }>('/api/md/render', {
+      method: 'POST',
+      body: { course: slug.value, material: materialSlug.value, content: form.content },
+    })
+    preview.value = res.html
+  } catch {
+    // ошибка превью не блокирует редактирование
+  }
+}
+
 let previewTimer: ReturnType<typeof setTimeout> | null = null
 /** Предпросмотр с дебаунсом — рендер и санитизация на сервере. */
 watch(() => form.content, () => {
   if (!editing.value) return
   if (previewTimer) clearTimeout(previewTimer)
-  previewTimer = setTimeout(async () => {
-    try {
-      const res = await $fetch<{ html: string }>('/api/md/render', {
-        method: 'POST',
-        body: { course: slug.value, material: materialSlug.value, content: form.content },
-      })
-      preview.value = res.html
-    } catch {
-      // ошибка превью не блокирует редактирование
-    }
-  }, 400)
+  previewTimer = setTimeout(renderPreview, 400)
 })
+
+function showPreviewTab() {
+  editTab.value = 'preview'
+  void renderPreview()
+}
 
 const saveError = ref('')
 const saving = ref(false)
@@ -178,38 +197,63 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 
     <!-- Редактирование -->
     <div v-if="editing" style="margin-top: 14px;">
-      <div class="md-split">
-        <div>
-          <label>
-            Название
-            <input v-model="form.title">
-          </label>
-          <label style="margin-top: 10px;">
-            Текст (markdown)
-            <textarea v-model="form.content" rows="22" />
-          </label>
-          <div v-if="canEdit" style="margin-top: 10px;">
-            <h3 style="margin-bottom: 6px;">Вложения</h3>
-            <p class="muted" style="margin: 0 0 6px;">
-              В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
-            </p>
-            <input ref="fileInput" type="file" style="margin-bottom: 8px;">
-            <button class="small" :disabled="uploadBusy" @click="uploadAttachment">Приложить файл</button>
-            <p v-if="uploadError" class="error">{{ uploadError }}</p>
-            <ul v-if="docPayload?.attachments.length" style="margin-top: 8px;">
-              <li v-for="a in docPayload.attachments" :key="a" class="row" style="gap: 8px;">
-                {{ a }}
-                <button class="small" @click="removeAttachment(a)">удалить</button>
-              </li>
-            </ul>
-          </div>
+      <div class="editor-tabs" role="tablist">
+        <button
+          class="small"
+          :class="{ active: editTab === 'edit' }"
+          role="tab"
+          :aria-selected="editTab === 'edit'"
+          @click="editTab = 'edit'"
+        >
+          Редактор
+        </button>
+        <button
+          class="small"
+          :class="{ active: editTab === 'preview' }"
+          role="tab"
+          :aria-selected="editTab === 'preview'"
+          @click="showPreviewTab"
+        >
+          Предпросмотр
+        </button>
+      </div>
+
+      <div v-if="editTab === 'edit'">
+        <label>
+          Название
+          <input v-model="form.title">
+        </label>
+        <div class="md-editor-wrap" style="margin-top: 10px;">
+          <MdEditor
+            id="wikiroom-material-editor"
+            v-model="form.content"
+            language="en-US"
+            :preview="false"
+            :toolbars="toolbars"
+          />
         </div>
-        <div>
-          <h3 style="margin-top: 0;">Предпросмотр</h3>
-          <!-- eslint-disable-next-line vue/no-v-html -- тот же серверный рендер, что и у просмотра -->
-          <div class="md-body" v-html="preview" />
+        <div v-if="canEdit" style="margin-top: 10px;">
+          <h3 style="margin-bottom: 6px;">Вложения</h3>
+          <p class="muted" style="margin: 0 0 6px;">
+            В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
+          </p>
+          <input ref="fileInput" type="file" style="margin-bottom: 8px;">
+          <button class="small" :disabled="uploadBusy" @click="uploadAttachment">Приложить файл</button>
+          <p v-if="uploadError" class="error">{{ uploadError }}</p>
+          <ul v-if="docPayload?.attachments.length" style="margin-top: 8px;">
+            <li v-for="a in docPayload.attachments" :key="a" class="row" style="gap: 8px;">
+              {{ a }}
+              <button class="small" @click="removeAttachment(a)">удалить</button>
+            </li>
+          </ul>
         </div>
       </div>
+
+      <div v-else>
+        <!-- eslint-disable-next-line vue/no-v-html -- тот же серверный рендер, что и у просмотра -->
+        <div class="md-body" v-html="preview" />
+      </div>
+
       <div class="row" style="margin-top: 14px;">
         <button class="primary" :disabled="saving || !form.title" @click="save">
           {{ saving ? 'Сохраняю…' : 'Сохранить' }}
