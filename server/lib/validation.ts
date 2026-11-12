@@ -52,6 +52,38 @@ export const resetPasswordBodySchema = z.object({
   password: passwordSchema.optional(),
 })
 
+// --- Курсы (шаг 2) ---
+
+export const courseSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9-]{1,63}$/, 'Slug курса: строчные латинские буквы, цифры, дефис; 2–64 символа')
+
+export const gradingScaleSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('grade5') }),
+  z.object({ type: z.literal('points'), max: z.number().int().min(1).max(1000).default(100) }),
+  z.object({ type: z.literal('passfail') }),
+])
+
+export const createCourseBodySchema = z.object({
+  title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120),
+  description: z.string().trim().max(2000).optional(),
+  slug: courseSlugSchema.optional(),
+  gradingScale: gradingScaleSchema.optional(),
+})
+
+export const updateCourseBodySchema = z.object({
+  title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120).optional(),
+  description: z.string().trim().max(2000).optional(),
+  gradingScale: gradingScaleSchema.optional(),
+})
+
+export const rosterBodySchema = z.object({
+  username: usernameSchema,
+  action: z.enum(['add', 'remove']),
+})
+
 /** Разобрать и провалидировать JSON-тело запроса. */
 export async function parseJson<S extends z.ZodTypeAny>(
   event: H3Event,
