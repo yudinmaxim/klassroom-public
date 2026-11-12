@@ -40,10 +40,13 @@ const isActive = (path: string) =>
         </template>
       </nav>
       <div v-if="user" class="sidebar-foot">
-        <div class="muted" style="padding: 0 10px;">
-          {{ user.pseudonym }} · {{ user.role }}
-        </div>
-        <button class="small" style="margin: 8px 10px 0;" @click="logout">Выйти</button>
+        <span class="user-name">{{ user.pseudonym }}</span>
+        <span class="tip tip-up">
+          <button class="icon-btn" aria-label="Выйти" @click="logout">
+            <Icon name="lucide:log-out" />
+          </button>
+          <span class="tip-body">Выйти</span>
+        </span>
       </div>
     </aside>
 

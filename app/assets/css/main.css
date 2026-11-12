@@ -177,7 +177,38 @@ th { color: var(--muted); font-weight: 600; }
 .sidebar-foot {
   margin-top: auto;
   border-top: 1px solid var(--line);
-  padding-top: 10px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-btn {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  flex: none;
+}
+
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* тултип над элементом (для кнопок у нижнего края сайдбара) */
+.tip-up .tip-body {
+  top: auto;
+  bottom: calc(100% + 6px);
+  left: auto;
+  right: 0;
 }
 
 .main-col {
@@ -243,9 +274,6 @@ th { color: var(--muted); font-weight: 600; }
     border-top: none;
     border-left: 1px solid var(--line);
     padding: 0 0 0 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
   .container { padding: 16px 16px 48px; }
   .topbar { padding: 10px 16px; }
