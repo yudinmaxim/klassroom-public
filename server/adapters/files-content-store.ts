@@ -1,5 +1,5 @@
 import type { RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, UserPublic } from '#shared/types'
-import { readdir, rm, type Dirent } from 'node:fs/promises'
+import { readdir, rename, rm, type Dirent } from 'node:fs/promises'
 import { slugify } from '../lib/slug'
 import { httpError } from '../lib/errors'
 import { getMaterialPlugin } from '../material-plugins'
@@ -244,6 +244,31 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     }
   }
 
+  /** Переписать [[oldSlug]] → [[newSlug]] в контенте всех материалов курса. */
+  async function rewriteWikiLinks(courseSlug: string, oldSlug: string, newSlug: string): Promise<void> {
+    let dirs: Dirent[]
+    try {
+      dirs = await readdir(materialsRoot(courseSlug), { withFileTypes: true })
+    } catch {
+      return
+    }
+    const escaped = oldSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const pattern = new RegExp(`\\[\\[${escaped}\\]\\]`, 'gi')
+    for (const d of dirs.filter(d => d.isDirectory())) {
+      const f = await readMaterial(courseSlug, d.name)
+      if (!f) continue
+      const p = getMaterialPlugin(f.type)
+      if (!p) continue
+      const dir = resolveDataPath(materialDir(courseSlug, f.slug), 'content')
+      const payload = await p.io.read(dir) as { content?: unknown } | null
+      if (!payload || typeof payload.content !== 'string') continue
+      const next = payload.content.replace(pattern, `[[${newSlug}]]`)
+      if (next !== payload.content) {
+        await p.io.write(dir, { ...payload, content: next })
+      }
+    }
+  }
+
   return {
     async listCourses(actor) {
       let slugs: Dirent[]
@@ -423,8 +448,28 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
       const changes: string[] = []
       if (patch.title !== undefined && patch.title.trim() !== f.title) {
+        const oldSlug = f.slug
         f.title = patch.title.trim()
-        changes.push('переименовал')
+
+        // slug следует за названием: перегенерируем и переносим каталог,
+        // иначе URL навсегда останется от первого названия («жопа» → «nyutona»).
+        const wanted = slugify(f.title)
+        if (wanted !== oldSlug && !wanted.startsWith('course-')) {
+          let candidate = wanted
+          for (let i = 2; await readMaterial(norm, candidate); i++) {
+            candidate = `${wanted}-${i}`
+          }
+          if (candidate !== oldSlug) {
+            await rename(materialDir(norm, oldSlug), materialDir(norm, candidate))
+            f.slug = candidate
+            await rewriteWikiLinks(norm, oldSlug, candidate)
+            changes.push(`переименовал (${oldSlug} → ${candidate})`)
+          } else {
+            changes.push('переименовал')
+          }
+        } else {
+          changes.push('переименовал')
+        }
       }
       if (patch.content !== undefined) {
         await plugin.io.write(resolveDataPath(materialDir(norm, f.slug), 'content'), { content: patch.content })
