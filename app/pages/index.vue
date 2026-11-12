@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
 
-const { data: me } = useFetch('/api/auth/me', { key: 'me' })
+const { data: me } = await useFetch('/api/auth/me', { key: 'me' })
+if (!me.value?.user) {
+  // гостям на главной нечего смотреть — сразу на вход
+  await navigateTo('/login', { replace: true })
+}
+
 const { data, refresh } = await useFetch('/api/courses')
 const user = computed(() => me.value?.user ?? null)
 const courses = computed(() => data.value?.courses ?? [])
