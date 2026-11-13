@@ -26,3 +26,4 @@ test-content/
 # --- Прочее ---
 .DS_Store
 *.tsbuildinfo
+.docs/
