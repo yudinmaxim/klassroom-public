@@ -1,21 +1,22 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
+import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
 
-const { data: courseData, error: loadError } = await useFetch(`/api/courses/${slug.value}`)
-if (loadError.value || !courseData.value?.canAssignments) {
+const { data: coursePageData } = useCourseContext()
+if (!coursePageData.value?.canAssignments) {
   throw createError({ statusCode: 403, message: 'Нет доступа', fatal: true })
 }
 
 const crumbs = useBreadcrumbs()
 watchEffect(() => {
-  const courseTitle = courseData.value?.course?.title ?? slug.value
+  const courseTitle = coursePageData.value?.course?.title ?? slug.value
   crumbs.value = [
-    { label: 'Курсы', to: '/' },
+    { label: 'Курсы', to: '/courses' },
     { label: courseTitle, to: `/courses/${slug.value}` },
     { label: 'Новое задание' },
   ]
@@ -88,8 +89,11 @@ async function save() {
 </script>
 
 <template>
-  <PageShell>
-    <template #title>Новое задание</template>
+  <div class="course-page">
+  <div class="course-content">
+    <header class="page-head">
+      <h1 class="page-title">Новое задание</h1>
+    </header>
 
     <p class="muted">Задание создаётся в статусе «Не выдано» — при выдаче выберете, кому его показать: всем или конкретным ученикам.</p>
 
@@ -144,12 +148,14 @@ async function save() {
       <div class="md-body" v-html="preview" />
     </div>
 
-    <template #foot>
-      <p v-if="saveError" class="error" style="margin: 0;">{{ saveError }}</p>
-      <button class="primary" :disabled="saving || !canSave" @click="save">
-        {{ saving ? 'Создаю…' : 'Создать задание' }}
-      </button>
-      <button @click="navigateTo(`/courses/${slug}`)">Отмена</button>
-    </template>
-  </PageShell>
+  </div>
+
+  <footer class="page-foot">
+    <p v-if="saveError" class="error" style="margin: 0;">{{ saveError }}</p>
+    <button class="primary" :disabled="saving || !canSave" @click="save">
+      {{ saving ? 'Создаю…' : 'Создать задание' }}
+    </button>
+    <button @click="navigateTo(`/courses/${slug}`)">Отмена</button>
+  </footer>
+  </div>
 </template>

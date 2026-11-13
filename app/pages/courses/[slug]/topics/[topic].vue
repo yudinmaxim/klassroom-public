@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TocItem, DocPayload } from '#shared/types'
 import { errText } from '#shared/errors'
+import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 
@@ -15,8 +16,8 @@ if (loadError.value) {
   throw createError({ statusCode: 404, message: 'Тема не найдена', fatal: true })
 }
 
-const { data: courseData } = await useFetch(`/api/courses/${slug.value}`)
-const canEdit = computed(() => courseData.value?.canMaterials ?? false)
+const { data: coursePageData } = useCourseContext()
+const canEdit = computed(() => coursePageData.value?.canMaterials ?? false)
 
 const material = computed(() => data.value?.material ?? null)
 const docPayload = computed<DocPayload | null>(() =>
@@ -25,15 +26,16 @@ const docPayload = computed<DocPayload | null>(() =>
 
 const crumbs = useBreadcrumbs()
 watchEffect(() => {
-  const courseTitle = courseData.value?.course?.title ?? slug.value
+  const courseTitle = coursePageData.value?.course?.title ?? slug.value
   crumbs.value = material.value
     ? [
-        { label: 'Курсы', to: '/' },
+        { label: 'Курсы', to: '/courses' },
         { label: courseTitle, to: `/courses/${slug.value}` },
+        { label: 'Темы', to: `/courses/${slug.value}/topics` },
         { label: material.value.title },
       ]
     : [
-        { label: 'Курсы', to: '/' },
+        { label: 'Курсы', to: '/courses' },
         { label: courseTitle, to: `/courses/${slug.value}` },
       ]
 })
@@ -172,14 +174,15 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 </script>
 
 <template>
-  <PageShell v-if="material" :show-foot="editing">
-    <template #title>{{ material.title }}</template>
-    <template #actions>
-      <template v-if="!editing && canEdit">
+  <div v-if="material" class="course-page">
+  <div class="course-content">
+    <header class="page-head">
+      <h1 class="page-title">{{ material.title }}</h1>
+      <div v-if="!editing && canEdit" class="page-actions">
         <button class="small" @click="startEdit">Редактировать</button>
         <button class="small" :disabled="deleting" @click="removeMaterial">Удалить</button>
-      </template>
-    </template>
+      </div>
+    </header>
 
     <p v-if="!editing" class="muted">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
     <p v-if="saveError && !editing" class="error">{{ saveError }}</p>
@@ -270,11 +273,13 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
       </div>
     </div>
 
-    <template #foot>
-      <button class="primary" :disabled="saving || !form.title" @click="save">
-        {{ saving ? 'Сохраняю…' : 'Сохранить' }}
-      </button>
-      <button @click="cancelEdit">Отмена</button>
-    </template>
-  </PageShell>
+  </div>
+
+  <footer v-if="editing" class="page-foot">
+    <button class="primary" :disabled="saving || !form.title" @click="save">
+      {{ saving ? 'Сохраняю…' : 'Сохранить' }}
+    </button>
+    <button @click="cancelEdit">Отмена</button>
+  </footer>
+  </div>
 </template>

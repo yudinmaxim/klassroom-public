@@ -151,3 +151,13 @@ export interface Submission {
   submittedAt: string | null
   updatedAt: string | null
 }
+
+/** Ответ GET /api/courses/:slug — страница курса и её вкладки. */
+export interface CoursePageData {
+  course: Course
+  roster: Array<{ username: string, pseudonym: string }>
+  canManage: boolean
+  canMaterials: boolean
+  canAssignments: boolean
+  canViewRoster: boolean
+}

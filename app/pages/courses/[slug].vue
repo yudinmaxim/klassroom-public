@@ -1,0 +1,80 @@
+<script setup lang="ts">
+/**
+ * Лейаут раздела курса: заголовок + вкладки (часть пути) + <NuxtPage/>.
+ * Вкладки: /courses/<slug> — Информация, /topics, /assignments, /students.
+ * Дочерние страницы рендерят только контент своей вкладки/сущности
+ * (маркup: .course-content + опциональный .page-foot соседним узлом).
+ */
+import { courseContextKey } from '~/composables/useCourseContext'
+import type { CoursePageData } from '#shared/types'
+
+const route = useRoute()
+const router = useRouter()
+const slug = computed(() => String(route.params.slug))
+
+const { data: coursePageData, refresh, error: loadError } = await useFetch<CoursePageData>(
+  `/api/courses/${slug.value}`,
+  { key: `course-${slug.value}` },
+)
+if (loadError.value) {
+  throw createError({ statusCode: 404, statusMessage: 'Курс не найден', fatal: true })
+}
+
+provide(courseContextKey, {
+  data: coursePageData,
+  refresh: () => refresh().then(() => {}),
+})
+
+const courseData = computed(() => coursePageData.value)
+const canViewRoster = computed(() => Boolean(courseData.value?.canViewRoster))
+
+interface TabDef { id: string, label: string, to: string }
+const tabs = computed<TabDef[]>(() => {
+  const base = `/courses/${slug.value}`
+  return [
+    { id: 'info', label: 'Информация', to: base },
+    { id: 'topics', label: 'Темы', to: `${base}/topics` },
+    { id: 'assignments', label: 'Задания', to: `${base}/assignments` },
+    ...(canViewRoster.value ? [{ id: 'students', label: 'Учащиеся', to: `${base}/students` }] : []),
+  ]
+})
+
+const activeTab = computed(() => {
+  const path = route.path
+  const sorted = [...tabs.value].sort((a, b) => b.to.length - a.to.length)
+  return sorted.find(t => path === t.to || path.startsWith(`${t.to}/`))?.id ?? 'info'
+})
+
+// «Учащиеся» недоступна без courses.roster.view — редирект на «Информацию»
+const studentsTo = computed(() => `/courses/${slug.value}/students`)
+watchEffect(() => {
+  if (route.path === studentsTo.value && !canViewRoster.value) {
+    void router.replace(`/courses/${slug.value}`)
+  }
+})
+
+const fullWidth = usePageFullWidth()
+</script>
+
+<template>
+  <div class="page" :class="{ 'is-full': fullWidth }">
+    <header class="page-head">
+      <h1 class="page-title">{{ courseData?.course?.title ?? '…' }}</h1>
+    </header>
+
+    <nav class="tabs">
+      <NuxtLink
+        v-for="tab in tabs"
+        :key="tab.id"
+        :to="tab.to"
+        :class="{ active: activeTab === tab.id }"
+      >
+        {{ tab.label }}
+      </NuxtLink>
+    </nav>
+
+    <div class="course-body">
+      <NuxtPage />
+    </div>
+  </div>
+</template>

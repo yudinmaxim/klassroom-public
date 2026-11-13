@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Assignment, Submission } from '#shared/types'
 import { errText } from '#shared/errors'
+import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 
@@ -15,25 +16,25 @@ if (loadError.value) {
   throw createError({ statusCode: 404, message: 'Задание не найдено', fatal: true })
 }
 
-const { data: courseData } = await useFetch(`/api/courses/${slug.value}`)
-const canEdit = computed(() => courseData.value?.canAssignments ?? false)
-const roster = computed(() => courseData.value?.roster ?? [])
+const { data: coursePageData } = useCourseContext()
+const canEdit = computed(() => coursePageData.value?.canAssignments ?? false)
+const roster = computed(() => coursePageData.value?.roster ?? [])
 const rosterNames = computed(() => new Map(roster.value.map(s => [s.username, s.pseudonym])))
 
 const assignment = computed<Assignment | null>(() => data.value?.assignment ?? null)
 
 const crumbs = useBreadcrumbs()
 watchEffect(() => {
-  const courseTitle = courseData.value?.course?.title ?? slug.value
+  const courseTitle = coursePageData.value?.course?.title ?? slug.value
   crumbs.value = assignment.value
     ? [
-        { label: 'Курсы', to: '/' },
+        { label: 'Курсы', to: '/courses' },
         { label: courseTitle, to: `/courses/${slug.value}` },
         { label: 'Задания', to: `/courses/${slug.value}/assignments` },
         { label: assignment.value.title },
       ]
     : [
-        { label: 'Курсы', to: '/' },
+        { label: 'Курсы', to: '/courses' },
         { label: courseTitle, to: `/courses/${slug.value}` },
       ]
 })
@@ -229,15 +230,16 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
 </script>
 
 <template>
-  <PageShell v-if="assignment" :show-foot="editing">
-    <template #title>{{ assignment.title }}</template>
-    <template #actions>
-      <template v-if="!editing && canEdit">
+  <div v-if="assignment" class="course-page">
+  <div class="course-content">
+    <header class="page-head">
+      <h1 class="page-title">{{ assignment.title }}</h1>
+      <div v-if="!editing && canEdit" class="page-actions">
         <button v-if="assignment.status === 'draft'" class="small" @click="publishOpen = true">Выдать</button>
         <button class="small" @click="startEdit">Редактировать</button>
         <button class="small" :disabled="deleting" @click="removeAssignment">Удалить</button>
-      </template>
-    </template>
+      </div>
+    </header>
 
     <p v-if="!editing" class="muted">
       <template v-if="assignment.status === 'published'">{{ typeLabel(assignment.type) }} · </template>{{ statusLabel(assignment.status) }}
@@ -365,19 +367,6 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
       </div>
     </div>
 
-    <template #foot>
-      <p v-if="saveError && editing" class="error" style="margin: 0;">{{ saveError }}</p>
-      <button
-        v-if="editing"
-        class="primary"
-        :disabled="saving || form.title.trim().length < 3"
-        @click="save"
-      >
-        {{ saving ? 'Сохраняю…' : 'Сохранить' }}
-      </button>
-      <button v-if="editing" @click="cancelEdit">Отмена</button>
-    </template>
-
     <PublishAssignmentModal
       v-if="publishOpen && assignment"
       :slug="slug"
@@ -387,7 +376,20 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
       @close="publishOpen = false"
       @changed="publishOpen = false; refresh()"
     />
-  </PageShell>
+  </div>
+
+  <footer v-if="editing" class="page-foot">
+    <p v-if="saveError" class="error" style="margin: 0;">{{ saveError }}</p>
+    <button
+      class="primary"
+      :disabled="saving || form.title.trim().length < 3"
+      @click="save"
+    >
+      {{ saving ? 'Сохраняю…' : 'Сохранить' }}
+    </button>
+    <button @click="cancelEdit">Отмена</button>
+  </footer>
+  </div>
 </template>
 
 <style scoped>
