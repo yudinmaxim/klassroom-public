@@ -105,14 +105,27 @@ async function send() {
   top: 54px;
   right: 0;
   bottom: 0;
+  left: auto;
   z-index: 9;
   margin-left: 0;
+  width: min(max(20vw, 380px), calc(100vw - 16px));
+  height: auto; /* .side-panel задаёт height:100% — с top:54px это вылезало за низ окна */
+  max-width: 100vw;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .chat-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
+}
+.chat-list .md-body {
+  overflow-wrap: anywhere;
+}
+.chat-list .md-body pre {
+  overflow-x: auto;
 }
 </style>
