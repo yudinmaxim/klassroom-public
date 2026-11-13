@@ -44,7 +44,7 @@ onMounted(() => { if (course.value) void loadAssignments() })
 // live-обновление: выдача/отзыв/сдача меняют список и счётчики
 onMounted(() => onNotification((n) => {
   if (n.course !== course.value?.slug) return
-  if (n.type.startsWith('assignment.') || n.type === 'submission.created') {
+  if (n.type.startsWith('assignment.') || n.type.startsWith('submission.')) {
     void loadAssignments()
   }
 }))

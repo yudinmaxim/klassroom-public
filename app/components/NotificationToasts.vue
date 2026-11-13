@@ -10,12 +10,16 @@ const labels: Record<NotifyPayload['type'], string> = {
   'material.created': 'Новая тема',
   'material.updated': 'Тема обновлена',
   'submission.created': 'Новая сдача',
+  'submission.graded': 'Работа проверена',
   'roster.changed': 'Изменён состав курса',
+  'roster.enrolled': 'Вы зачислены на курс',
 }
 
 function text(n: NotifyPayload): string {
-  const base = `${labels[n.type]} «${n.title}»`
-  return n.actor ? `${base} — ${n.actor}` : base
+  let s = `${labels[n.type]} «${n.title}»`
+  if (n.detail) s += ` · ${n.detail}`
+  if (n.actor) s += ` — ${n.actor}`
+  return s
 }
 
 function open(n: NotifyPayload) {

@@ -169,7 +169,9 @@ export interface NotifyPayload {
     | 'material.created'
     | 'material.updated'
     | 'submission.created'
+    | 'submission.graded'
     | 'roster.changed'
+    | 'roster.enrolled'
   /** slug курса — для ссылки и контекста */
   course: string
   title: string
@@ -177,5 +179,9 @@ export interface NotifyPayload {
   url: string
   /** псевдоним автора действия */
   actor?: string
+  /** короткая деталь (например, оценка) */
+  detail?: string
+  /** true — только live-обновление данных, без тоста */
+  silent?: boolean
   at: string
 }

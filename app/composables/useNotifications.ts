@@ -22,7 +22,9 @@ export function useNotifications() {
   const toasts = useState<NotifyPayload[]>('notification-toasts', () => [])
 
   function push(payload: NotifyPayload) {
-    toasts.value = [...toasts.value, payload].slice(-MAX_TOASTS)
+    if (!payload.silent) {
+      toasts.value = [...toasts.value, payload].slice(-MAX_TOASTS)
+    }
     for (const fn of listeners) {
       try {
         fn(payload)
