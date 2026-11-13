@@ -10,13 +10,9 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   /** URL для скачивания/открытия; без него — просто текст */
   linkFor?: (name: string) => string
-  /** Текст кнопки (по умолчанию «Приложить файл») */
-  label?: string
-  /** primary-стиль кнопки — для главного действия (сдача ответа) */
-  primary?: boolean
   /** false — только список без кнопки загрузки (просмотр чужой сдачи) */
   uploadable?: boolean
-}>(), { uploadable: true })
+}>(), { uploadable: true, linkFor: undefined, busy: false, disabled: false })
 
 const emit = defineEmits<{
   upload: [file: File]
@@ -39,13 +35,8 @@ function onChange(e: Event) {
 <template>
   <div>
     <input ref="input" type="file" hidden :disabled="disabled" @change="onChange">
-    <button
-      v-if="props.uploadable"
-      :class="primary ? 'primary' : 'small'"
-      :disabled="busy || disabled"
-      @click="pick"
-    >
-      {{ busy ? 'Загрузка…' : (label ?? 'Приложить файл') }}
+    <button v-if="props.uploadable" class="small" :disabled="busy || disabled" @click="pick">
+      {{ busy ? 'Загрузка…' : 'Приложить файл' }}
     </button>
     <ul v-if="items.length" style="margin-top: 8px;">
       <li v-for="name in items" :key="name" class="row" style="gap: 8px;">

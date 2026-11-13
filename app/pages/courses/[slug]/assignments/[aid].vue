@@ -330,8 +330,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             <AttachmentField
               :items="mySubmission?.attachments ?? []"
               :busy="attachBusy"
-              primary
-              label="Приложить файл к сдаче"
               :link-for="(n: string) => attachmentUrl(myUsername, n)"
               @upload="uploadAttachment"
               @remove="removeAttachment"
