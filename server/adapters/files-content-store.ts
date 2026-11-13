@@ -1064,8 +1064,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       if (existing) await archiveSubmission(norm, f.id, actor.username, existing)
       const sub: SubmissionFile = {
         status: 'submitted',
-        grade: existing?.grade ?? null,
-        feedback: existing?.feedback ?? '',
+        // оценка и комментарий относятся к конкретной версии ответа —
+        // при пересдаче сбрасываются (старая версия уже в history/)
+        grade: null,
+        feedback: '',
         submittedAt: now,
         updatedAt: now,
       }
