@@ -212,9 +212,6 @@ const { openThread: openChat, unread: chatUnreadMap, chatKey } = useSubmissionCh
 function chatUnread(c: { slug: string, aid: string, username: string }): number {
   return chatUnreadMap.value[chatKey(c)] ?? 0
 }
-const totalChatUnread = computed(() =>
-  submissions.value.reduce((sum, s) => sum + chatUnread({ slug: slug.value, aid: aid.value, username: s.username }), 0),
-)
 
 async function submit() {
   if (!answer.value.trim()) return
@@ -333,22 +330,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
     <header class="page-head">
       <h1 class="page-title">{{ assignment.title }}</h1>
       <div v-if="!editing && canEdit" class="page-actions">
-        <AppDropdown v-if="submissions.length">
-          <template #trigger>
-            <button class="small">
-              Обсуждение{{ totalChatUnread ? ` (${totalChatUnread})` : '' }}
-            </button>
-          </template>
-          <template #menu="{ close }">
-            <button
-              v-for="s in submissions"
-              :key="s.username"
-              @click="openChat({ slug, aid, username: s.username, label: pseudo(s.username) }); close()"
-            >
-              {{ pseudo(s.username) }}{{ chatUnread({ slug, aid, username: s.username }) ? ` (${chatUnread({ slug, aid, username: s.username })})` : '' }}
-            </button>
-          </template>
-        </AppDropdown>
         <button v-if="assignment.status === 'draft'" class="small" @click="publishOpen = true">Выдать</button>
         <button class="small" @click="startEdit">Редактировать</button>
         <button class="small" :disabled="deleting" @click="removeAssignment">Удалить</button>
@@ -456,6 +437,12 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             <div class="row" style="gap: 10px;">
               <span class="muted">{{ subStatusLabel(s.status) }}</span>
               <span v-if="s.grade !== null"><strong>{{ s.grade }}</strong></span>
+              <button
+                class="small"
+                @click="openChat({ slug, aid, username: s.username, label: pseudo(s.username) })"
+              >
+                Обсуждение{{ chatUnread({ slug, aid, username: s.username }) ? ` (${chatUnread({ slug, aid, username: s.username })})` : '' }}
+              </button>
               <button class="small" @click="toggleSub(s.username)">
                 {{ openSub === s.username ? 'Скрыть' : 'Открыть' }}
               </button>
