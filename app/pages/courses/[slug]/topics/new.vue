@@ -24,13 +24,6 @@ watchEffect(() => {
 
 const form = reactive({ title: '', content: '' })
 
-const toolbars = [
-  'bold', 'underline', 'italic', 'strikeThrough', '-',
-  'title', 'unorderedList', 'orderedList', 'task', 'quote', '-',
-  'codeRow', 'code', 'link', 'image', 'table', '-',
-  'revoke', 'next',
-]
-
 const saveError = ref('')
 const saving = ref(false)
 const createdSlug = ref('')
@@ -118,7 +111,7 @@ async function attachFile() {
           id="wikiroom-topic-new-editor"
           v-model="form.content"
           language="en-US"
-          :toolbars="toolbars"
+          :toolbars="MD_TOOLBARS"
         />
       </div>
       <div style="margin-top: 12px;" :style="canAttach ? '' : 'opacity: .55'">

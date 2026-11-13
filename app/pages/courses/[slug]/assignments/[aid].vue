@@ -47,13 +47,6 @@ const form = reactive({
   description: '',
 })
 
-const toolbars = [
-  'bold', 'underline', 'italic', 'strikeThrough', '-',
-  'title', 'unorderedList', 'orderedList', 'task', 'quote', '-',
-  'codeRow', 'code', 'link', 'image', 'table', '-',
-  'revoke', 'next',
-]
-
 function startEdit() {
   const a = assignment.value
   if (!a) return
@@ -337,11 +330,13 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <button class="small" style="margin-left: 6px;" @click="removeAttachment(name)">×</button>
             </div>
           </div>
-          <MdEditor
-            v-model="answer"
-            language="ru-RU"
-            style="margin-top: 8px;"
-          />
+          <div class="md-editor-wrap" style="margin-top: 8px;">
+            <MdEditor
+              v-model="answer"
+              language="en-US"
+              :toolbars="MD_TOOLBARS"
+            />
+          </div>
           <div class="row" style="margin-top: 10px; gap: 10px; align-items: center;">
             <input ref="attachInput" type="file" style="display: none;" @change="uploadAttachment">
             <button class="primary" :disabled="attachBusy" @click="attachInput?.click()">
@@ -355,11 +350,13 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </div>
         </template>
         <template v-else>
-          <MdEditor
-            v-model="answer"
-            language="ru-RU"
-            style="margin-top: 8px;"
-          />
+          <div class="md-editor-wrap" style="margin-top: 8px;">
+            <MdEditor
+              v-model="answer"
+              language="en-US"
+              :toolbars="MD_TOOLBARS"
+            />
+          </div>
         </template>
         <p v-if="submitError" class="error">{{ submitError }}</p>
         <button class="primary" style="margin-top: 8px;" :disabled="submitBusy || !answer.trim()" @click="submit">
@@ -479,7 +476,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             id="wikiroom-assignment-editor"
             v-model="form.description"
             language="en-US"
-            :toolbars="toolbars"
+            :toolbars="MD_TOOLBARS"
           />
         </div>
       </div>

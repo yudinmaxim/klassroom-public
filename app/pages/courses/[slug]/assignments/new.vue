@@ -29,13 +29,6 @@ const form = reactive({
   description: '',
 })
 
-const toolbars = [
-  'bold', 'underline', 'italic', 'strikeThrough', '-',
-  'title', 'unorderedList', 'orderedList', 'task', 'quote', '-',
-  'codeRow', 'code', 'link', 'image', 'table', '-',
-  'revoke', 'next',
-]
-
 const saveError = ref('')
 const saving = ref(false)
 const canSave = computed(() => form.title.trim().length >= 3)
@@ -94,7 +87,7 @@ async function save() {
           id="wikiroom-assignment-new-editor"
           v-model="form.description"
           language="en-US"
-          :toolbars="toolbars"
+          :toolbars="MD_TOOLBARS"
         />
       </div>
     </div>

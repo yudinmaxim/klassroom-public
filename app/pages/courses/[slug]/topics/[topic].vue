@@ -44,14 +44,6 @@ watchEffect(() => {
 const editing = ref(false)
 const form = reactive({ title: '', content: '' })
 
-/** Базовый набор инструментов панели (спеки/04: без тяжёлого WYSIWYG). */
-const toolbars = [
-  'bold', 'underline', 'italic', 'strikeThrough', '-',
-  'title', 'unorderedList', 'orderedList', 'task', 'quote', '-',
-  'codeRow', 'code', 'link', 'image', 'table', '-',
-  'revoke', 'next',
-]
-
 function startEdit() {
   form.title = material.value?.title ?? ''
   form.content = docPayload.value?.content ?? ''
@@ -196,7 +188,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
             id="wikiroom-material-editor"
             v-model="form.content"
             language="en-US"
-            :toolbars="toolbars"
+            :toolbars="MD_TOOLBARS"
           />
         </div>
         <div v-if="canEdit" style="margin-top: 10px;">
