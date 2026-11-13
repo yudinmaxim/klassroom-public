@@ -4,7 +4,7 @@
  * вложений со ссылками (linkFor) и удалением. Загрузку/удаление
  * реализует родитель — эндпоинты разные у тем и сдач.
  */
-defineProps<{
+const props = withDefaults(defineProps<{
   items: string[]
   busy?: boolean
   disabled?: boolean
@@ -16,7 +16,7 @@ defineProps<{
   primary?: boolean
   /** false — только список без кнопки загрузки (просмотр чужой сдачи) */
   uploadable?: boolean
-}>()
+}>(), { uploadable: true })
 
 const emit = defineEmits<{
   upload: [file: File]
@@ -40,7 +40,7 @@ function onChange(e: Event) {
   <div>
     <input ref="input" type="file" hidden :disabled="disabled" @change="onChange">
     <button
-      v-if="uploadable !== false"
+      v-if="props.uploadable"
       :class="primary ? 'primary' : 'small'"
       :disabled="busy || disabled"
       @click="pick"
