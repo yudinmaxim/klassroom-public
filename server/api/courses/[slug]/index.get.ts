@@ -28,5 +28,5 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  return { course, roster, canManage, canMaterials, canAssignments }
+  return { course, roster, canManage, canMaterials, canAssignments, canViewRoster }
 })

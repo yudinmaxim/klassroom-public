@@ -23,16 +23,17 @@ watchEffect(() => {
 })
 
 // --- вкладки ---
-const tabs = [
+const canViewRoster = computed(() => coursePageData.value?.canViewRoster ?? false)
+const tabs = computed(() => [
   { id: 'info', label: 'Информация' },
   { id: 'topics', label: 'Темы' },
   { id: 'assignments', label: 'Задания' },
-  { id: 'students', label: 'Учащиеся' },
-] as const
-type TabId = (typeof tabs)[number]['id']
+  ...(canViewRoster.value ? [{ id: 'students', label: 'Учащиеся' }] : []),
+] as const)
+type TabId = 'info' | 'topics' | 'assignments' | 'students'
 const activeTab = ref<TabId>('info')
 const initialTab = String(route.query.tab ?? '')
-if (tabs.some(t => t.id === initialTab)) activeTab.value = initialTab as TabId
+if (tabs.value.some(t => t.id === initialTab)) activeTab.value = initialTab as TabId
 
 // --- настройки курса ---
 const form = reactive({
