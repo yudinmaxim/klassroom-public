@@ -165,6 +165,34 @@ async function deleteAssignment(a: AssignmentRow) {
   }
 }
 
+// --- выдача задания ---
+const publishTarget = ref<AssignmentRow | null>(null)
+const publishBusy = ref('')
+
+async function publishGeneral(a: AssignmentRow) {
+  publishBusy.value = a.slug
+  assignmentsError.value = ''
+  try {
+    await $fetch(`/api/courses/${course.value?.slug}/assignments/${a.slug}`, {
+      method: 'PATCH',
+      body: { status: 'published' },
+    })
+    await loadAssignments()
+  } catch (e) {
+    assignmentsError.value = errText(e, 'Не удалось выдать задание')
+  } finally {
+    publishBusy.value = ''
+  }
+}
+
+function openPublish(a: AssignmentRow) {
+  if (a.type === 'private') {
+    publishTarget.value = a
+  } else {
+    void publishGeneral(a)
+  }
+}
+
 type MaterialRow = { slug: string, title: string, type: string, updatedAt: string }
 
 function materialUrl(m: MaterialRow): string {
@@ -352,6 +380,17 @@ const scaleLabel: Record<GradingScale['type'], string> = {
             <td class="muted">{{ a.due ?? '—' }}</td>
             <td>{{ assignmentStatusLabel(a) }}</td>
             <td v-if="canAssignments" class="row-actions">
+              <span v-if="a.status === 'draft'" class="tip">
+                <button
+                  class="icon-btn"
+                  aria-label="Выдать задание"
+                  :disabled="publishBusy === a.slug"
+                  @click.stop="openPublish(a)"
+                >
+                  <Icon name="lucide:send" />
+                </button>
+                <span class="tip-body">Выдать</span>
+              </span>
               <span class="tip">
                 <button
                   class="icon-btn"
@@ -445,6 +484,15 @@ const scaleLabel: Record<GradingScale['type'], string> = {
       :enrolled="rosterUsernames"
       @close="enrollOpen = false"
       @changed="enrollOpen = false; refresh()"
+    />
+    <PublishAssignmentModal
+      v-if="publishTarget && course"
+      :slug="course.slug"
+      :assignment-slug="publishTarget.slug"
+      :title="publishTarget.title"
+      :students="roster"
+      @close="publishTarget = null"
+      @changed="publishTarget = null; loadAssignments()"
     />
     <NewStudentPanel
       v-if="newStudentOpen && course"
