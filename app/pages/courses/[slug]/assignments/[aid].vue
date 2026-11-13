@@ -118,6 +118,8 @@ async function save() {
 }
 
 const deleting = ref(false)
+const publishOpen = ref(false)
+
 async function removeAssignment() {
   if (!window.confirm('Удалить задание вместе со всеми сдачами?')) return
   deleting.value = true
@@ -231,6 +233,7 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
     <template #title>{{ assignment.title }}</template>
     <template #actions>
       <template v-if="!editing && canEdit">
+        <button v-if="assignment.status === 'draft'" class="small" @click="publishOpen = true">Выдать</button>
         <button class="small" @click="startEdit">Редактировать</button>
         <button class="small" :disabled="deleting" @click="removeAssignment">Удалить</button>
       </template>
@@ -374,6 +377,16 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
       </button>
       <button v-if="editing" @click="cancelEdit">Отмена</button>
     </template>
+
+    <PublishAssignmentModal
+      v-if="publishOpen && assignment"
+      :slug="slug"
+      :assignment-slug="aid"
+      :title="assignment.title"
+      :students="roster"
+      @close="publishOpen = false"
+      @changed="publishOpen = false; refresh()"
+    />
   </PageShell>
 </template>
 
