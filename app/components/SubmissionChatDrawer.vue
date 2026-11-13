@@ -6,10 +6,9 @@ import { useSubmissionChat } from '~/composables/useSubmissionChat'
 
 /**
  * Боковая панель-чата по треду сдачи. Монтируется в app.vue — живёт
- * при навигации; «Закрепить» удерживает её открытой между страницами.
+ * при навигации и закрывается только явным ×.
  */
-const { open, pinned, ctx, closeThread, togglePin, onRouteChange } = useSubmissionChat()
-const route = useRoute()
+const { open, ctx, closeThread } = useSubmissionChat()
 
 const comments = ref<SubmissionComment[]>([])
 const text = ref('')
@@ -40,8 +39,6 @@ onNotification((n) => {
     void load()
   }
 })
-// без закрепа панель закрывается при переходе на другую страницу
-watch(() => route.path, onRouteChange)
 
 async function send() {
   if (!ctx.value || !text.value.trim() || busy.value) return
@@ -66,15 +63,7 @@ async function send() {
   <aside v-if="open" class="side-panel chat-panel">
       <div class="modal-head">
         <h2>Обсуждение<template v-if="ctx?.label"> — {{ ctx.label }}</template></h2>
-        <div class="row" style="gap: 6px;">
-          <button
-            class="small"
-            :class="{ active: pinned }"
-            :title="pinned ? 'Открепить панель' : 'Закрепить панель на всех страницах'"
-            @click="togglePin"
-          >{{ pinned ? '📌' : '📍' }}</button>
-          <button class="small" aria-label="Закрыть" @click="closeThread">×</button>
-        </div>
+        <button class="small" aria-label="Закрыть" @click="closeThread">×</button>
       </div>
 
       <div ref="listEl" class="chat-list">

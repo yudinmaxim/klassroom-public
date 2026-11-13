@@ -2,10 +2,9 @@ import type { NotifyPayload } from '#shared/types'
 import { onNotification } from '~/composables/useNotifications'
 
 /**
- * Глобальный чат- drawer по тредам сдач (specs/11).
+ * Глобальный чат-drawer по тредам сдач (specs/11).
  * Кнопки на страницах вызывают openThread(ctx); drawer смонтирован в app.vue
- * и живёт независимо от роута. «Закрепить» — панель не закрывается
- * при навигации; без закрепа — закрывается при смене страницы.
+ * и ВСЕГДА живёт при навигации — закрывается только явным ×.
  *
  * Непрочитанные — только live-события этой сессии (как и уведомления:
  * эпемерно, офлайн ничего не копится).
@@ -21,7 +20,6 @@ export interface ChatContext {
 }
 
 const open = ref(false)
-const pinned = ref(false)
 const ctx = ref<ChatContext | null>(null)
 const unread = ref<Record<string, number>>({})
 
@@ -52,13 +50,6 @@ export function useSubmissionChat() {
     open.value = false
     ctx.value = null
   }
-  function togglePin() {
-    pinned.value = !pinned.value
-  }
-  /** Вызывается drawer'ом при смене роута. */
-  function onRouteChange() {
-    if (!pinned.value) closeThread()
-  }
 
-  return { open, pinned, ctx, unread, openThread, closeThread, togglePin, onRouteChange, chatKey }
+  return { open, ctx, unread, openThread, closeThread, chatKey }
 }
