@@ -31,9 +31,25 @@ const tabs = computed(() => [
   ...(canViewRoster.value ? [{ id: 'students', label: 'Учащиеся' }] : []),
 ] as const)
 type TabId = 'info' | 'topics' | 'assignments' | 'students'
+const router = useRouter()
 const activeTab = ref<TabId>('info')
 const initialTab = String(route.query.tab ?? '')
 if (tabs.value.some(t => t.id === initialTab)) activeTab.value = initialTab as TabId
+
+// вкладка — часть URL (?tab=), чтобы F5/back не сбрасывали её
+watch(activeTab, (tab) => {
+  const want = tab === 'info' ? undefined : tab
+  if ((route.query.tab ?? undefined) === want) return
+  void router.replace({ query: { ...route.query, tab: want } })
+})
+watch(() => route.query.tab, (q) => {
+  const t = String(q ?? '')
+  if (t !== 'info' && tabs.value.some(x => x.id === t) && t !== activeTab.value) {
+    activeTab.value = t as TabId
+  } else if (!t && activeTab.value !== 'info') {
+    activeTab.value = 'info'
+  }
+})
 
 // --- настройки курса ---
 const form = reactive({
