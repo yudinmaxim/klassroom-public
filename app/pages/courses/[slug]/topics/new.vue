@@ -61,15 +61,12 @@ async function save() {
 }
 
 // --- вложения (ленивое создание темы) ---
-const fileInput = ref<HTMLInputElement | null>(null)
 const uploadError = ref('')
 const uploadBusy = ref(false)
 /** Вложения доступны, когда есть название ИЛИ тема уже создана лениво. */
 const canAttach = computed(() => form.title.trim().length >= 3 || !!createdSlug.value)
 
-async function attachFile() {
-  const file = fileInput.value?.files?.[0]
-  if (!file) return
+async function attachFile(file: File) {
   uploadError.value = ''
   if (form.title.trim().length < 3) {
     uploadError.value = 'Укажите название темы, чтобы прикрепить файл'
@@ -123,10 +120,12 @@ async function attachFile() {
           В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
           Тема создастся при загрузке.
         </p>
-        <input ref="fileInput" type="file" :disabled="!canAttach" style="margin-bottom: 8px;">
-        <button class="small" :disabled="uploadBusy || !canAttach" @click="attachFile">
-          {{ uploadBusy ? 'Загрузка…' : 'Приложить файл' }}
-        </button>
+        <AttachmentField
+          :items="[]"
+          :busy="uploadBusy"
+          :disabled="!canAttach"
+          @upload="attachFile"
+        />
         <p v-if="uploadError" class="error">{{ uploadError }}</p>
       </div>
     </div>

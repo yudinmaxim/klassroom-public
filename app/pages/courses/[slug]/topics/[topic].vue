@@ -94,11 +94,8 @@ async function removeMaterial() {
 // --- вложения ---
 const uploadError = ref('')
 const uploadBusy = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
 
-async function uploadAttachment() {
-  const file = fileInput.value?.files?.[0]
-  if (!file) return
+async function uploadAttachment(file: File) {
   uploadError.value = ''
   uploadBusy.value = true
   try {
@@ -108,7 +105,6 @@ async function uploadAttachment() {
       method: 'POST',
       body: fd,
     })
-    if (fileInput.value) fileInput.value.value = ''
     await refresh()
   } catch (e) {
     uploadError.value = errText(e, 'Не удалось загрузить файл')
@@ -196,15 +192,14 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           <p class="muted" style="margin: 0 0 6px;">
             В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
           </p>
-          <input ref="fileInput" type="file" style="margin-bottom: 8px;">
-          <button class="small" :disabled="uploadBusy" @click="uploadAttachment">Приложить файл</button>
+          <AttachmentField
+            :items="docPayload?.attachments ?? []"
+            :busy="uploadBusy"
+            :link-for="attachmentUrl"
+            @upload="uploadAttachment"
+            @remove="removeAttachment"
+          />
           <p v-if="uploadError" class="error">{{ uploadError }}</p>
-          <ul v-if="docPayload?.attachments.length" style="margin-top: 8px;">
-            <li v-for="a in docPayload.attachments" :key="a" class="row" style="gap: 8px;">
-              {{ a }}
-              <button class="small" @click="removeAttachment(a)">удалить</button>
-            </li>
-          </ul>
         </div>
       </div>
 

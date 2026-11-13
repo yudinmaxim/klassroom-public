@@ -126,7 +126,6 @@ const submitBusy = ref(false)
 const submitError = ref('')
 
 // --- редактор ответа + вложения сдачи ---
-const attachInput = ref<HTMLInputElement | null>(null)
 const attachBusy = ref(false)
 const { data: meData } = useFetch<{ user?: { username?: string } }>('/api/auth/me', { key: 'me' })
 const myUsername = computed(() => mySubmission.value?.username ?? meData.value?.user?.username ?? '')
@@ -137,11 +136,8 @@ function attachmentUrl(username: string, name: string): string {
 function attachmentsApi(username: string): string {
   return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/attachments`
 }
-async function uploadAttachment(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file || !myUsername.value) return
+async function uploadAttachment(file: File) {
+  if (!myUsername.value) return
   attachBusy.value = true
   submitError.value = ''
   try {
@@ -323,13 +319,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </p>
           <h3 style="margin: 10px 0 6px;">Ваша сдача</h3>
           <pre class="answer-text">{{ mySubmission.answer }}</pre>
-          <div v-if="mySubmission.attachments?.length" style="margin: 8px 0;">
-            <strong>Вложения:</strong>
-            <div v-for="name in mySubmission.attachments" :key="name">
-              <a :href="attachmentUrl(myUsername, name)" target="_blank">{{ name }}</a>
-              <button class="small" style="margin-left: 6px;" @click="removeAttachment(name)">×</button>
-            </div>
-          </div>
           <div class="md-editor-wrap sm" style="margin-top: 8px;">
             <MdEditor
               v-model="answer"
@@ -338,10 +327,15 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             />
           </div>
           <div class="row" style="margin-top: 10px; gap: 10px; align-items: center;">
-            <input ref="attachInput" type="file" style="display: none;" @change="uploadAttachment">
-            <button class="primary" :disabled="attachBusy" @click="attachInput?.click()">
-              {{ attachBusy ? 'Загружаю…' : '📎 Приложить файл к сдаче' }}
-            </button>
+            <AttachmentField
+              :items="mySubmission?.attachments ?? []"
+              :busy="attachBusy"
+              primary
+              label="Приложить файл к сдаче"
+              :link-for="(n: string) => attachmentUrl(myUsername, n)"
+              @upload="uploadAttachment"
+              @remove="removeAttachment"
+            />
             <span class="muted" style="font-size: 12px;">до 10 МБ</span>
           </div>
           <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
