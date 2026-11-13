@@ -10,7 +10,6 @@ const { data: courseData, error: loadError } = await useFetch(`/api/courses/${sl
 if (loadError.value || !courseData.value?.canAssignments) {
   throw createError({ statusCode: 403, message: 'Нет доступа', fatal: true })
 }
-const roster = computed(() => courseData.value?.roster ?? [])
 
 const crumbs = useBreadcrumbs()
 watchEffect(() => {
@@ -25,8 +24,6 @@ watchEffect(() => {
 const editTab = ref<'edit' | 'preview'>('edit')
 const form = reactive({
   title: '',
-  type: 'general' as 'general' | 'private',
-  audience: [] as string[],
   due: '',
   maxPoints: null as number | null,
   description: '',
@@ -63,9 +60,7 @@ function showPreviewTab() {
 
 const saveError = ref('')
 const saving = ref(false)
-const canSave = computed(() =>
-  form.title.trim().length >= 3 && (form.type === 'general' || form.audience.length > 0),
-)
+const canSave = computed(() => form.title.trim().length >= 3)
 
 async function save() {
   saving.value = true
@@ -77,8 +72,6 @@ async function save() {
         method: 'POST',
         body: {
           title: form.title,
-          type: form.type,
-          audience: form.type === 'private' ? form.audience : [],
           due: form.due || null,
           maxPoints: form.maxPoints,
           description: form.description,
@@ -98,7 +91,7 @@ async function save() {
   <PageShell>
     <template #title>Новое задание</template>
 
-    <p class="muted">Задание создаётся в статусе «Не выдано» — опубликуйте его на странице задания.</p>
+    <p class="muted">Задание создаётся в статусе «Не выдано» — при выдаче выберете, кому его показать: всем или конкретным ученикам.</p>
 
     <div class="editor-tabs" role="tablist" style="margin-top: 14px;">
       <button
@@ -126,21 +119,6 @@ async function save() {
         Название
         <input v-model="form.title">
       </label>
-      <label>
-        Тип
-        <select v-model="form.type">
-          <option value="general">Общее (весь курс)</option>
-          <option value="private">Частное (выбранным ученикам)</option>
-        </select>
-      </label>
-      <div v-if="form.type === 'private'">
-        <span class="muted" style="display:block; margin-bottom: 4px;">Ученики:</span>
-        <label v-for="s in roster" :key="s.username" class="row" style="gap: 6px;">
-          <input v-model="form.audience" type="checkbox" :value="s.username">
-          {{ s.pseudonym }} <span class="muted">({{ s.username }})</span>
-        </label>
-        <p v-if="!roster.length" class="muted">В курсе пока нет учеников.</p>
-      </div>
       <div class="row" style="gap: 16px;">
         <label>
           Дедлайн

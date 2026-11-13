@@ -43,11 +43,8 @@ const editing = ref(false)
 const editTab = ref<'edit' | 'preview'>('edit')
 const form = reactive({
   title: '',
-  type: 'general' as 'general' | 'private',
-  audience: [] as string[],
   due: '',
   maxPoints: null as number | null,
-  status: 'draft' as 'draft' | 'published',
   description: '',
 })
 const preview = ref('')
@@ -63,11 +60,8 @@ function startEdit() {
   const a = assignment.value
   if (!a) return
   form.title = a.title
-  form.type = a.type
-  form.audience = [...a.audience]
   form.due = a.due ?? ''
   form.maxPoints = a.maxPoints
-  form.status = a.status
   form.description = a.description
   preview.value = a.html
   editTab.value = 'edit'
@@ -108,11 +102,8 @@ async function save() {
       method: 'PATCH',
       body: {
         title: form.title,
-        type: form.type,
-        audience: form.type === 'private' ? form.audience : [],
         due: form.due || null,
         maxPoints: form.maxPoints,
-        status: form.status,
         description: form.description,
       },
     })
@@ -246,8 +237,7 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
     </template>
 
     <p v-if="!editing" class="muted">
-      {{ typeLabel(assignment.type) }} ·
-      {{ statusLabel(assignment.status) }}
+      <template v-if="assignment.status === 'published'">{{ typeLabel(assignment.type) }} · </template>{{ statusLabel(assignment.status) }}
       <template v-if="assignment.due"> · до {{ assignment.due }}</template>
       <template v-if="assignment.maxPoints"> · {{ assignment.maxPoints }} балл.</template>
       · обновлено {{ fmtDate(assignment.updatedAt) }}
@@ -346,23 +336,6 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
           Название
           <input v-model="form.title">
         </label>
-        <label>
-          Тип
-          <select v-model="form.type">
-            <option value="general">Общее (весь курс)</option>
-            <option value="private">Частное (выбранным ученикам)</option>
-          </select>
-        </label>
-        <div v-if="form.type === 'private'">
-          <span class="muted" style="display:block; margin-bottom: 4px;">Ученики:</span>
-          <label v-for="s in roster" :key="s.username" class="row" style="gap: 6px;">
-            <input v-model="form.audience" type="checkbox" :value="s.username">
-            {{ s.pseudonym }} <span class="muted">({{ s.username }})</span>
-          </label>
-          <p v-if="!form.audience.length" class="muted" style="margin: 6px 0 0;">
-            Для частного задания выберите хотя бы одного ученика.
-          </p>
-        </div>
         <div class="row" style="gap: 16px;">
           <label>
             Дедлайн
@@ -371,13 +344,6 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
           <label>
             Макс. баллов
             <input v-model.number="form.maxPoints" type="number" min="1" max="1000" style="width: 110px;">
-          </label>
-          <label>
-            Статус
-            <select v-model="form.status">
-              <option value="draft">Не выдано</option>
-              <option value="published">Выдано</option>
-            </select>
           </label>
         </div>
         <div class="md-editor-wrap" style="margin-top: 10px;">
@@ -401,7 +367,7 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
       <button
         v-if="editing"
         class="primary"
-        :disabled="saving || form.title.trim().length < 3 || (form.type === 'private' && !form.audience.length)"
+        :disabled="saving || form.title.trim().length < 3"
         @click="save"
       >
         {{ saving ? 'Сохраняю…' : 'Сохранить' }}

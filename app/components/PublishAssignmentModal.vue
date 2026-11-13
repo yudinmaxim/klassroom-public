@@ -9,6 +9,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ close: [], changed: [] }>()
 
+/** Кому выдаём: всем ученикам курса или выбранным. */
+const scope = ref<'all' | 'chosen'>('all')
 const checked = ref<Set<string>>(new Set())
 const loading = ref(true)
 const loadError = ref('')
@@ -17,10 +19,14 @@ const error = ref('')
 
 onMounted(async () => {
   try {
-    const res = await $fetch<{ assignment: { audience: string[] } }>(
+    const res = await $fetch<{ assignment: { type: string, audience: string[], status: string } }>(
       `/api/courses/${props.slug}/assignments/${props.assignmentSlug}`,
     )
-    checked.value = new Set(res.assignment.audience)
+    // префилл: частное выданное задание → выбранные; иначе → всем
+    if (res.assignment.type === 'private' && res.assignment.audience.length) {
+      scope.value = 'chosen'
+      checked.value = new Set(res.assignment.audience)
+    }
   } catch (e) {
     loadError.value = errText(e, 'Не удалось загрузить задание')
   } finally {
@@ -36,7 +42,7 @@ function toggle(username: string, on: boolean) {
 }
 
 async function save() {
-  if (!checked.value.size) {
+  if (scope.value === 'chosen' && !checked.value.size) {
     error.value = 'Выберите хотя бы одного ученика'
     return
   }
@@ -45,7 +51,11 @@ async function save() {
   try {
     await $fetch(`/api/courses/${props.slug}/assignments/${props.assignmentSlug}`, {
       method: 'PATCH',
-      body: { status: 'published', audience: [...checked.value] },
+      body: {
+        status: 'published',
+        type: scope.value === 'all' ? 'general' : 'private',
+        audience: scope.value === 'chosen' ? [...checked.value] : [],
+      },
     })
     emit('changed')
   } catch (e) {
@@ -66,25 +76,37 @@ async function save() {
         </button>
       </div>
 
-      <p class="muted" style="margin-top: 0;">{{ title }} — выберите учеников:</p>
+      <p class="muted" style="margin-top: 0;">{{ title }}</p>
 
       <p v-if="loadError" class="error">{{ loadError }}</p>
       <p v-else-if="loading" class="muted">Загрузка…</p>
-      <p v-else-if="!students.length" class="muted">В курсе пока нет учеников.</p>
+      <template v-else>
+        <label class="enroll-item" style="margin-bottom: 6px;">
+          <input v-model="scope" type="radio" value="all">
+          <span class="enroll-name">Всем ученикам курса</span>
+        </label>
+        <label class="enroll-item" style="margin-bottom: 10px;">
+          <input v-model="scope" type="radio" value="chosen">
+          <span class="enroll-name">Выбранным ученикам</span>
+        </label>
 
-      <ul v-else class="enroll-list">
-        <li v-for="s in students" :key="s.username">
-          <label class="enroll-item">
-            <input
-              type="checkbox"
-              :checked="checked.has(s.username)"
-              @change="toggle(s.username, ($event.target as HTMLInputElement).checked)"
-            >
-            <span class="enroll-name">{{ s.pseudonym }}</span>
-            <span class="enroll-login muted">{{ s.username }}</span>
-          </label>
-        </li>
-      </ul>
+        <template v-if="scope === 'chosen'">
+          <p v-if="!students.length" class="muted">В курсе пока нет учеников.</p>
+          <ul v-else class="enroll-list">
+            <li v-for="s in students" :key="s.username">
+              <label class="enroll-item">
+                <input
+                  type="checkbox"
+                  :checked="checked.has(s.username)"
+                  @change="toggle(s.username, ($event.target as HTMLInputElement).checked)"
+                >
+                <span class="enroll-name">{{ s.pseudonym }}</span>
+                <span class="enroll-login muted">{{ s.username }}</span>
+              </label>
+            </li>
+          </ul>
+        </template>
+      </template>
 
       <p v-if="error" class="error">{{ error }}</p>
 

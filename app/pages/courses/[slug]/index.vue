@@ -165,32 +165,12 @@ async function deleteAssignment(a: AssignmentRow) {
   }
 }
 
-// --- выдача задания ---
+// --- выдача задания: выбор аудитории — в модалке ---
 const publishTarget = ref<AssignmentRow | null>(null)
 const publishBusy = ref('')
 
-async function publishGeneral(a: AssignmentRow) {
-  publishBusy.value = a.slug
-  assignmentsError.value = ''
-  try {
-    await $fetch(`/api/courses/${course.value?.slug}/assignments/${a.slug}`, {
-      method: 'PATCH',
-      body: { status: 'published' },
-    })
-    await loadAssignments()
-  } catch (e) {
-    assignmentsError.value = errText(e, 'Не удалось выдать задание')
-  } finally {
-    publishBusy.value = ''
-  }
-}
-
 function openPublish(a: AssignmentRow) {
-  if (a.type === 'private') {
-    publishTarget.value = a
-  } else {
-    void publishGeneral(a)
-  }
+  publishTarget.value = a
 }
 
 async function unpublishAssignment(a: AssignmentRow) {
