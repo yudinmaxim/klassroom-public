@@ -196,6 +196,8 @@ export interface NotifyPayload {
   actor?: string
   /** короткая деталь (например, оценка) */
   detail?: string
+  /** username владельца сдачи — для comment.created (тред per-submission) */
+  username?: string
   /** true — только live-обновление данных, без тоста */
   silent?: boolean
   at: string

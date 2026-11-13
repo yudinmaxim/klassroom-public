@@ -195,7 +195,7 @@ async function uploadAttachment(e: Event) {
     await $fetch(attachmentsApi(myUsername.value), { method: 'POST', body: fd })
     await loadOwnSubmission()
   } catch (err) {
-    submitError.value = errText(err)
+    submitError.value = errText(err, 'Не удалось загрузить файл')
   } finally {
     attachBusy.value = false
   }
@@ -205,6 +205,12 @@ async function removeAttachment(name: string) {
     await $fetch(`${attachmentsApi(myUsername.value)}/${encodeURIComponent(name)}`, { method: 'DELETE' })
     await loadOwnSubmission()
   } catch { /* ignore */ }
+}
+
+// --- чат-обсуждение сдачи (боковая панель) ---
+const { openThread: openChat, unread: chatUnreadMap, chatKey } = useSubmissionChat()
+function chatUnread(c: { slug: string, aid: string, username: string }): number {
+  return chatUnreadMap.value[chatKey(c)] ?? 0
 }
 
 async function submit() {
@@ -370,25 +376,30 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <MdEditor
             v-if="answerTab === 'edit'"
             v-model="answer"
-            :theme="editorTheme"
             language="ru-RU"
             :preview="false"
             style="margin-top: 8px;"
           />
           <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
           <div v-else class="md-body" v-html="answerPreview" />
-          <div class="row" style="margin-top: 8px; gap: 8px;">
+          <div class="row" style="margin-top: 10px; gap: 10px; align-items: center;">
             <input ref="attachInput" type="file" style="display: none;" @change="uploadAttachment">
-            <button class="small" :disabled="attachBusy" @click="attachInput?.click()">
-              {{ attachBusy ? 'Загружаю…' : 'Приложить файл' }}
+            <button class="primary" :disabled="attachBusy" @click="attachInput?.click()">
+              {{ attachBusy ? 'Загружаю…' : '📎 Приложить файл к сдаче' }}
             </button>
             <span class="muted" style="font-size: 12px;">до 10 МБ</span>
+            <button
+              class="small"
+              style="margin-left: auto;"
+              @click="openChat({ slug, aid, username: myUsername, label: 'Ваша сдача' })"
+            >
+              Обсуждение{{ chatUnread({ slug, aid, username: myUsername }) ? ` (${chatUnread({ slug, aid, username: myUsername })})` : '' }}
+            </button>
           </div>
           <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
             <strong>Комментарий учителя:</strong>
             <p style="white-space: pre-wrap;">{{ mySubmission.feedback }}</p>
           </div>
-          <SubmissionThread :slug="slug" :aid="aid" :username="myUsername" />
         </template>
         <template v-else>
           <div class="editor-tabs" role="tablist">
@@ -398,7 +409,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <MdEditor
             v-if="answerTab === 'edit'"
             v-model="answer"
-            :theme="editorTheme"
             language="ru-RU"
             :preview="false"
             style="margin-top: 8px;"
@@ -490,7 +500,13 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               </button>
             </div>
 
-            <SubmissionThread :slug="slug" :aid="aid" :username="s.username" />
+            <button
+              class="small"
+              style="margin-top: 10px;"
+              @click="openChat({ slug, aid, username: s.username, label: subsNames[s.username] ?? s.username })"
+            >
+              Обсуждение{{ chatUnread({ slug, aid, username: s.username }) ? ` (${chatUnread({ slug, aid, username: s.username })})` : '' }}
+            </button>
           </div>
         </div>
         <p v-if="gradeError" class="error">{{ gradeError }}</p>

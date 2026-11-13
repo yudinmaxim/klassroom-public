@@ -27,6 +27,7 @@ export default defineEventHandler(async (event) => {
       title,
       url,
       actor: actor.pseudonym,
+      username,
       at: new Date().toISOString(),
     }
     // автор-ученик → учителю курса; автор-учитель → ученику

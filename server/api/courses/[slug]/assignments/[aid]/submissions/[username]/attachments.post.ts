@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
   if (!filePart.data.length) httpError(400, 'Файл пустой')
 
   const name = await useContentStore().addSubmissionAttachment(actor, slug, aid, username, {
-    name: filePart.filename,
+    name: filePart.filename!,
     data: filePart.data,
   })
   return { name }
