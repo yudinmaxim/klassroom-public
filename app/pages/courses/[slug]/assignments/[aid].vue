@@ -153,6 +153,60 @@ const answer = ref('')
 const submitBusy = ref(false)
 const submitError = ref('')
 
+// --- редактор ответа + вложения сдачи ---
+const answerTab = ref<'edit' | 'preview'>('edit')
+const answerPreview = ref('')
+const attachInput = ref<HTMLInputElement | null>(null)
+const attachBusy = ref(false)
+const { data: meData } = useFetch<{ user?: { username?: string } }>('/api/auth/me', { key: 'me' })
+const myUsername = computed(() => mySubmission.value?.username ?? meData.value?.user?.username ?? '')
+
+function attachmentUrl(username: string, name: string): string {
+  return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/attachments/${encodeURIComponent(name)}`
+}
+function attachmentsApi(username: string): string {
+  return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/attachments`
+}
+async function renderAnswerPreview() {
+  try {
+    const res = await $fetch<{ html: string }>('/api/md/render', {
+      method: 'POST',
+      body: { course: slug.value, content: answer.value },
+    })
+    answerPreview.value = res.html
+  } catch { answerPreview.value = '' }
+}
+let answerPreviewTimer: ReturnType<typeof setTimeout> | null = null
+watch(answer, () => {
+  if (answerTab.value !== 'preview') return
+  if (answerPreviewTimer) clearTimeout(answerPreviewTimer)
+  answerPreviewTimer = setTimeout(renderAnswerPreview, 400)
+})
+async function uploadAttachment(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || !myUsername.value) return
+  attachBusy.value = true
+  submitError.value = ''
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    await $fetch(attachmentsApi(myUsername.value), { method: 'POST', body: fd })
+    await loadOwnSubmission()
+  } catch (err) {
+    submitError.value = errText(err)
+  } finally {
+    attachBusy.value = false
+  }
+}
+async function removeAttachment(name: string) {
+  try {
+    await $fetch(`${attachmentsApi(myUsername.value)}/${encodeURIComponent(name)}`, { method: 'DELETE' })
+    await loadOwnSubmission()
+  } catch { /* ignore */ }
+}
+
 async function submit() {
   if (!answer.value.trim()) return
   submitBusy.value = true
@@ -302,15 +356,56 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </p>
           <h3 style="margin: 10px 0 6px;">Ваша сдача</h3>
           <pre class="answer-text">{{ mySubmission.answer }}</pre>
+          <div v-if="mySubmission.attachments?.length" style="margin: 8px 0;">
+            <strong>Вложения:</strong>
+            <div v-for="name in mySubmission.attachments" :key="name">
+              <a :href="attachmentUrl(myUsername, name)" target="_blank">{{ name }}</a>
+              <button class="small" style="margin-left: 6px;" @click="removeAttachment(name)">×</button>
+            </div>
+          </div>
+          <div class="editor-tabs" role="tablist" style="margin-top: 10px;">
+            <button class="small" :class="{ active: answerTab === 'edit' }" role="tab" @click="answerTab = 'edit'">Редактор</button>
+            <button class="small" :class="{ active: answerTab === 'preview' }" role="tab" @click="answerTab = 'preview'; renderAnswerPreview()">Предпросмотр</button>
+          </div>
+          <MdEditor
+            v-if="answerTab === 'edit'"
+            v-model="answer"
+            :theme="editorTheme"
+            language="ru-RU"
+            :preview="false"
+            style="margin-top: 8px;"
+          />
+          <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
+          <div v-else class="md-body" v-html="answerPreview" />
+          <div class="row" style="margin-top: 8px; gap: 8px;">
+            <input ref="attachInput" type="file" style="display: none;" @change="uploadAttachment">
+            <button class="small" :disabled="attachBusy" @click="attachInput?.click()">
+              {{ attachBusy ? 'Загружаю…' : 'Приложить файл' }}
+            </button>
+            <span class="muted" style="font-size: 12px;">до 10 МБ</span>
+          </div>
           <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
             <strong>Комментарий учителя:</strong>
             <p style="white-space: pre-wrap;">{{ mySubmission.feedback }}</p>
           </div>
+          <SubmissionThread :slug="slug" :aid="aid" :username="myUsername" />
         </template>
-        <label>
-          Ответ (markdown)
-          <textarea v-model="answer" rows="8" placeholder="Напишите ответ…" />
-        </label>
+        <template v-else>
+          <div class="editor-tabs" role="tablist">
+            <button class="small" :class="{ active: answerTab === 'edit' }" role="tab" @click="answerTab = 'edit'">Редактор</button>
+            <button class="small" :class="{ active: answerTab === 'preview' }" role="tab" @click="answerTab = 'preview'; renderAnswerPreview()">Предпросмотр</button>
+          </div>
+          <MdEditor
+            v-if="answerTab === 'edit'"
+            v-model="answer"
+            :theme="editorTheme"
+            language="ru-RU"
+            :preview="false"
+            style="margin-top: 8px;"
+          />
+          <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
+          <div v-else class="md-body" v-html="answerPreview" />
+        </template>
         <p v-if="submitError" class="error">{{ submitError }}</p>
         <button class="primary" style="margin-top: 8px;" :disabled="submitBusy || !answer.trim()" @click="submit">
           {{ submitBusy ? 'Отправляю…' : mySubmission ? 'Пересдать' : 'Сдать' }}
@@ -342,6 +437,12 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <div v-if="openSub === s.username" style="margin-top: 10px;">
             <p class="muted">Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template></p>
             <pre class="answer-text">{{ s.answer }}</pre>
+            <div v-if="s.attachments?.length" style="margin: 6px 0;">
+              <strong>Вложения:</strong>
+              <div v-for="name in s.attachments" :key="name">
+                <a :href="attachmentUrl(s.username, name)" target="_blank">{{ name }}</a>
+              </div>
+            </div>
 
             <div style="margin-top: 8px;">
               <button class="small" @click="toggleHistory(s.username)">
@@ -388,6 +489,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                 {{ gradeBusy === s.username ? 'Сохраняю…' : 'Оценить и вернуть' }}
               </button>
             </div>
+
+            <SubmissionThread :slug="slug" :aid="aid" :username="s.username" />
           </div>
         </div>
         <p v-if="gradeError" class="error">{{ gradeError }}</p>

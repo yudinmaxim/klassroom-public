@@ -1,4 +1,5 @@
-import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, SubmissionVersion, UserPublic } from '#shared/types'
+import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import { renderDocMarkdown } from '../lib/md'
 import { readdir, rm, type Dirent } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { slugify } from '../lib/slug'
@@ -505,7 +506,13 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   async function listSubmissionUsers(courseSlug: string, aid: string): Promise<string[]> {
     try {
       const dirs = await readdir(submissionsDir(courseSlug, aid), { withFileTypes: true })
-      return dirs.filter(d => d.isDirectory()).map(d => d.name).sort()
+      // считаем только директории с submission.yml — attachments/comments
+      // могут существовать до первой сдачи
+      const users: string[] = []
+      for (const d of dirs.filter(d => d.isDirectory())) {
+        if (await readSubmissionFile(courseSlug, aid, d.name)) users.push(d.name)
+      }
+      return users.sort()
     } catch {
       return []
     }
@@ -548,6 +555,57 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
   function toAssignmentSummary(f: AssignmentFile, submissionCount: number, myStatus?: AssignmentSummary['myStatus']): AssignmentSummary {
     return { slug: f.slug, title: f.title, type: f.type, status: f.status, due: f.due, submissionCount, myStatus, updatedAt: f.updatedAt }
+  }
+
+  // --- тред комментариев и вложения сдачи: submissions/<user>/{comments,attachments} ---
+  function submissionAttachmentsDir(courseSlug: string, aid: string, username: string): string {
+    return resolveDataPath(submissionDir(courseSlug, aid, username), 'attachments')
+  }
+  function submissionCommentsDir(courseSlug: string, aid: string, username: string): string {
+    return resolveDataPath(submissionDir(courseSlug, aid, username), 'comments')
+  }
+  async function listSubmissionAttachmentNames(courseSlug: string, aid: string, username: string): Promise<string[]> {
+    try {
+      return await listAttachments(submissionDir(courseSlug, aid, username))
+    } catch {
+      return []
+    }
+  }
+  /**
+   * Доступ к треду сдачи: проверяющий (canGrade/view.all) — любому ученику,
+   * ученик — только к своей сдаче и только если может сдавать (выдано).
+   */
+  async function loadSubmissionAccess(
+    actor: UserPublic,
+    courseSlug: string,
+    aid: string,
+    username: string,
+  ): Promise<{ course: CourseFile, f: AssignmentFile }> {
+    const norm = normalizeSlug(courseSlug)
+    const course = await readCourse(baseDir, norm)
+    if (!course) httpError(404, 'Курс не найден')
+    const role = await roleOf(actor)
+    const isGrader = canGrade(actor, role, course)
+      || (role.scope === 'owner' && role.permissions.includes('submissions.view.all'))
+    if (isGrader) {
+      const dirId = await resolveEntityDir(norm, 'assignments', aid)
+      if (!dirId) httpError(404, 'Задание не найдено')
+      const f = await readAssignmentFile(norm, dirId)
+      if (!f) httpError(404, 'Задание не найдено')
+      return { course, f }
+    }
+    if (actor.username !== username) httpError(404, 'Сдача не найдена')
+    const { f } = await loadAssignmentForActor(actor, norm, aid, 'submit')
+    return { course, f }
+  }
+  /** Submission + answer.md + список вложений. */
+  async function submissionView(courseSlug: string, aid: string, username: string, sub: SubmissionFile): Promise<Submission> {
+    const answer = (await readString(submissionAnswerPath(courseSlug, aid, username))) ?? ''
+    const attachments = await listSubmissionAttachmentNames(courseSlug, aid, username)
+    return {
+      username, status: sub.status, grade: sub.grade, feedback: sub.feedback,
+      answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt, attachments,
+    }
   }
 
   const impl: ContentStore = {
@@ -991,8 +1049,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       await writeSubmissionFile(norm, f.id, actor.username, sub)
       await atomicWriteString(submissionAnswerPath(norm, f.id, actor.username), answer)
       journal.record(actor.pseudonym, `сдал задание ${f.slug} в ${norm}`)
-      const answerText = (await readString(submissionAnswerPath(norm, f.id, actor.username))) ?? ''
-      return { username: actor.username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer: answerText, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
+      return submissionView(norm, f.id, actor.username, sub)
     },
 
     async getOwnSubmission(actor, courseSlug, assignmentSlug) {
@@ -1000,8 +1057,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
       const sub = await readSubmissionFile(norm, f.id, actor.username)
       if (!sub) return null
-      const answer = (await readString(submissionAnswerPath(norm, f.id, actor.username))) ?? ''
-      return { username: actor.username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
+      return submissionView(norm, f.id, actor.username, sub)
     },
 
     async listSubmissions(actor, courseSlug, assignmentSlug) {
@@ -1021,8 +1077,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       for (const username of await listSubmissionUsers(norm, f.id)) {
         const sub = await readSubmissionFile(norm, f.id, username)
         if (!sub) continue
-        const answer = (await readString(submissionAnswerPath(norm, f.id, username))) ?? ''
-        result.push({ username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt })
+        result.push(await submissionView(norm, f.id, username, sub))
       }
       return result.sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))
     },
@@ -1042,11 +1097,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const sub = await readSubmissionFile(norm, f.id, username)
       if (!sub) httpError(404, 'Сдача не найдена')
 
-      const answer = (await readString(submissionAnswerPath(norm, f.id, username))) ?? ''
-      const submission: Submission = {
-        username, status: sub.status, grade: sub.grade, feedback: sub.feedback,
-        answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt,
-      }
+      const submission = await submissionView(norm, f.id, username, sub)
       const history = await readSubmissionHistory(norm, f.id, username)
       return { submission, history }
     },
@@ -1070,8 +1121,83 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       sub.updatedAt = new Date().toISOString()
       await writeSubmissionFile(norm, f.id, username, sub)
       journal.record(actor.pseudonym, `оценил задание ${f.slug} у ${username} в ${norm}`)
-      const answer = (await readString(submissionAnswerPath(norm, f.id, username))) ?? ''
-      return { username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt }
+      return submissionView(norm, f.id, username, sub)
+    },
+
+    // --- тред комментариев сдачи ---
+
+    async listSubmissionComments(actor, courseSlug, assignmentSlug, username) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadSubmissionAccess(actor, norm, assignmentSlug, username)
+      if (!await readSubmissionFile(norm, f.id, username)) httpError(404, 'Сдача не найдена')
+      const dir = submissionCommentsDir(norm, f.id, username)
+      let files: string[]
+      try {
+        files = (await readdir(dir)).filter(x => x.endsWith('.yml'))
+      } catch {
+        return []
+      }
+      const result: SubmissionComment[] = []
+      for (const file of files) {
+        const c = await readYaml<SubmissionComment>(resolveDataPath(dir, file))
+        if (c?.id && c.html !== undefined) result.push(c)
+      }
+      return result.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    },
+
+    async addSubmissionComment(actor, courseSlug, assignmentSlug, username, text) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadSubmissionAccess(actor, norm, assignmentSlug, username)
+      if (!await readSubmissionFile(norm, f.id, username)) httpError(404, 'Сдача не найдена')
+      const comment: SubmissionComment = {
+        id: `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`,
+        author: actor.username,
+        text,
+        html: renderDocMarkdown(text, {
+          courseSlug: norm,
+          materialSlug: 'comments',
+          linkTitles: {},
+          attachments: [],
+        }).html,
+        createdAt: new Date().toISOString(),
+      }
+      const dir = submissionCommentsDir(norm, f.id, username)
+      await ensureDir(dir)
+      await writeYaml(resolveDataPath(dir, `${comment.id}.yml`), comment)
+      journal.record(actor.pseudonym, `прокомментировал сдачу ${f.slug} у ${username} в ${norm}`)
+      return comment
+    },
+
+    // --- вложения сдачи ---
+
+    async addSubmissionAttachment(actor, courseSlug, assignmentSlug, username, file) {
+      const norm = normalizeSlug(courseSlug)
+      if (actor.username !== username) httpError(403, 'Можно прикладывать файлы только к своей сдаче')
+      const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
+      const name = validateAttachmentName(file.name)
+      const dir = submissionAttachmentsDir(norm, f.id, username)
+      const existing = await listSubmissionAttachmentNames(norm, f.id, username)
+      if (existing.includes(name)) httpError(409, `Файл «${name}» уже приложен — сначала удалите его`)
+      await ensureDir(dir)
+      await atomicWriteBytes(resolveDataPath(dir, name), file.data)
+      journal.record(actor.pseudonym, `приложил файл ${name} к сдаче ${f.slug} в ${norm}`)
+      return name
+    },
+
+    async removeSubmissionAttachment(actor, courseSlug, assignmentSlug, username, name) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadSubmissionAccess(actor, norm, assignmentSlug, username)
+      const clean = validateAttachmentName(name)
+      await atomicDelete(resolveDataPath(submissionAttachmentsDir(norm, f.id, username), clean))
+      journal.record(actor.pseudonym, `удалил файл ${clean} из сдачи ${f.slug} в ${norm}`)
+    },
+
+    async getSubmissionAttachment(actor, courseSlug, assignmentSlug, username, name) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadSubmissionAccess(actor, norm, assignmentSlug, username)
+      const clean = validateAttachmentName(name)
+      const data = await readBytes(resolveDataPath(submissionAttachmentsDir(norm, f.id, username), clean))
+      return data ? { data, mime: mimeFor(clean) } : null
     },
   }
 

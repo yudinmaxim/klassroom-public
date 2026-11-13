@@ -1,4 +1,4 @@
-import type { Assignment, AssignmentSummary, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, SubmissionVersion, UserPublic } from '#shared/types'
+import type { Assignment, AssignmentSummary, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -155,4 +155,48 @@ export interface ContentStore {
     username: string,
     input: { grade: number | null, feedback: string },
   ): Promise<Submission>
+
+  /** Тред комментариев сдачи: ученику — свой, проверяющему — любой. */
+  listSubmissionComments(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+  ): Promise<SubmissionComment[]>
+
+  /** Добавить комментарий в тред сдачи (markdown → html на сервере). */
+  addSubmissionComment(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+    text: string,
+  ): Promise<SubmissionComment>
+
+  /** Приложить файл к своей сдаче (только ученику-владельцу). */
+  addSubmissionAttachment(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+    file: { name: string, data: Buffer },
+  ): Promise<string>
+
+  /** Удалить вложение сдачи (владелец или проверяющий). */
+  removeSubmissionAttachment(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+    name: string,
+  ): Promise<void>
+
+  /** Скачать вложение сдачи (участники треда). */
+  getSubmissionAttachment(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+    name: string,
+  ): Promise<{ data: Buffer, mime: string } | null>
 }

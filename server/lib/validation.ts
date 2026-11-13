@@ -188,6 +188,11 @@ export const updateAssignmentBodySchema = createAssignmentBodySchema
   .partial()
   .extend({ status: assignmentStatusSchema.optional() })
 
+/** Комментарий в треде сдачи. */
+export const commentBodySchema = z.object({
+  text: z.string().trim().min(1, 'Пустой комментарий').max(8000, 'Комментарий слишком длинный'),
+})
+
 export const submitAssignmentBodySchema = z.object({
   answer: z.string().min(1, 'Ответ пустой').max(MAX_MD_CHARS, 'Ответ слишком длинный'),
 })

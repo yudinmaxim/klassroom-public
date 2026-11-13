@@ -150,6 +150,20 @@ export interface Submission {
   answer: string
   submittedAt: string | null
   updatedAt: string | null
+  /** Имена файлов-вложений сдачи (submissions/<user>/attachments/). */
+  attachments?: string[]
+}
+
+/** Комментарий в треде сдачи (submissions/<user>/comments/<cid>.yml). */
+export interface SubmissionComment {
+  id: string
+  /** username автора (ученик или учитель) */
+  author: string
+  /** markdown-исходник */
+  text: string
+  /** санитизированный html, отрендеренный при записи */
+  html: string
+  createdAt: string
 }
 
 /** Ответ GET /api/courses/:slug — шапка раздела курса (без списков и ростера). */
@@ -170,6 +184,7 @@ export interface NotifyPayload {
     | 'material.updated'
     | 'submission.created'
     | 'submission.graded'
+    | 'comment.created'
     | 'roster.changed'
     | 'roster.enrolled'
   /** slug курса — для ссылки и контекста */
