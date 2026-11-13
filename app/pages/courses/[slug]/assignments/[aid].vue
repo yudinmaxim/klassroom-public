@@ -319,6 +319,10 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </p>
           <h3 style="margin: 10px 0 6px;">Ваша сдача</h3>
           <pre class="answer-text">{{ mySubmission.answer }}</pre>
+          <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
+            <strong>Комментарий учителя:</strong>
+            <p style="white-space: pre-wrap;">{{ mySubmission.feedback }}</p>
+          </div>
           <div class="md-editor-wrap sm" style="margin-top: 8px;">
             <MdEditor
               v-model="answer"
@@ -335,10 +339,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               @remove="removeAttachment"
             />
             <span class="muted" style="font-size: 12px;">до 10 МБ</span>
-          </div>
-          <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
-            <strong>Комментарий учителя:</strong>
-            <p style="white-space: pre-wrap;">{{ mySubmission.feedback }}</p>
           </div>
         </template>
         <template v-else>
