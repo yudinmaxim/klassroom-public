@@ -1,4 +1,5 @@
 import { requireUser, parseJson, rosterBodySchema, courseSlugSchema, usernameSchema } from '../../../lib/validation'
+import { emitToCourse } from '../../../lib/events'
 
 /**
  * Зачислить/исключить участника курса. Право (courses.roster.manage)
@@ -19,5 +20,15 @@ export default defineEventHandler(async (event) => {
   const course = body.action === 'add'
     ? await store.addStudent(actor, slug, body.username)
     : await store.removeStudent(actor, slug, usernameSchema.parse(body.username))
+
+  await emitToCourse(actor, slug, {
+    type: 'roster.changed',
+    course: slug,
+    title: course.title,
+    url: `/courses/${slug}/students`,
+    actor: actor.pseudonym,
+    at: new Date().toISOString(),
+  })
+
   return { course }
 })

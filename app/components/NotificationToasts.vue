@@ -10,6 +10,7 @@ const labels: Record<NotifyPayload['type'], string> = {
   'material.created': 'Новая тема',
   'material.updated': 'Тема обновлена',
   'submission.created': 'Новая сдача',
+  'roster.changed': 'Изменён состав курса',
 }
 
 function text(n: NotifyPayload): string {

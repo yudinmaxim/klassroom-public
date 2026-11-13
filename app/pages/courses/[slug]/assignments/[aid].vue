@@ -2,6 +2,7 @@
 import type { Assignment, Submission } from '#shared/types'
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { onNotification } from '~/composables/useNotifications'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 
@@ -189,6 +190,14 @@ async function loadSubmissions() {
 }
 
 if (canEdit.value) void loadSubmissions()
+
+// live-обновление: выдача/отзыв/сдача по этому заданию
+onMounted(() => onNotification((n) => {
+  if (n.course !== slug.value || !n.url.includes(`/assignments/${aid.value}`)) return
+  void refresh()
+  if (canEdit.value) void loadSubmissions()
+  else void loadOwnSubmission()
+}))
 
 const openSub = ref<string | null>(null)
 const gradeForms = reactive<Record<string, { grade: number | null, feedback: string }>>({})

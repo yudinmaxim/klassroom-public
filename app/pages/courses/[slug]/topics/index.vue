@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { onNotification } from '~/composables/useNotifications'
 
 const { data: coursePageData } = useCourseContext()
 const course = computed(() => coursePageData.value?.course ?? null)
@@ -30,6 +31,13 @@ async function loadMaterials() {
   }
 }
 onMounted(() => { if (course.value) void loadMaterials() })
+
+// live-обновление списка тем по SSE-событиям
+onMounted(() => onNotification((n) => {
+  if (n.course === course.value?.slug && n.type.startsWith('material.')) {
+    void loadMaterials()
+  }
+}))
 
 const materialUrl = (m: MaterialRow) => `/courses/${course.value?.slug}/topics/${m.slug}`
 function openMaterial(m: MaterialRow) { void navigateTo(materialUrl(m)) }

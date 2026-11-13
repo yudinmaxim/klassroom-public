@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { onNotification } from '~/composables/useNotifications'
 
 const { data: coursePageData } = useCourseContext()
 const course = computed(() => coursePageData.value?.course ?? null)
@@ -39,6 +40,14 @@ async function loadAssignments() {
   }
 }
 onMounted(() => { if (course.value) void loadAssignments() })
+
+// live-обновление: выдача/отзыв/сдача меняют список и счётчики
+onMounted(() => onNotification((n) => {
+  if (n.course !== course.value?.slug) return
+  if (n.type.startsWith('assignment.') || n.type === 'submission.created') {
+    void loadAssignments()
+  }
+}))
 
 function assignmentStatusLabel(a: AssignmentRow): string {
   if (!canAssignments.value) {

@@ -10,12 +10,26 @@ const MAX_TOASTS = 4
 
 // EventSource не сериализуется — держим в модульной переменной, не в useState
 let source: EventSource | null = null
+const listeners = new Set<(payload: NotifyPayload) => void>()
+
+/** Подписка на входящие события (для live-обновления списков). */
+export function onNotification(fn: (payload: NotifyPayload) => void): () => void {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
+}
 
 export function useNotifications() {
   const toasts = useState<NotifyPayload[]>('notification-toasts', () => [])
 
   function push(payload: NotifyPayload) {
     toasts.value = [...toasts.value, payload].slice(-MAX_TOASTS)
+    for (const fn of listeners) {
+      try {
+        fn(payload)
+      } catch {
+        // слушатель не должен ломать остальные
+      }
+    }
     const id = payload.at + payload.type + payload.url
     setTimeout(() => {
       toasts.value = toasts.value.filter(t => t.at + t.type + t.url !== id)

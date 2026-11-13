@@ -169,6 +169,7 @@ export interface NotifyPayload {
     | 'material.created'
     | 'material.updated'
     | 'submission.created'
+    | 'roster.changed'
   /** slug курса — для ссылки и контекста */
   course: string
   title: string

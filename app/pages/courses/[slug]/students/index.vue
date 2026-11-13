@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { onNotification } from '~/composables/useNotifications'
 
 const { data: coursePageData } = useCourseContext()
 const course = computed(() => coursePageData.value?.course ?? null)
@@ -20,6 +21,13 @@ const { data: rosterData, refresh: refreshRoster } = await useFetch<{ roster: Ar
 )
 const roster = computed(() => rosterData.value?.roster ?? [])
 const rosterUsernames = computed(() => roster.value.map(s => s.username))
+
+// live-обновление состава по SSE-событиям
+onMounted(() => onNotification((n) => {
+  if (n.course === course.value?.slug && n.type === 'roster.changed') {
+    void refreshRoster()
+  }
+}))
 
 const rosterError = ref('')
 const rosterBusy = ref(false)
