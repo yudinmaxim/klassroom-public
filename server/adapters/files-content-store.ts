@@ -503,6 +503,23 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     return result.sort((a, b) => a.submittedAt.localeCompare(b.submittedAt))
   }
 
+  /** Время последнего комментария в треде сдачи (или null). */
+  async function latestSubmissionCommentAt(courseSlug: string, aid: string, username: string): Promise<string | null> {
+    const dir = submissionCommentsDir(courseSlug, aid, username)
+    let files: string[]
+    try {
+      files = (await readdir(dir)).filter(f => f.endsWith('.yml'))
+    } catch {
+      return null
+    }
+    let max: string | null = null
+    for (const file of files) {
+      const c = await readYaml<{ createdAt?: string }>(resolveDataPath(dir, file))
+      if (c?.createdAt && (!max || c.createdAt > max)) max = c.createdAt
+    }
+    return max
+  }
+
   async function listSubmissionUsers(courseSlug: string, aid: string): Promise<string[]> {
     try {
       const dirs = await readdir(submissionsDir(courseSlug, aid), { withFileTypes: true })
@@ -890,11 +907,18 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         if (!manager && !canSeeAssignment(actor, role, course, roster, f)) continue
         const users = await listSubmissionUsers(norm, f.id)
         let myStatus: AssignmentSummary['myStatus']
+        let mine: SubmissionFile | null = null
         if (!manager && role.scope === 'member') {
-          const mine = await readSubmissionFile(norm, f.id, actor.username)
+          mine = await readSubmissionFile(norm, f.id, actor.username)
           myStatus = mine ? mine.status : 'none'
         }
-        result.push(toAssignmentSummary(f, users.length, myStatus))
+        const summary = toAssignmentSummary(f, users.length, myStatus)
+        if (mine) {
+          // индикации для ученика: оценка + время последнего комментария
+          summary.myGrade = mine.grade
+          summary.myLastCommentAt = await latestSubmissionCommentAt(norm, f.id, actor.username)
+        }
+        result.push(summary)
       }
       return result.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
     },

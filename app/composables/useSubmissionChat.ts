@@ -40,10 +40,25 @@ if (import.meta.client) {
   })
 }
 
+// --- lastSeen для индикации непрочитанных комментариев в списках ---
+// localStorage, ключ по курсу+заданию (у ученика один тред на задание).
+const SEEN_PREFIX = 'wr_chat_seen_'
+
+export function markChatSeen(slug: string, aid: string): void {
+  if (!import.meta.client) return
+  localStorage.setItem(`${SEEN_PREFIX}${slug}_${aid}`, new Date().toISOString())
+}
+
+export function chatHasUnread(slug: string, aid: string, lastCommentAt?: string | null): boolean {
+  if (!import.meta.client || !lastCommentAt) return false
+  return lastCommentAt > (localStorage.getItem(`${SEEN_PREFIX}${slug}_${aid}`) ?? '')
+}
+
 export function useSubmissionChat() {
   function openThread(c: ChatContext) {
     ctx.value = c
     unread.value[chatKey(c)] = 0
+    markChatSeen(c.slug, c.aid)
     open.value = true
   }
   function closeThread() {

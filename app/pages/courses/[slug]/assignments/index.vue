@@ -2,6 +2,7 @@
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { onNotification } from '~/composables/useNotifications'
+import { chatHasUnread } from '~/composables/useSubmissionChat'
 
 const { data: coursePageData } = useCourseContext()
 const course = computed(() => coursePageData.value?.course ?? null)
@@ -23,6 +24,8 @@ interface AssignmentRow {
   due: string | null
   submissionCount: number
   myStatus?: 'none' | 'submitted' | 'returned'
+  myGrade?: number | null
+  myLastCommentAt?: string | null
   updatedAt: string
 }
 const assignments = ref<AssignmentRow[]>([])
@@ -44,7 +47,7 @@ onMounted(() => { if (course.value) void loadAssignments() })
 // live-обновление: выдача/отзыв/сдача меняют список и счётчики
 onMounted(() => onNotification((n) => {
   if (n.course !== course.value?.slug) return
-  if (n.type.startsWith('assignment.') || n.type.startsWith('submission.')) {
+  if (n.type.startsWith('assignment.') || n.type.startsWith('submission.') || n.type === 'comment.created') {
     void loadAssignments()
   }
 }))
@@ -137,10 +140,20 @@ async function unpublishAssignment(a: AssignmentRow) {
             @click="openAssignment(a)"
             @keydown.enter="openAssignment(a)"
           >
-            <td><strong>{{ a.title }}</strong></td>
+            <td>
+              <strong>{{ a.title }}</strong>
+              <span
+                v-if="!canAssignments && chatHasUnread(course?.slug ?? '', a.slug, a.myLastCommentAt)"
+                class="unread-dot"
+                title="Есть новые комментарии к сдаче"
+              />
+            </td>
             <td class="muted">{{ a.type === 'private' ? 'частное' : 'общее' }}</td>
             <td class="muted">{{ a.due ?? '—' }}</td>
-            <td>{{ assignmentStatusLabel(a) }}</td>
+            <td>
+              {{ assignmentStatusLabel(a) }}
+              <template v-if="!canAssignments && a.myGrade != null"> · оценка: <strong>{{ a.myGrade }}</strong></template>
+            </td>
             <td v-if="canAssignments" class="row-actions">
               <span v-if="a.status === 'draft'" class="tip">
                 <button
@@ -202,3 +215,16 @@ async function unpublishAssignment(a: AssignmentRow) {
   </div>
   </div>
 </template>
+
+<style scoped>
+td { position: relative; }
+.unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--danger, #b23a3a);
+  vertical-align: middle;
+}
+</style>

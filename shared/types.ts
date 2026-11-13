@@ -119,6 +119,10 @@ export interface AssignmentSummary {
   submissionCount: number
   /** Свой статус сдачи для ученика: none|submitted|returned. */
   myStatus?: 'none' | 'submitted' | 'returned'
+  /** Оценка своей сдачи (для индикации в списке). */
+  myGrade?: number | null
+  /** Время последнего комментария в своём треде сдачи (ISO). */
+  myLastCommentAt?: string | null
   updatedAt: string
 }
 
