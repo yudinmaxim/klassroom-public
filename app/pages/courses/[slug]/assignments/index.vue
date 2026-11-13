@@ -4,7 +4,6 @@ import { useCourseContext } from '~/composables/useCourseContext'
 
 const { data: coursePageData } = useCourseContext()
 const course = computed(() => coursePageData.value?.course ?? null)
-const roster = computed(() => coursePageData.value?.roster ?? [])
 const canAssignments = computed(() => coursePageData.value?.canAssignments ?? false)
 
 const crumbs = useBreadcrumbs()
@@ -188,7 +187,6 @@ async function unpublishAssignment(a: AssignmentRow) {
       :slug="course.slug"
       :assignment-slug="publishTarget.slug"
       :title="publishTarget.title"
-      :students="roster"
       @close="publishTarget = null"
       @changed="publishTarget = null; loadAssignments()"
     />

@@ -5,7 +5,6 @@ const props = defineProps<{
   slug: string
   assignmentSlug: string
   title: string
-  students: Array<{ username: string, pseudonym: string }>
 }>()
 const emit = defineEmits<{ close: [], changed: [] }>()
 
@@ -13,6 +12,7 @@ const emit = defineEmits<{ close: [], changed: [] }>()
 const scope = ref<'all' | 'chosen'>('all')
 const checked = ref<Set<string>>(new Set())
 const search = ref('')
+const students = ref<Array<{ username: string, pseudonym: string }>>([])
 const loading = ref(true)
 const loadError = ref('')
 const busy = ref(false)
@@ -20,9 +20,14 @@ const error = ref('')
 
 onMounted(async () => {
   try {
-    const res = await $fetch<{ assignment: { type: string, audience: string[], status: string } }>(
-      `/api/courses/${props.slug}/assignments/${props.assignmentSlug}`,
-    )
+    // ростер — только если есть courses.roster.view; иначе список пуст
+    const [res, rosterRes] = await Promise.all([
+      $fetch<{ assignment: { type: string, audience: string[], status: string } }>(
+        `/api/courses/${props.slug}/assignments/${props.assignmentSlug}`,
+      ),
+      $fetch<{ roster: typeof students.value }>(`/api/courses/${props.slug}/roster`).catch(() => null),
+    ])
+    students.value = rosterRes?.roster ?? []
     // префилл: частное выданное задание → выбранные; иначе → всем
     if (res.assignment.type === 'private' && res.assignment.audience.length) {
       scope.value = 'chosen'
@@ -37,8 +42,8 @@ onMounted(async () => {
 
 const filteredStudents = computed(() => {
   const q = search.value.trim().toLowerCase()
-  if (!q) return props.students
-  return props.students.filter(s =>
+  if (!q) return students.value
+  return students.value.filter(s =>
     s.pseudonym.toLowerCase().includes(q) || s.username.toLowerCase().includes(q),
   )
 })
@@ -100,7 +105,7 @@ async function save() {
         </label>
 
         <template v-if="scope === 'chosen'">
-          <p v-if="!students.length" class="muted">В курсе пока нет учеников.</p>
+          <p v-if="!students.length" class="muted">Список учеников недоступен или пуст.</p>
           <template v-else>
             <input
               v-model="search"

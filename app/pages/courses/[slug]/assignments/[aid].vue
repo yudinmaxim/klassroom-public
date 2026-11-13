@@ -18,8 +18,6 @@ if (loadError.value) {
 
 const { data: coursePageData } = useCourseContext()
 const canEdit = computed(() => coursePageData.value?.canAssignments ?? false)
-const roster = computed(() => coursePageData.value?.roster ?? [])
-const rosterNames = computed(() => new Map(roster.value.map(s => [s.username, s.pseudonym])))
 
 const assignment = computed<Assignment | null>(() => data.value?.assignment ?? null)
 
@@ -173,16 +171,18 @@ async function submit() {
 
 // --- сдачи (учитель) ---
 const submissions = ref<Submission[]>([])
+const subsNames = ref<Record<string, string>>({})
 const subsLoading = ref(false)
 
 async function loadSubmissions() {
   if (!canEdit.value) return
   subsLoading.value = true
   try {
-    const res = await $fetch<{ submissions: Submission[] }>(
+    const res = await $fetch<{ submissions: Submission[], names: Record<string, string> }>(
       `/api/courses/${slug.value}/assignments/${aid.value}/submissions`,
     )
     submissions.value = res.submissions
+    subsNames.value = res.names
   } catch { /* список не критичен для просмотра */ } finally {
     subsLoading.value = false
   }
@@ -226,7 +226,7 @@ const typeLabel = (t: string) => (t === 'private' ? 'частное' : 'обще
 const statusLabel = (s: string) => (s === 'published' ? 'Выдано' : 'Не выдано')
 const subStatusLabel = (s: string) =>
   ({ submitted: 'на проверке', returned: 'проверено' })[s] ?? s
-const pseudo = (u: string) => rosterNames.value.get(u) ?? u
+const pseudo = (u: string) => subsNames.value[u] ?? u
 </script>
 
 <template>
@@ -372,7 +372,6 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
       :slug="slug"
       :assignment-slug="aid"
       :title="assignment.title"
-      :students="roster"
       @close="publishOpen = false"
       @changed="publishOpen = false; refresh()"
     />

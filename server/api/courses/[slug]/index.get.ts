@@ -3,8 +3,8 @@ import { httpError } from '../../../lib/errors'
 import { canOnCourse } from '../../../utils/can'
 
 /**
- * Детали курса. roster отдаётся при пермишене courses.roster.view,
- * флаг canManage — при courses.manage (обе проверки — с учётом области роли).
+ * Детали курса: только course + права. Состав (roster) — отдельным
+ * запросом GET …/roster, списки тем/заданий — на своих вкладках.
  */
 export default defineEventHandler(async (event) => {
   const actor = await requireUser(event)
@@ -18,15 +18,5 @@ export default defineEventHandler(async (event) => {
   const canMaterials = await canOnCourse(actor, 'materials.edit', course)
   const canAssignments = await canOnCourse(actor, 'assignments.create', course)
 
-  const roster: Array<{ username: string, pseudonym: string }> = []
-  if (canViewRoster) {
-    const userStore = useUserStore()
-    for (const username of course.students) {
-      const u = await userStore.getUser(username)
-      // аккаунт мог быть удалён — оставляем только живых участников
-      if (u) roster.push({ username: u.username, pseudonym: u.pseudonym })
-    }
-  }
-
-  return { course, roster, canManage, canMaterials, canAssignments, canViewRoster }
+  return { course, canManage, canMaterials, canAssignments, canViewRoster }
 })

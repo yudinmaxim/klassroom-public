@@ -2,10 +2,8 @@
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
 
-const { data: coursePageData, refresh } = useCourseContext()
+const { data: coursePageData } = useCourseContext()
 const course = computed(() => coursePageData.value?.course ?? null)
-const roster = computed(() => coursePageData.value?.roster ?? [])
-const rosterUsernames = computed(() => roster.value.map(s => s.username))
 const canManage = computed(() => coursePageData.value?.canManage ?? false)
 
 const crumbs = useBreadcrumbs()
@@ -15,6 +13,13 @@ watchEffect(() => {
     ? [{ label: 'Курсы', to: '/courses' }, { label: c.title, to: `/courses/${c.slug}` }]
     : [{ label: 'Курсы', to: '/courses' }]
 })
+
+// Ростер — отдельный запрос, только на этой вкладке
+const { data: rosterData, refresh: refreshRoster } = await useFetch<{ roster: Array<{ username: string, pseudonym: string }> }>(
+  `/api/courses/${course.value?.slug}/roster`,
+)
+const roster = computed(() => rosterData.value?.roster ?? [])
+const rosterUsernames = computed(() => roster.value.map(s => s.username))
 
 const rosterError = ref('')
 const rosterBusy = ref(false)
@@ -30,7 +35,7 @@ async function removeStudent(username: string) {
       method: 'POST',
       body: { username, action: 'remove' },
     })
-    await refresh()
+    await refreshRoster()
   } catch (e) {
     rosterError.value = errText(e, 'Не удалось изменить состав курса')
   } finally {
@@ -106,13 +111,13 @@ async function removeStudent(username: string) {
       :slug="course.slug"
       :enrolled="rosterUsernames"
       @close="enrollOpen = false"
-      @changed="enrollOpen = false; refresh()"
+      @changed="enrollOpen = false; refreshRoster()"
     />
     <NewStudentPanel
       v-if="newStudentOpen && course"
       :slug="course.slug"
       @close="newStudentOpen = false"
-      @created="(pw) => { revealedSecret = pw ?? ''; newStudentOpen = false; refresh() }"
+      @created="(pw) => { revealedSecret = pw ?? ''; newStudentOpen = false; refreshRoster() }"
     />
   </div>
   </div>

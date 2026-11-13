@@ -5,7 +5,6 @@ import { useCourseContext } from '~/composables/useCourseContext'
 
 const { data: coursePageData, refresh } = useCourseContext()
 const course = computed(() => coursePageData.value?.course ?? null)
-const roster = computed(() => coursePageData.value?.roster ?? [])
 const canManage = computed(() => coursePageData.value?.canManage ?? false)
 
 const crumbs = useBreadcrumbs()
@@ -87,7 +86,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
     <div v-else class="card">
       <SectionHead>О курсе</SectionHead>
       <p v-if="course?.description">{{ course.description }}</p>
-      <p class="muted">Шкала оценивания: {{ scaleLabel[course?.gradingScale.type ?? 'grade5'] }} · Учеников: {{ roster.length }}</p>
+      <p class="muted">Шкала оценивания: {{ scaleLabel[course?.gradingScale.type ?? 'grade5'] }} · Учеников: {{ course?.students.length ?? 0 }}</p>
     </div>
   </div>
 

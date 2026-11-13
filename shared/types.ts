@@ -152,10 +152,9 @@ export interface Submission {
   updatedAt: string | null
 }
 
-/** Ответ GET /api/courses/:slug — страница курса и её вкладки. */
+/** Ответ GET /api/courses/:slug — шапка раздела курса (без списков и ростера). */
 export interface CoursePageData {
   course: Course
-  roster: Array<{ username: string, pseudonym: string }>
   canManage: boolean
   canMaterials: boolean
   canAssignments: boolean
