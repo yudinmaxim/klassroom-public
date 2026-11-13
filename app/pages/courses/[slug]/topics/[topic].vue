@@ -42,9 +42,7 @@ watchEffect(() => {
 
 // --- режим редактирования ---
 const editing = ref(false)
-const editTab = ref<'edit' | 'preview'>('edit')
 const form = reactive({ title: '', content: '' })
-const preview = ref('')
 
 /** Базовый набор инструментов панели (спеки/04: без тяжёлого WYSIWYG). */
 const toolbars = [
@@ -57,8 +55,6 @@ const toolbars = [
 function startEdit() {
   form.title = material.value?.title ?? ''
   form.content = docPayload.value?.content ?? ''
-  preview.value = material.value?.html ?? ''
-  editTab.value = 'edit'
   editing.value = true
 }
 
@@ -68,31 +64,6 @@ function cancelEdit() {
 
 // «Редактировать» из таблицы материалов ведёт сюда с ?edit=1
 if (route.query.edit === '1' && canEdit.value) startEdit()
-
-async function renderPreview() {
-  try {
-    const res = await $fetch<{ html: string }>('/api/md/render', {
-      method: 'POST',
-      body: { course: slug.value, material: materialSlug.value, content: form.content },
-    })
-    preview.value = res.html
-  } catch {
-    // ошибка превью не блокирует редактирование
-  }
-}
-
-let previewTimer: ReturnType<typeof setTimeout> | null = null
-/** Предпросмотр с дебаунсом — рендер и санитизация на сервере. */
-watch(() => form.content, () => {
-  if (!editing.value) return
-  if (previewTimer) clearTimeout(previewTimer)
-  previewTimer = setTimeout(renderPreview, 400)
-})
-
-function showPreviewTab() {
-  editTab.value = 'preview'
-  void renderPreview()
-}
 
 const saveError = ref('')
 const saving = ref(false)
@@ -215,28 +186,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 
     <!-- Редактирование -->
     <div v-if="editing" style="margin-top: 14px;">
-      <div class="editor-tabs" role="tablist">
-        <button
-          class="small"
-          :class="{ active: editTab === 'edit' }"
-          role="tab"
-          :aria-selected="editTab === 'edit'"
-          @click="editTab = 'edit'"
-        >
-          Редактор
-        </button>
-        <button
-          class="small"
-          :class="{ active: editTab === 'preview' }"
-          role="tab"
-          :aria-selected="editTab === 'preview'"
-          @click="showPreviewTab"
-        >
-          Предпросмотр
-        </button>
-      </div>
-
-      <div v-if="editTab === 'edit'">
+      <div>
         <label>
           Название
           <input v-model="form.title">
@@ -246,7 +196,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
             id="wikiroom-material-editor"
             v-model="form.content"
             language="en-US"
-            :preview="false"
             :toolbars="toolbars"
           />
         </div>
@@ -267,10 +216,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         </div>
       </div>
 
-      <div v-else>
-        <!-- eslint-disable-next-line vue/no-v-html -- тот же серверный рендер, что и у просмотра -->
-        <div class="md-body" v-html="preview" />
-      </div>
     </div>
 
   </div>

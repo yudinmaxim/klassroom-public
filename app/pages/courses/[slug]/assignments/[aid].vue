@@ -40,14 +40,12 @@ watchEffect(() => {
 
 // --- редактирование (учитель) ---
 const editing = ref(false)
-const editTab = ref<'edit' | 'preview'>('edit')
 const form = reactive({
   title: '',
   due: '',
   maxPoints: null as number | null,
   description: '',
 })
-const preview = ref('')
 
 const toolbars = [
   'bold', 'underline', 'italic', 'strikeThrough', '-',
@@ -63,8 +61,6 @@ function startEdit() {
   form.due = a.due ?? ''
   form.maxPoints = a.maxPoints
   form.description = a.description
-  preview.value = a.html
-  editTab.value = 'edit'
   editing.value = true
 }
 
@@ -73,23 +69,6 @@ function cancelEdit() {
 }
 
 if (route.query.edit === '1' && canEdit.value) startEdit()
-
-async function renderPreview() {
-  try {
-    const res = await $fetch<{ html: string }>('/api/md/render', {
-      method: 'POST',
-      body: { course: slug.value, content: form.description },
-    })
-    preview.value = res.html
-  } catch { /* превью не критично */ }
-}
-
-let previewTimer: ReturnType<typeof setTimeout> | null = null
-watch(() => form.description, () => {
-  if (!editing.value) return
-  if (previewTimer) clearTimeout(previewTimer)
-  previewTimer = setTimeout(renderPreview, 400)
-})
 
 const saveError = ref('')
 const saving = ref(false)
@@ -154,8 +133,6 @@ const submitBusy = ref(false)
 const submitError = ref('')
 
 // --- редактор ответа + вложения сдачи ---
-const answerTab = ref<'edit' | 'preview'>('edit')
-const answerPreview = ref('')
 const attachInput = ref<HTMLInputElement | null>(null)
 const attachBusy = ref(false)
 const { data: meData } = useFetch<{ user?: { username?: string } }>('/api/auth/me', { key: 'me' })
@@ -167,21 +144,6 @@ function attachmentUrl(username: string, name: string): string {
 function attachmentsApi(username: string): string {
   return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/attachments`
 }
-async function renderAnswerPreview() {
-  try {
-    const res = await $fetch<{ html: string }>('/api/md/render', {
-      method: 'POST',
-      body: { course: slug.value, content: answer.value },
-    })
-    answerPreview.value = res.html
-  } catch { answerPreview.value = '' }
-}
-let answerPreviewTimer: ReturnType<typeof setTimeout> | null = null
-watch(answer, () => {
-  if (answerTab.value !== 'preview') return
-  if (answerPreviewTimer) clearTimeout(answerPreviewTimer)
-  answerPreviewTimer = setTimeout(renderAnswerPreview, 400)
-})
 async function uploadAttachment(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
@@ -375,19 +337,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <button class="small" style="margin-left: 6px;" @click="removeAttachment(name)">×</button>
             </div>
           </div>
-          <div class="editor-tabs" role="tablist" style="margin-top: 10px;">
-            <button class="small" :class="{ active: answerTab === 'edit' }" role="tab" @click="answerTab = 'edit'">Редактор</button>
-            <button class="small" :class="{ active: answerTab === 'preview' }" role="tab" @click="answerTab = 'preview'; renderAnswerPreview()">Предпросмотр</button>
-          </div>
           <MdEditor
-            v-if="answerTab === 'edit'"
             v-model="answer"
             language="ru-RU"
-            :preview="false"
             style="margin-top: 8px;"
           />
-          <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-          <div v-else class="md-body" v-html="answerPreview" />
           <div class="row" style="margin-top: 10px; gap: 10px; align-items: center;">
             <input ref="attachInput" type="file" style="display: none;" @change="uploadAttachment">
             <button class="primary" :disabled="attachBusy" @click="attachInput?.click()">
@@ -401,19 +355,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </div>
         </template>
         <template v-else>
-          <div class="editor-tabs" role="tablist">
-            <button class="small" :class="{ active: answerTab === 'edit' }" role="tab" @click="answerTab = 'edit'">Редактор</button>
-            <button class="small" :class="{ active: answerTab === 'preview' }" role="tab" @click="answerTab = 'preview'; renderAnswerPreview()">Предпросмотр</button>
-          </div>
           <MdEditor
-            v-if="answerTab === 'edit'"
             v-model="answer"
             language="ru-RU"
-            :preview="false"
             style="margin-top: 8px;"
           />
-          <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-          <div v-else class="md-body" v-html="answerPreview" />
         </template>
         <p v-if="submitError" class="error">{{ submitError }}</p>
         <button class="primary" style="margin-top: 8px;" :disabled="submitBusy || !answer.trim()" @click="submit">
@@ -513,12 +459,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
 
     <!-- Редактирование -->
     <div v-if="editing" style="margin-top: 14px;">
-      <div class="editor-tabs" role="tablist">
-        <button class="small" :class="{ active: editTab === 'edit' }" role="tab" @click="editTab = 'edit'">Редактор</button>
-        <button class="small" :class="{ active: editTab === 'preview' }" role="tab" @click="editTab = 'preview'; renderPreview()">Предпросмотр</button>
-      </div>
-
-      <div v-if="editTab === 'edit'" class="form">
+      <div class="form">
         <label>
           Название
           <input v-model="form.title">
@@ -538,14 +479,9 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             id="wikiroom-assignment-editor"
             v-model="form.description"
             language="en-US"
-            :preview="false"
             :toolbars="toolbars"
           />
         </div>
-      </div>
-      <div v-else>
-        <!-- eslint-disable-next-line vue/no-v-html -- серверный санитизированный рендер -->
-        <div class="md-body" v-html="preview" />
       </div>
     </div>
 

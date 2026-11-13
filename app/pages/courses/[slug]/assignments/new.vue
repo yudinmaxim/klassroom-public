@@ -22,14 +22,12 @@ watchEffect(() => {
   ]
 })
 
-const editTab = ref<'edit' | 'preview'>('edit')
 const form = reactive({
   title: '',
   due: '',
   maxPoints: null as number | null,
   description: '',
 })
-const preview = ref('')
 
 const toolbars = [
   'bold', 'underline', 'italic', 'strikeThrough', '-',
@@ -37,27 +35,6 @@ const toolbars = [
   'codeRow', 'code', 'link', 'image', 'table', '-',
   'revoke', 'next',
 ]
-
-async function renderPreview() {
-  try {
-    const res = await $fetch<{ html: string }>('/api/md/render', {
-      method: 'POST',
-      body: { course: slug.value, content: form.description },
-    })
-    preview.value = res.html
-  } catch { /* превью не критично */ }
-}
-
-let previewTimer: ReturnType<typeof setTimeout> | null = null
-watch(() => form.description, () => {
-  if (previewTimer) clearTimeout(previewTimer)
-  previewTimer = setTimeout(renderPreview, 400)
-})
-
-function showPreviewTab() {
-  editTab.value = 'preview'
-  void renderPreview()
-}
 
 const saveError = ref('')
 const saving = ref(false)
@@ -97,28 +74,7 @@ async function save() {
 
     <p class="muted">Задание создаётся в статусе «Не выдано» — при выдаче выберете, кому его показать: всем или конкретным ученикам.</p>
 
-    <div class="editor-tabs" role="tablist" style="margin-top: 14px;">
-      <button
-        class="small"
-        :class="{ active: editTab === 'edit' }"
-        role="tab"
-        :aria-selected="editTab === 'edit'"
-        @click="editTab = 'edit'"
-      >
-        Редактор
-      </button>
-      <button
-        class="small"
-        :class="{ active: editTab === 'preview' }"
-        role="tab"
-        :aria-selected="editTab === 'preview'"
-        @click="showPreviewTab"
-      >
-        Предпросмотр
-      </button>
-    </div>
-
-    <div v-if="editTab === 'edit'" class="form">
+    <div class="form">
       <label>
         Название
         <input v-model="form.title">
@@ -138,14 +94,9 @@ async function save() {
           id="wikiroom-assignment-new-editor"
           v-model="form.description"
           language="en-US"
-          :preview="false"
           :toolbars="toolbars"
         />
       </div>
-    </div>
-    <div v-else>
-      <!-- eslint-disable-next-line vue/no-v-html -- серверный санитизированный рендер -->
-      <div class="md-body" v-html="preview" />
     </div>
 
   </div>

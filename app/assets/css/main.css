@@ -595,13 +595,7 @@ th { color: var(--muted); font-weight: 600; }
 @media (max-width: 900px) { .md-split { grid-template-columns: 1fr; } }
 .md-split textarea { min-height: 480px; font-family: ui-monospace, monospace; font-size: 13px; }
 
-/* Редактор материала: вкладки + md-editor-v3 */
-.editor-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-.editor-tabs button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
+/* Редактор материала: md-editor-v3 */
 .md-editor-wrap .w-md-editor { height: 520px; border-radius: 8px; }
 .md-editor-wrap .w-md-editor-text-input,
 .md-editor-wrap .w-md-editor-text-pre { font-family: ui-monospace, monospace; font-size: 13px; }
