@@ -359,6 +359,9 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
             <input v-model="form.audience" type="checkbox" :value="s.username">
             {{ s.pseudonym }} <span class="muted">({{ s.username }})</span>
           </label>
+          <p v-if="!form.audience.length" class="muted" style="margin: 6px 0 0;">
+            Для частного задания выберите хотя бы одного ученика.
+          </p>
         </div>
         <div class="row" style="gap: 16px;">
           <label>
@@ -395,7 +398,12 @@ const pseudo = (u: string) => rosterNames.value.get(u) ?? u
 
     <template #foot>
       <p v-if="saveError && editing" class="error" style="margin: 0;">{{ saveError }}</p>
-      <button v-if="editing" class="primary" :disabled="saving || form.title.trim().length < 3" @click="save">
+      <button
+        v-if="editing"
+        class="primary"
+        :disabled="saving || form.title.trim().length < 3 || (form.type === 'private' && !form.audience.length)"
+        @click="save"
+      >
         {{ saving ? 'Сохраняю…' : 'Сохранить' }}
       </button>
       <button v-if="editing" @click="cancelEdit">Отмена</button>

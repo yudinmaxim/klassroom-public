@@ -885,7 +885,6 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       }
       if (patch.audience !== undefined) {
         f.audience = patch.type === 'private' || f.type === 'private' ? [...new Set(patch.audience)] : []
-        if (f.type === 'private' && !f.audience.length) httpError(400, 'Для частного задания нужен хотя бы один ученик')
         changes.push('обновил состав')
       }
       if (patch.due !== undefined && patch.due !== f.due) {
@@ -903,6 +902,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       if (patch.description !== undefined) {
         await atomicWriteString(assignmentDescriptionPath(norm, f.id), patch.description)
         changes.push('обновил описание')
+      }
+      // инвариант: частное задание всегда имеет хотя бы одного ученика
+      if (f.type === 'private' && !f.audience.length) {
+        httpError(400, 'Для частного задания нужен хотя бы один ученик')
       }
       if (changes.length) {
         f.updatedAt = new Date().toISOString()
