@@ -142,6 +142,8 @@ async function loadOwnSubmission() {
       `/api/courses/${slug.value}/assignments/${aid.value}/submit`,
     )
     ownSubmission.value = res.submission
+    // форма пересдачи предзаполнена текущим ответом
+    answer.value = res.submission?.answer ?? ''
   } catch { /* нет доступа/не выдано — блок скрыт шаблоном */ }
 }
 if (!canEdit.value) void loadOwnSubmission()
@@ -160,7 +162,6 @@ async function submit() {
       method: 'POST',
       body: { answer: answer.value },
     })
-    answer.value = ''
     await refresh()
     await loadOwnSubmission()
   } catch (e) {
@@ -274,7 +275,9 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             <template v-if="mySubmission.grade !== null"> · оценка: {{ mySubmission.grade }}</template>
             · сдано {{ fmtDate(mySubmission.submittedAt) }}
           </p>
-          <div v-if="mySubmission.feedback" class="card" style="margin-bottom: 10px;">
+          <h3 style="margin: 10px 0 6px;">Ваша сдача</h3>
+          <pre class="answer-text">{{ mySubmission.answer }}</pre>
+          <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
             <strong>Комментарий учителя:</strong>
             <p style="white-space: pre-wrap;">{{ mySubmission.feedback }}</p>
           </div>
