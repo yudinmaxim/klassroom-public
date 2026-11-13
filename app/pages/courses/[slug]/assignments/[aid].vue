@@ -390,12 +390,12 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <div v-if="openSub === s.username" style="margin-top: 10px;">
             <p class="muted">Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template></p>
             <pre class="answer-text">{{ s.answer }}</pre>
-            <div v-if="s.attachments?.length" style="margin: 6px 0;">
-              <strong>Вложения:</strong>
-              <div v-for="name in s.attachments" :key="name">
-                <a :href="attachmentUrl(s.username, name)" target="_blank">{{ name }}</a>
-              </div>
-            </div>
+            <AttachmentField
+              v-if="s.attachments?.length"
+              :items="s.attachments"
+              :uploadable="false"
+              :link-for="(n: string) => attachmentUrl(s.username, n)"
+            />
 
             <div style="margin-top: 8px;">
               <button class="small" @click="toggleHistory(s.username)">

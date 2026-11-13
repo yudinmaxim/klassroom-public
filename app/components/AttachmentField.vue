@@ -14,6 +14,8 @@ defineProps<{
   label?: string
   /** primary-стиль кнопки — для главного действия (сдача ответа) */
   primary?: boolean
+  /** false — только список без кнопки загрузки (просмотр чужой сдачи) */
+  uploadable?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -37,7 +39,12 @@ function onChange(e: Event) {
 <template>
   <div>
     <input ref="input" type="file" hidden :disabled="disabled" @change="onChange">
-    <button :class="primary ? 'primary' : 'small'" :disabled="busy || disabled" @click="pick">
+    <button
+      v-if="uploadable !== false"
+      :class="primary ? 'primary' : 'small'"
+      :disabled="busy || disabled"
+      @click="pick"
+    >
       {{ busy ? 'Загрузка…' : (label ?? 'Приложить файл') }}
     </button>
     <ul v-if="items.length" style="margin-top: 8px;">
