@@ -335,8 +335,9 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         <button class="small" :disabled="deleting" @click="removeAssignment">Удалить</button>
       </div>
       <div v-if="!editing && !canEdit && mySubmission" class="page-actions">
-        <button class="small" @click="openChat({ slug, aid, username: myUsername, label: 'Ваша сдача' })">
-          Обсуждение{{ chatUnread({ slug, aid, username: myUsername }) ? ` (${chatUnread({ slug, aid, username: myUsername })})` : '' }}
+        <button class="small chat-btn" @click="openChat({ slug, aid, username: myUsername, label: 'Ваша сдача' })">
+          Обсуждение
+          <span v-if="chatUnread({ slug, aid, username: myUsername })" class="unread-dot" />
         </button>
       </div>
     </header>
@@ -438,10 +439,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <span class="muted">{{ subStatusLabel(s.status) }}</span>
               <span v-if="s.grade !== null"><strong>{{ s.grade }}</strong></span>
               <button
-                class="small"
+                class="small chat-btn"
                 @click="openChat({ slug, aid, username: s.username, label: pseudo(s.username) })"
               >
-                Обсуждение{{ chatUnread({ slug, aid, username: s.username }) ? ` (${chatUnread({ slug, aid, username: s.username })})` : '' }}
+                Обсуждение
+                <span v-if="chatUnread({ slug, aid, username: s.username })" class="unread-dot" />
               </button>
               <button class="small" @click="toggleSub(s.username)">
                 {{ openSub === s.username ? 'Скрыть' : 'Открыть' }}
@@ -572,6 +574,16 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
 </template>
 
 <style scoped>
+.chat-btn { position: relative; }
+.unread-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger, #d64545);
+}
 .answer-text {
   white-space: pre-wrap;
   background: var(--bg-soft, #f6f6f6);
