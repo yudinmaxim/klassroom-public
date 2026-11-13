@@ -29,7 +29,7 @@ watchEffect(() => {
     ? [
         { label: 'Курсы', to: '/' },
         { label: courseTitle, to: `/courses/${slug.value}` },
-        { label: 'Задания', to: `/courses/${slug.value}?tab=assignments` },
+        { label: 'Задания', to: `/courses/${slug.value}/assignments` },
         { label: assignment.value.title },
       ]
     : [

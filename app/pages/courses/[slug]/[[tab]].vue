@@ -33,22 +33,24 @@ const tabs = computed(() => [
 type TabId = 'info' | 'topics' | 'assignments' | 'students'
 const router = useRouter()
 const activeTab = ref<TabId>('info')
-const initialTab = String(route.query.tab ?? '')
-if (tabs.value.some(t => t.id === initialTab)) activeTab.value = initialTab as TabId
 
-// вкладка — часть URL (?tab=), чтобы F5/back не сбрасывали её
+function tabFromPath(): TabId | null {
+  const t = String(route.params.tab ?? '')
+  if (!t) return 'info'
+  return tabs.value.some(x => x.id === t) ? (t as TabId) : null
+}
+activeTab.value = tabFromPath() ?? 'info'
+
+// вкладка — часть пути (/courses/x/assignments), F5/back сохраняют её
 watch(activeTab, (tab) => {
-  const want = tab === 'info' ? undefined : tab
-  if ((route.query.tab ?? undefined) === want) return
-  void router.replace({ query: { ...route.query, tab: want } })
+  const want = tab === 'info' ? '' : `/${tab}`
+  const current = String(route.params.tab ?? '')
+  if ((current ? `/${current}` : '') === want) return
+  void router.replace(`/courses/${slug.value}${want}`)
 })
-watch(() => route.query.tab, (q) => {
-  const t = String(q ?? '')
-  if (t !== 'info' && tabs.value.some(x => x.id === t) && t !== activeTab.value) {
-    activeTab.value = t as TabId
-  } else if (!t && activeTab.value !== 'info') {
-    activeTab.value = 'info'
-  }
+watch(() => route.params.tab, () => {
+  const t = tabFromPath()
+  if (t && t !== activeTab.value) activeTab.value = t
 })
 
 // --- настройки курса ---
