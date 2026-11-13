@@ -330,7 +330,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <button class="small" style="margin-left: 6px;" @click="removeAttachment(name)">×</button>
             </div>
           </div>
-          <div class="md-editor-wrap" style="margin-top: 8px;">
+          <div class="md-editor-wrap sm" style="margin-top: 8px;">
             <MdEditor
               v-model="answer"
               language="en-US"
@@ -350,7 +350,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </div>
         </template>
         <template v-else>
-          <div class="md-editor-wrap" style="margin-top: 8px;">
+          <div class="md-editor-wrap sm" style="margin-top: 8px;">
             <MdEditor
               v-model="answer"
               language="en-US"

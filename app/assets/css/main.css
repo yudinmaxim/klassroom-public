@@ -597,6 +597,7 @@ th { color: var(--muted); font-weight: 600; }
 
 /* Редактор материала: md-editor-v3 */
 .md-editor-wrap .w-md-editor { height: 520px; border-radius: 8px; }
+.md-editor-wrap.sm .w-md-editor { height: 240px; }
 .md-editor-wrap .w-md-editor-text-input,
 .md-editor-wrap .w-md-editor-text-pre { font-family: ui-monospace, monospace; font-size: 13px; }
 

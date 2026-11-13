@@ -6,5 +6,5 @@ export const MD_TOOLBARS = [
   'bold', 'underline', 'italic', 'strikeThrough', '-',
   'title', 'unorderedList', 'orderedList', 'task', 'quote', '-',
   'codeRow', 'code', 'link', 'image', 'table', '-',
-  'revoke', 'next',
+  'revoke', 'fullscreen', 'next',
 ]
