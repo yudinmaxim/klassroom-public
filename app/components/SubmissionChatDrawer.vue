@@ -63,8 +63,7 @@ async function send() {
 </script>
 
 <template>
-  <div v-if="open" class="side-backdrop" @click.self="closeThread">
-    <aside class="side-panel chat-panel">
+  <aside v-if="open" class="side-panel chat-panel">
       <div class="modal-head">
         <h2>Обсуждение<template v-if="ctx?.label"> — {{ ctx.label }}</template></h2>
         <div class="row" style="gap: 6px;">
@@ -106,12 +105,19 @@ async function send() {
         </button>
       </div>
       <p v-if="error" class="error">{{ error }}</p>
-    </aside>
-  </div>
+  </aside>
 </template>
 
 <style scoped>
 .chat-panel {
+  /* модельess-панель: без бэкдропа, страница остаётся интерактивной;
+     z-index ниже топбара (10) — шапка не перекрывается */
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  margin-left: 0;
   display: flex;
   flex-direction: column;
 }

@@ -334,6 +334,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         <button class="small" @click="startEdit">Редактировать</button>
         <button class="small" :disabled="deleting" @click="removeAssignment">Удалить</button>
       </div>
+      <div v-if="!editing && !canEdit && mySubmission" class="page-actions">
+        <button class="small" @click="openChat({ slug, aid, username: myUsername, label: 'Ваша сдача' })">
+          Обсуждение{{ chatUnread({ slug, aid, username: myUsername }) ? ` (${chatUnread({ slug, aid, username: myUsername })})` : '' }}
+        </button>
+      </div>
     </header>
 
     <p v-if="!editing" class="muted">
@@ -388,13 +393,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               {{ attachBusy ? 'Загружаю…' : '📎 Приложить файл к сдаче' }}
             </button>
             <span class="muted" style="font-size: 12px;">до 10 МБ</span>
-            <button
-              class="small"
-              style="margin-left: auto;"
-              @click="openChat({ slug, aid, username: myUsername, label: 'Ваша сдача' })"
-            >
-              Обсуждение{{ chatUnread({ slug, aid, username: myUsername }) ? ` (${chatUnread({ slug, aid, username: myUsername })})` : '' }}
-            </button>
           </div>
           <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
             <strong>Комментарий учителя:</strong>
