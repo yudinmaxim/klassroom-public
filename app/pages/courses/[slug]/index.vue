@@ -193,6 +193,22 @@ function openPublish(a: AssignmentRow) {
   }
 }
 
+async function unpublishAssignment(a: AssignmentRow) {
+  publishBusy.value = a.slug
+  assignmentsError.value = ''
+  try {
+    await $fetch(`/api/courses/${course.value?.slug}/assignments/${a.slug}`, {
+      method: 'PATCH',
+      body: { status: 'draft' },
+    })
+    await loadAssignments()
+  } catch (e) {
+    assignmentsError.value = errText(e, 'Не удалось снять задание с выдачи')
+  } finally {
+    publishBusy.value = ''
+  }
+}
+
 type MaterialRow = { slug: string, title: string, type: string, updatedAt: string }
 
 function materialUrl(m: MaterialRow): string {
@@ -390,6 +406,17 @@ const scaleLabel: Record<GradingScale['type'], string> = {
                   <Icon name="lucide:send" />
                 </button>
                 <span class="tip-body">Выдать</span>
+              </span>
+              <span v-else class="tip">
+                <button
+                  class="icon-btn"
+                  aria-label="Снять с выдачи"
+                  :disabled="publishBusy === a.slug"
+                  @click.stop="unpublishAssignment(a)"
+                >
+                  <Icon name="lucide:eye-off" />
+                </button>
+                <span class="tip-body">Снять с выдачи</span>
               </span>
               <span class="tip">
                 <button
