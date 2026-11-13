@@ -12,6 +12,7 @@ const emit = defineEmits<{ close: [], changed: [] }>()
 /** Кому выдаём: всем ученикам курса или выбранным. */
 const scope = ref<'all' | 'chosen'>('all')
 const checked = ref<Set<string>>(new Set())
+const search = ref('')
 const loading = ref(true)
 const loadError = ref('')
 const busy = ref(false)
@@ -32,6 +33,14 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+const filteredStudents = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return props.students
+  return props.students.filter(s =>
+    s.pseudonym.toLowerCase().includes(q) || s.username.toLowerCase().includes(q),
+  )
 })
 
 function toggle(username: string, on: boolean) {
@@ -92,8 +101,16 @@ async function save() {
 
         <template v-if="scope === 'chosen'">
           <p v-if="!students.length" class="muted">В курсе пока нет учеников.</p>
-          <ul v-else class="enroll-list">
-            <li v-for="s in students" :key="s.username">
+          <template v-else>
+            <input
+              v-model="search"
+              class="modal-search"
+              placeholder="Поиск по имени…"
+              style="margin-bottom: 8px;"
+            >
+            <p v-if="!filteredStudents.length" class="muted">Никого не найдено.</p>
+            <ul v-else class="enroll-list" style="max-height: min(430px, 55vh); overflow-y: auto;">
+              <li v-for="s in filteredStudents" :key="s.username">
               <label class="enroll-item">
                 <input
                   type="checkbox"
@@ -116,6 +133,6 @@ async function save() {
           {{ busy ? 'Выдача…' : 'Выдать' }}
         </button>
       </div>
-    </div>
+    </template></div>
   </div>
 </template>
