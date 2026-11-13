@@ -111,9 +111,9 @@ async function send() {
 <style scoped>
 .chat-panel {
   /* модельess-панель: без бэкдропа, страница остаётся интерактивной;
-     z-index ниже топбара (10) — шапка не перекрывается */
+     top = высота топбара (10+32+10+border ≈ 53px), чтобы не перекрываться */
   position: fixed;
-  top: 0;
+  top: 54px;
   right: 0;
   bottom: 0;
   z-index: 9;
