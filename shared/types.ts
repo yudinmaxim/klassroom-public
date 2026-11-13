@@ -160,3 +160,21 @@ export interface CoursePageData {
   canAssignments: boolean
   canViewRoster: boolean
 }
+
+/** Событие уведомления (SSE /notify). Эфемерное — без истории. */
+export interface NotifyPayload {
+  type:
+    | 'assignment.published'
+    | 'assignment.unpublished'
+    | 'material.created'
+    | 'material.updated'
+    | 'submission.created'
+  /** slug курса — для ссылки и контекста */
+  course: string
+  title: string
+  /** Куда вести по клику на уведомление */
+  url: string
+  /** псевдоним автора действия */
+  actor?: string
+  at: string
+}

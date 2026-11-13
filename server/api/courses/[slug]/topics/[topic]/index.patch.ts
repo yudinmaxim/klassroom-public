@@ -1,5 +1,6 @@
 import { requireUser, courseSlugSchema, materialSlugSchema, parseJson, updateMaterialBodySchema } from '../../../../../lib/validation'
 import { httpError } from '../../../../../lib/errors'
+import { emitToCourse } from '../../../../../lib/events'
 
 /** Обновить название и/или содержимое материала (materials.edit). */
 export default defineEventHandler(async (event) => {
@@ -13,5 +14,15 @@ export default defineEventHandler(async (event) => {
   }
 
   const material = await useContentStore().updateMaterial(actor, slug, materialSlug, body)
+
+  await emitToCourse(actor, slug, {
+    type: 'material.updated',
+    course: slug,
+    title: material.title,
+    url: `/courses/${slug}/topics/${material.slug}`,
+    actor: actor.pseudonym,
+    at: new Date().toISOString(),
+  })
+
   return { material }
 })

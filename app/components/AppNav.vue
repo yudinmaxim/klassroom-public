@@ -64,5 +64,6 @@ const isActive = (path: string) =>
         <slot />
       </main>
     </div>
+    <NotificationToasts />
   </div>
 </template>
