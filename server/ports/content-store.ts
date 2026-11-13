@@ -1,4 +1,4 @@
-import type { Assignment, AssignmentSummary, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, UserPublic } from '#shared/types'
+import type { Assignment, AssignmentSummary, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, SubmissionVersion, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -138,6 +138,14 @@ export interface ContentStore {
 
   /** Сдачи по заданию — только учителю (submissions.view.all). */
   listSubmissions(actor: UserPublic, courseSlug: string, assignmentSlug: string): Promise<Submission[]>
+
+  /** Деталь сдачи одного ученика + история версий — только учителю. */
+  getSubmissionDetail(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+  ): Promise<{ submission: Submission, history: SubmissionVersion[] }>
 
   /** Поставить оценку и комментарий, вернуть работу ученику. */
   gradeSubmission(

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Assignment, Submission } from '#shared/types'
+import type { Assignment, Submission, SubmissionVersion } from '#shared/types'
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { onNotification } from '~/composables/useNotifications'
@@ -205,6 +205,31 @@ const gradeForms = reactive<Record<string, { grade: number | null, feedback: str
 const gradeBusy = ref('')
 const gradeError = ref('')
 
+// --- история версий сдачи (лениво по клику) ---
+const historyFor = ref<Record<string, SubmissionVersion[]>>({})
+const historyOpen = ref<Record<string, boolean>>({})
+const historyLoading = ref('')
+
+async function toggleHistory(username: string) {
+  if (historyOpen.value[username]) {
+    historyOpen.value = { ...historyOpen.value, [username]: false }
+    return
+  }
+  historyOpen.value = { ...historyOpen.value, [username]: true }
+  if (historyFor.value[username]) return
+  historyLoading.value = username
+  try {
+    const res = await $fetch<{ history: SubmissionVersion[] }>(
+      `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}`,
+    )
+    historyFor.value = { ...historyFor.value, [username]: res.history }
+  } catch {
+    historyFor.value = { ...historyFor.value, [username]: [] }
+  } finally {
+    historyLoading.value = ''
+  }
+}
+
 function toggleSub(username: string) {
   openSub.value = openSub.value === username ? null : username
   if (!gradeForms[username]) {
@@ -317,6 +342,34 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <div v-if="openSub === s.username" style="margin-top: 10px;">
             <p class="muted">Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template></p>
             <pre class="answer-text">{{ s.answer }}</pre>
+
+            <div style="margin-top: 8px;">
+              <button class="small" @click="toggleHistory(s.username)">
+                {{ historyOpen[s.username] ? 'Скрыть историю' : 'История версий' }}
+              </button>
+              <p v-if="historyLoading === s.username" class="muted" style="margin: 6px 0 0;">Загрузка…</p>
+              <template v-else-if="historyOpen[s.username]">
+                <p v-if="!historyFor[s.username]?.length" class="muted" style="margin: 6px 0 0;">
+                  Предыдущих версий нет — это первая сдача.
+                </p>
+                <div
+                  v-for="(v, i) in historyFor[s.username]"
+                  :key="v.submittedAt"
+                  class="card"
+                  style="margin: 8px 0; padding: 12px;"
+                >
+                  <p class="muted" style="margin: 0 0 6px;">
+                    Версия {{ i + 1 }} · сдана {{ fmtDate(v.submittedAt) }}
+                    <template v-if="v.grade !== null"> · оценка: {{ v.grade }}</template>
+                  </p>
+                  <pre class="answer-text">{{ v.answer }}</pre>
+                  <p v-if="v.feedback" style="white-space: pre-wrap; margin: 8px 0 0;">
+                    <strong>Комментарий:</strong> {{ v.feedback }}
+                  </p>
+                </div>
+              </template>
+            </div>
+
             <div class="form" style="margin-top: 10px;">
               <label>
                 Оценка

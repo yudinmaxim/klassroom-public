@@ -1,4 +1,4 @@
-import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, UserPublic } from '#shared/types'
+import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, SubmissionVersion, UserPublic } from '#shared/types'
 import { readdir, rm, type Dirent } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { slugify } from '../lib/slug'
@@ -452,6 +452,54 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   }
   function submissionAnswerPath(courseSlug: string, aid: string, username: string): string {
     return resolveDataPath(submissionDir(courseSlug, aid, username), 'answer.md')
+  }
+
+  // --- история версий сдачи: submissions/<user>/history/<ts>.{yml,md} ---
+  function submissionHistoryDir(courseSlug: string, aid: string, username: string): string {
+    return resolveDataPath(submissionDir(courseSlug, aid, username), 'history')
+  }
+  /** Имя файла версии из submittedAt (ISO → безопасное для ФС). */
+  function historyBase(ts: string): string {
+    return ts.replace(/[:.]/g, '-')
+  }
+  /** Заархивировать текущую версию сдачи перед перезаписью. */
+  async function archiveSubmission(courseSlug: string, aid: string, username: string, sub: SubmissionFile): Promise<void> {
+    const hdir = submissionHistoryDir(courseSlug, aid, username)
+    const base = historyBase(sub.submittedAt ?? sub.updatedAt ?? new Date().toISOString())
+    await ensureDir(hdir)
+    await writeYaml(resolveDataPath(hdir, `${base}.yml`), {
+      status: sub.status,
+      grade: sub.grade,
+      feedback: sub.feedback,
+      submittedAt: sub.submittedAt,
+      updatedAt: sub.updatedAt,
+    })
+    const answer = await readString(submissionAnswerPath(courseSlug, aid, username))
+    if (answer) await atomicWriteString(resolveDataPath(hdir, `${base}.md`), answer)
+  }
+  /** Прочитать историю версий (старые → новые). */
+  async function readSubmissionHistory(courseSlug: string, aid: string, username: string): Promise<SubmissionVersion[]> {
+    const hdir = submissionHistoryDir(courseSlug, aid, username)
+    let files: string[]
+    try {
+      files = (await readdir(hdir)).filter(f => f.endsWith('.yml'))
+    } catch {
+      return []
+    }
+    const result: SubmissionVersion[] = []
+    for (const file of files) {
+      const meta = await readYaml<{ submittedAt: string | null, grade: number | null, feedback: string }>(resolveDataPath(hdir, file))
+      if (!meta) continue
+      const base = file.replace(/\.yml$/, '')
+      const answer = (await readString(resolveDataPath(hdir, `${base}.md`))) ?? ''
+      result.push({
+        submittedAt: meta.submittedAt ?? '',
+        grade: meta.grade,
+        feedback: meta.feedback,
+        answer,
+      })
+    }
+    return result.sort((a, b) => a.submittedAt.localeCompare(b.submittedAt))
   }
 
   async function listSubmissionUsers(courseSlug: string, aid: string): Promise<string[]> {
@@ -930,6 +978,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
       const now = new Date().toISOString()
       const existing = await readSubmissionFile(norm, f.id, actor.username)
+      // пересдача — текущую версию уносим в history/ до перезаписи
+      if (existing) await archiveSubmission(norm, f.id, actor.username, existing)
       const sub: SubmissionFile = {
         status: 'submitted',
         grade: existing?.grade ?? null,
@@ -975,6 +1025,30 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         result.push({ username, status: sub.status, grade: sub.grade, feedback: sub.feedback, answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt })
       }
       return result.sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))
+    },
+
+    async getSubmissionDetail(actor, courseSlug, assignmentSlug, username) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const role = await roleOf(actor)
+      if (!canGrade(actor, role, course) && !(role.scope === 'owner' && role.permissions.includes('submissions.view.all'))) {
+        httpError(403, 'Недостаточно прав')
+      }
+      const dirId = await resolveEntityDir(norm, 'assignments', assignmentSlug)
+      if (!dirId) httpError(404, 'Задание не найдено')
+      const f = await readAssignmentFile(norm, dirId)
+      if (!f) httpError(404, 'Задание не найдено')
+      const sub = await readSubmissionFile(norm, f.id, username)
+      if (!sub) httpError(404, 'Сдача не найдена')
+
+      const answer = (await readString(submissionAnswerPath(norm, f.id, username))) ?? ''
+      const submission: Submission = {
+        username, status: sub.status, grade: sub.grade, feedback: sub.feedback,
+        answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt,
+      }
+      const history = await readSubmissionHistory(norm, f.id, username)
+      return { submission, history }
     },
 
     async gradeSubmission(actor, courseSlug, assignmentSlug, username, input) {

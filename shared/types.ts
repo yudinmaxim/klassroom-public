@@ -185,3 +185,11 @@ export interface NotifyPayload {
   silent?: boolean
   at: string
 }
+
+/** Одна версия сдачи в истории пересдач (submissions/<user>/history/). */
+export interface SubmissionVersion {
+  submittedAt: string
+  grade: number | null
+  feedback: string
+  answer: string
+}
