@@ -11,11 +11,18 @@ const { data: me } = await useFetch('/api/auth/me', { key: 'me' })
 if (!me.value?.user) await navigateTo('/login', { replace: true })
 
 const sections = ref<GradebookSection[]>([])
+const courses = ref<{ slug: string, title: string }[]>([])
 const error = ref('')
+const filterCourse = ref('')
+
+const visibleSections = computed(() =>
+  filterCourse.value ? sections.value.filter(s => s.course.slug === filterCourse.value) : sections.value,
+)
 
 async function load() {
   try {
     sections.value = await $fetch<GradebookSection[]>('/api/grades')
+    courses.value = sections.value.map(s => s.course)
   } catch (e) {
     error.value = errText(e, 'Не удалось загрузить оценки')
   }
@@ -40,14 +47,19 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
 
 <template>
   <div>
-    <div class="row" style="margin-bottom: 16px;">
+    <div class="row" style="margin-bottom: 16px; gap: 10px; align-items: center;">
       <h1 style="margin: 0;">Оценки</h1>
+      <div class="spacer" />
+      <select v-model="filterCourse" aria-label="Фильтр по курсу">
+        <option value="">Все курсы</option>
+        <option v-for="c in courses" :key="c.slug" :value="c.slug">{{ c.title }}</option>
+      </select>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
-    <p v-else-if="!sections.length" class="muted">Нет курсов с опубликованными заданиями.</p>
+    <p v-else-if="!visibleSections.length" class="muted">Нет курсов с опубликованными заданиями.</p>
 
-    <div v-for="s in sections" :key="s.course.slug" class="card" style="margin-bottom: 16px;">
+    <div v-for="s in visibleSections" :key="s.course.slug" class="card" style="margin-bottom: 16px;">
       <h2 style="margin-top: 0;">
         <NuxtLink :to="`/courses/${s.course.slug}`">{{ s.course.title }}</NuxtLink>
       </h2>

@@ -15,7 +15,12 @@ const courses = ref<CourseSummary[]>([])
 const error = ref('')
 const text = ref('')
 const courseSlug = ref('')
+const filterCourse = ref('')
 const busy = ref(false)
+
+const visiblePosts = computed(() =>
+  filterCourse.value ? posts.value.filter(p => p.course === filterCourse.value) : posts.value,
+)
 
 async function load() {
   try {
@@ -62,8 +67,13 @@ async function send() {
 
 <template>
   <div>
-    <div class="row" style="margin-bottom: 16px;">
+    <div class="row" style="margin-bottom: 16px; gap: 10px; align-items: center;">
       <h1 style="margin: 0;">Лента</h1>
+      <div class="spacer" />
+      <select v-model="filterCourse" aria-label="Фильтр по курсу">
+        <option value="">Все курсы</option>
+        <option v-for="c in courses" :key="c.slug" :value="c.slug">{{ c.title }}</option>
+      </select>
     </div>
 
     <div v-if="courses.length" class="card" style="margin-bottom: 14px;">
@@ -89,10 +99,10 @@ async function send() {
     <p v-else class="muted">Нет доступных курсов — <NuxtLink to="/">выберите курс</NuxtLink>.</p>
 
     <p v-if="error && !courses.length" class="error">{{ error }}</p>
-    <p v-if="!posts.length && courses.length" class="muted">Пока тихо — первый пост за вами.</p>
+    <p v-if="!visiblePosts.length && courses.length" class="muted">Пока тихо — первый пост за вами.</p>
 
     <div
-      v-for="p in posts"
+      v-for="p in visiblePosts"
       :key="`${p.course}/${p.id}`"
       class="card"
       style="margin-bottom: 10px; padding: 12px 14px;"
