@@ -63,25 +63,43 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
       <h2 style="margin-top: 0;">
         <NuxtLink :to="`/courses/${s.course.slug}`">{{ s.course.title }}</NuxtLink>
       </h2>
-      <p v-if="!s.book.canSeeAll" class="muted" style="margin-top: -8px;">
-        Показана только ваша строка.
-      </p>
-
       <div class="table-wrap">
         <table class="table gradebook">
           <thead>
             <tr>
-              <th class="gb-student">Ученик</th>
+              <th class="gb-student">{{ s.book.canSeeAll ? 'Ученик' : 'Курс' }}</th>
               <th v-for="a in s.book.assignments" :key="a.id" :title="a.due ? `до ${new Date(a.due).toLocaleDateString('ru')}` : ''">
                 <NuxtLink :to="`/courses/${s.course.slug}/assignments/${a.slug}`">{{ a.title }}</NuxtLink>
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in s.book.rows" :key="row.student" :class="{ 'is-mine': row.mine }">
-              <td class="gb-student">{{ row.student }}</td>
+            <!-- учитель: строка на каждого ученика -->
+            <template v-if="s.book.canSeeAll">
+              <tr v-for="row in s.book.rows" :key="row.student">
+                <td class="gb-student">{{ row.student }}</td>
+                <td
+                  v-for="(c, i) in row.cells"
+                  :key="c.assignmentId"
+                  class="gb-cell"
+                  :class="`st-${c.status}`"
+                  :title="cellTitle(c, s.book.assignments[i]!)"
+                >
+                  <template v-if="c.status === 'returned'">
+                    <strong v-if="c.grade !== null">{{ c.grade }}</strong>
+                    <span v-else class="muted">✓</span>
+                    <span v-if="c.maxPoints" class="gb-max">/{{ c.maxPoints }}</span>
+                  </template>
+                  <span v-else-if="c.status === 'submitted'" class="muted">…</span>
+                  <span v-else class="muted">—</span>
+                </td>
+              </tr>
+            </template>
+            <!-- ученик: одна строка, первая ячейка — название курса -->
+            <tr v-else-if="s.book.rows[0]">
+              <td class="gb-student">{{ s.course.title }}</td>
               <td
-                v-for="(c, i) in row.cells"
+                v-for="(c, i) in s.book.rows[0].cells"
                 :key="c.assignmentId"
                 class="gb-cell"
                 :class="`st-${c.status}`"
