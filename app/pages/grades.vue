@@ -108,8 +108,11 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
   overflow-x: auto;
 }
 .gradebook {
-  border-collapse: collapse;
-  width: 100%;
+  /* separate, не collapse — иначе sticky-колонка глючит с border-collapse */
+  border-collapse: separate;
+  border-spacing: 0;
+  /* ширина по контенту: одна колонка не растягивается на всю карточку */
+  width: max-content;
 }
 .gradebook th,
 .gradebook td {
@@ -127,7 +130,10 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
   font-weight: 500;
   position: sticky;
   left: 0;
+  z-index: 1;
   background: var(--bg, #fff);
+  /* визуальный разделитель между липкой колонкой и скроллящимися */
+  box-shadow: 1px 0 0 var(--border, #e5e7eb);
 }
 tr.is-mine .gb-student {
   color: var(--accent, #2563eb);
