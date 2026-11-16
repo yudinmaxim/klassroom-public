@@ -22,6 +22,8 @@ const isActive = (path: string) =>
       <NuxtLink to="/" class="brand">wikiroom</NuxtLink>
       <nav v-if="user" class="side-nav">
         <NuxtLink to="/" class="nav-link" :class="{ active: isActive('/') }">Курсы</NuxtLink>
+        <NuxtLink to="/stream" class="nav-link" :class="{ active: isActive('/stream') }">Лента</NuxtLink>
+        <NuxtLink to="/grades" class="nav-link" :class="{ active: isActive('/grades') }">Оценки</NuxtLink>
         <template v-if="user.role === 'admin'">
           <NuxtLink
             to="/admin/users"

@@ -1,4 +1,4 @@
-import type { AssignmentSummary, RoleDef, Course, CourseSummary, Gradebook, GradingScale, Material, MaterialSummary, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { AssignmentSummary, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 import { renderDocMarkdown } from '../lib/md'
 import { readdir, rm, type Dirent } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
@@ -637,6 +637,84 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     return {
       username, status: sub.status, grade: sub.grade, feedback: sub.feedback,
       answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt, attachments,
+    }
+  }
+
+  /** Курсы, видимые actor (slug+title) — для глобальных ленты/журнала. */
+  async function visibleCourses(actor: UserPublic): Promise<{ slug: string, title: string }[]> {
+    let slugs: Dirent[]
+    try {
+      slugs = await readdir(resolveDataPath(baseDir, 'courses'), { withFileTypes: true })
+    } catch {
+      return []
+    }
+    const result: { slug: string, title: string }[] = []
+    for (const dir of slugs.filter(d => d.isDirectory())) {
+      const f = await readCourse(baseDir, dir.name)
+      if (!f) continue
+      const roster = await readRoster(baseDir, dir.name)
+      if (!canSee(actor, await roleOf(actor), f, roster)) continue
+      result.push({ slug: f.slug, title: f.title })
+    }
+    return result
+  }
+
+  /** Журнал оценок курса (общий код для getGradebook/listGradebooks). */
+  async function buildGradebook(actor: UserPublic, norm: string): Promise<Gradebook> {
+    const course = await loadCourseFor(actor, norm)
+    if (!course) httpError(404, 'Курс не найден')
+    const courseFile = await readCourse(baseDir, norm)
+    if (!courseFile) httpError(404, 'Курс не найден')
+    const roster = await readRoster(baseDir, norm)
+    const role = await roleOf(actor)
+    // полный журнал — учитель/админ (canGrade); ученику — только своя строка
+    const canSeeAll = canGrade(actor, role, courseFile)
+    const students = canSeeAll ? roster : roster.filter(u => u === actor.username)
+
+    // колонки: только опубликованные задания, по createdAt
+    let dirs: Dirent[]
+    try {
+      dirs = await readdir(assignmentsRoot(norm), { withFileTypes: true })
+    } catch {
+      dirs = []
+    }
+    const cols: { slug: string, id: string, title: string, due: string | null, createdAt: string, file: AssignmentFile }[] = []
+    for (const d of dirs.filter(d => d.isDirectory())) {
+      const f = await readAssignmentFile(norm, d.name)
+      if (!f || f.status !== 'published') continue
+      cols.push({ slug: f.slug, id: f.id, title: f.title, due: f.due, createdAt: f.createdAt, file: f })
+    }
+    cols.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+
+    const rows: Gradebook['rows'] = []
+    for (const username of students) {
+      const cells: Gradebook['rows'][number]['cells'] = []
+      for (const col of cols) {
+        // ученик видит в журнале только задания, доступные ему
+        const visible = canSeeAll
+          || (role.scope === 'member' && canSeeAssignment(actor, role, courseFile, roster, col.file))
+        if (!visible) {
+          cells.push({ assignmentSlug: col.slug, assignmentId: col.id, status: 'none', grade: null, maxPoints: col.file.maxPoints, submittedAt: null, updatedAt: null })
+          continue
+        }
+        const sub = await readSubmissionFile(norm, col.id, username)
+        cells.push({
+          assignmentSlug: col.slug,
+          assignmentId: col.id,
+          status: sub ? sub.status : 'none',
+          grade: sub?.grade ?? null,
+          maxPoints: col.file.maxPoints,
+          submittedAt: sub?.submittedAt ?? null,
+          updatedAt: sub?.updatedAt ?? null,
+        })
+      }
+      rows.push({ student: username, mine: username === actor.username, cells })
+    }
+
+    return {
+      assignments: cols.map(c => ({ slug: c.slug, id: c.id, title: c.title, due: c.due })),
+      rows,
+      canSeeAll,
     }
   }
 
@@ -1286,61 +1364,38 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     // --- журнал оценок ---
 
     async getGradebook(actor, courseSlug) {
-      const norm = normalizeSlug(courseSlug)
-      const course = await loadCourseFor(actor, norm)
-      if (!course) httpError(404, 'Курс не найден')
-      const courseFile = await readCourse(baseDir, norm)
-      const roster = await readRoster(baseDir, norm)
-      const role = await roleOf(actor)
-      // полный журнал — учитель/админ (canGrade); ученику — только своя строка
-      const canSeeAll = canGrade(actor, role, courseFile)
-      const students = canSeeAll ? roster : roster.filter(u => u === actor.username)
+      return buildGradebook(actor, normalizeSlug(courseSlug))
+    },
 
-      // колонки: только опубликованные задания, по createdAt
-      let dirs: Dirent[]
-      try {
-        dirs = await readdir(assignmentsRoot(norm), { withFileTypes: true })
-      } catch {
-        dirs = []
-      }
-      const cols: { slug: string, id: string, title: string, due: string | null, createdAt: string, file: AssignmentFile }[] = []
-      for (const d of dirs.filter(d => d.isDirectory())) {
-        const f = await readAssignmentFile(norm, d.name)
-        if (!f || f.status !== 'published') continue
-        cols.push({ slug: f.slug, id: f.id, title: f.title, due: f.due, createdAt: f.createdAt, file: f })
-      }
-      cols.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-
-      const rows: Gradebook['rows'] = []
-      for (const username of students) {
-        const cells: Gradebook['rows'][number]['cells'] = []
-        for (const col of cols) {
-          // ученик видит в журнале только задания, доступные ему
-          const visible = canSeeAll
-            || (role.scope === 'member' && canSeeAssignment(actor, role, courseFile, roster, col.file))
-          if (!visible) {
-            cells.push({ assignmentSlug: col.slug, assignmentId: col.id, status: 'none', grade: null, maxPoints: col.file.maxPoints, submittedAt: null, updatedAt: null })
-            continue
-          }
-          const sub = await readSubmissionFile(norm, col.id, username)
-          cells.push({
-            assignmentSlug: col.slug,
-            assignmentId: col.id,
-            status: sub ? sub.status : 'none',
-            grade: sub?.grade ?? null,
-            maxPoints: col.file.maxPoints,
-            submittedAt: sub?.submittedAt ?? null,
-            updatedAt: sub?.updatedAt ?? null,
-          })
+    async listStreamFeed(actor) {
+      const courses = await visibleCourses(actor)
+      const feed: StreamFeedPost[] = []
+      for (const c of courses) {
+        const dir = streamDir(c.slug)
+        let files: string[]
+        try {
+          files = (await readdir(dir)).filter(f => f.endsWith('.yml'))
+        } catch {
+          continue
         }
-        rows.push({ student: username, mine: username === actor.username, cells })
+        for (const file of files) {
+          const p = await readYaml<StreamPost>(resolveDataPath(dir, file))
+          if (p?.id && p.html !== undefined) {
+            feed.push({ ...p, course: c.slug, courseTitle: c.title })
+          }
+        }
       }
+      return feed.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 100)
+    },
 
-      return {
-        assignments: cols.map(c => ({ slug: c.slug, id: c.id, title: c.title, due: c.due })),
-        rows,
-        canSeeAll,
+    async listGradebooks(actor) {
+      const courses = await visibleCourses(actor)
+      const sections: GradebookSection[] = []
+      for (const c of courses) {
+        const book = await buildGradebook(actor, c.slug)
+        if (book.assignments.length) sections.push({ course: { slug: c.slug, title: c.title }, book })
       }
+      return sections
     },
   }
 

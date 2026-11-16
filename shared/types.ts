@@ -170,6 +170,19 @@ export interface StreamPost {
   createdAt: string
 }
 
+/** Пост ленты с привязкой к курсу (глобальная лента /stream). */
+export interface StreamFeedPost extends StreamPost {
+  /** slug курса-владельца. */
+  course: string
+  courseTitle: string
+}
+
+/** Журнал оценок одного курса в глобальной сводке /grades. */
+export interface GradebookSection {
+  course: { slug: string, title: string }
+  book: Gradebook
+}
+
 /** Ячейка журнала: сдача ученика по одному заданию. */
 export interface GradebookCell {
   /** slug задания — для ссылки на страницу задания. */
