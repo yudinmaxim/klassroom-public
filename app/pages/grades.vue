@@ -60,7 +60,7 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
     <p v-else-if="!visibleSections.length" class="muted">Нет курсов с опубликованными заданиями.</p>
 
     <div v-for="s in visibleSections" :key="s.course.slug" class="card" style="margin-bottom: 16px;">
-      <h2 style="margin-top: 0;">
+      <h2 v-if="s.book.canSeeAll" style="margin-top: 0;">
         <NuxtLink :to="`/courses/${s.course.slug}`">{{ s.course.title }}</NuxtLink>
       </h2>
       <div class="table-wrap">
