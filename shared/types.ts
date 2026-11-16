@@ -158,6 +158,18 @@ export interface Submission {
   attachments?: string[]
 }
 
+/** Пост в общей ленте курса (courses/<slug>/stream/<pid>.yml). */
+export interface StreamPost {
+  id: string
+  /** username автора (ученик или учитель) */
+  author: string
+  /** markdown-исходник */
+  text: string
+  /** санитизированный html, отрендеренный при записи */
+  html: string
+  createdAt: string
+}
+
 /** Комментарий в треде сдачи (submissions/<user>/comments/<cid>.yml). */
 export interface SubmissionComment {
   id: string
@@ -189,6 +201,7 @@ export interface NotifyPayload {
     | 'submission.created'
     | 'submission.graded'
     | 'comment.created'
+    | 'stream.posted'
     | 'roster.changed'
     | 'roster.enrolled'
   /** slug курса — для ссылки и контекста */

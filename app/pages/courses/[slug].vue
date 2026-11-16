@@ -33,6 +33,7 @@ const tabs = computed<TabDef[]>(() => {
   const base = `/courses/${slug.value}`
   return [
     { id: 'info', label: 'Информация', to: base },
+    { id: 'stream', label: 'Лента', to: `${base}/stream` },
     { id: 'topics', label: 'Темы', to: `${base}/topics` },
     { id: 'assignments', label: 'Задания', to: `${base}/assignments` },
     ...(canViewRoster.value ? [{ id: 'students', label: 'Учащиеся', to: `${base}/students` }] : []),

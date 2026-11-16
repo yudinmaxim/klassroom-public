@@ -12,6 +12,7 @@ const labels: Record<NotifyPayload['type'], string> = {
   'submission.created': 'Новая сдача',
   'submission.graded': 'Работа проверена',
   'comment.created': 'Комментарий к работе',
+  'stream.posted': 'Новое в ленте',
   'roster.changed': 'Изменён состав курса',
   'roster.enrolled': 'Вы зачислены на курс',
 }

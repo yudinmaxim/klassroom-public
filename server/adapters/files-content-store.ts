@@ -1,4 +1,4 @@
-import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { AssignmentSummary, RoleDef, Course, CourseSummary, GradingScale, Material, MaterialSummary, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 import { renderDocMarkdown } from '../lib/md'
 import { readdir, rm, type Dirent } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
@@ -615,6 +615,21 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     const { f } = await loadAssignmentForActor(actor, norm, aid, 'submit')
     return { course, f }
   }
+  // --- лента курса: courses/<slug>/stream/<pid>.yml ---
+  function streamDir(courseSlug: string): string {
+    return resolveDataPath(courseDir(baseDir, courseSlug), 'stream')
+  }
+  /** Участник курса (или null → 404): читаемость = canSee. */
+  async function requireCourseMember(actor: UserPublic, courseSlug: string): Promise<CourseFile> {
+    const norm = normalizeSlug(courseSlug)
+    const course = await loadCourseFor(actor, norm)
+    if (!course) httpError(404, 'Курс не найден')
+    // loadCourseFor вернул Course — для записи stream достаточно dir по slug
+    const f = await readCourse(baseDir, norm)
+    if (!f) httpError(404, 'Курс не найден')
+    return f
+  }
+
   /** Submission + answer.md + список вложений. */
   async function submissionView(courseSlug: string, aid: string, username: string, sub: SubmissionFile): Promise<Submission> {
     const answer = (await readString(submissionAnswerPath(courseSlug, aid, username))) ?? ''
@@ -1224,6 +1239,48 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const clean = validateAttachmentName(name)
       const data = await readBytes(resolveDataPath(submissionAttachmentsDir(norm, f.id, username), clean))
       return data ? { data, mime: mimeFor(clean) } : null
+    },
+
+    // --- лента курса ---
+
+    async listStreamPosts(actor, courseSlug) {
+      const norm = normalizeSlug(courseSlug)
+      await requireCourseMember(actor, norm)
+      const dir = streamDir(norm)
+      let files: string[]
+      try {
+        files = (await readdir(dir)).filter(f => f.endsWith('.yml'))
+      } catch {
+        return []
+      }
+      const result: StreamPost[] = []
+      for (const file of files) {
+        const p = await readYaml<StreamPost>(resolveDataPath(dir, file))
+        if (p?.id && p.html !== undefined) result.push(p)
+      }
+      return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    },
+
+    async addStreamPost(actor, courseSlug, text) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await requireCourseMember(actor, norm)
+      const post: StreamPost = {
+        id: `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`,
+        author: actor.username,
+        text,
+        html: renderDocMarkdown(text, {
+          courseSlug: norm,
+          materialSlug: 'stream',
+          linkTitles: {},
+          attachments: [],
+        }).html,
+        createdAt: new Date().toISOString(),
+      }
+      const dir = streamDir(norm)
+      await ensureDir(dir)
+      await writeYaml(resolveDataPath(dir, `${post.id}.yml`), post)
+      journal.record(actor.pseudonym, `опубликовал пост в ленте ${norm}`)
+      return post
     },
   }
 
