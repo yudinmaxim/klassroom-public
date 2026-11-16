@@ -67,7 +67,7 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
         <table class="table gradebook">
           <thead>
             <tr>
-              <th class="gb-student">{{ s.book.canSeeAll ? 'Ученик' : 'Курс' }}</th>
+              <th v-if="s.book.canSeeAll" class="gb-student">Ученик</th>
               <th v-for="a in s.book.assignments" :key="a.id" :title="a.due ? `до ${new Date(a.due).toLocaleDateString('ru')}` : ''">
                 <NuxtLink :to="`/courses/${s.course.slug}/assignments/${a.slug}`">{{ a.title }}</NuxtLink>
               </th>
@@ -95,9 +95,8 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
                 </td>
               </tr>
             </template>
-            <!-- ученик: одна строка, первая ячейка — название курса -->
+            <!-- ученик: одна строка оценок без колонки-метки -->
             <tr v-else-if="s.book.rows[0]">
-              <td class="gb-student">{{ s.course.title }}</td>
               <td
                 v-for="(c, i) in s.book.rows[0].cells"
                 :key="c.assignmentId"
