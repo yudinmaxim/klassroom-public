@@ -170,6 +170,36 @@ export interface StreamPost {
   createdAt: string
 }
 
+/** Ячейка журнала: сдача ученика по одному заданию. */
+export interface GradebookCell {
+  /** slug задания — для ссылки на страницу задания. */
+  assignmentSlug: string
+  /** id задания (директория). */
+  assignmentId: string
+  status: 'none' | 'submitted' | 'returned'
+  grade: number | null
+  maxPoints: number | null
+  submittedAt: string | null
+  updatedAt: string | null
+}
+
+/** Строка журнала — один ученик. */
+export interface GradebookRow {
+  student: string
+  /** true — строка принадлежит текущему пользователю (подсветка). */
+  mine?: boolean
+  cells: GradebookCell[]
+}
+
+/** Журнал оценок курса. */
+export interface Gradebook {
+  /** Колонки = опубликованные задания (порядок как в журнале). */
+  assignments: { slug: string, id: string, title: string, due: string | null }[]
+  rows: GradebookRow[]
+  /** true — учитель видит всех; false — ученик видит только свою строку. */
+  canSeeAll: boolean
+}
+
 /** Комментарий в треде сдачи (submissions/<user>/comments/<cid>.yml). */
 export interface SubmissionComment {
   id: string

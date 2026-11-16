@@ -1,4 +1,4 @@
-import type { Assignment, AssignmentSummary, Course, CourseSummary, GradingScale, Material, MaterialSummary, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { Assignment, AssignmentSummary, Course, CourseSummary, Gradebook, GradingScale, Material, MaterialSummary, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -205,4 +205,7 @@ export interface ContentStore {
 
   /** Новый пост в ленте (участник курса). */
   addStreamPost(actor: UserPublic, courseSlug: string, text: string): Promise<StreamPost>
+
+  /** Журнал оценок: матрица ученик × задание. Ученику — только своя строка. */
+  getGradebook(actor: UserPublic, courseSlug: string): Promise<Gradebook>
 }
