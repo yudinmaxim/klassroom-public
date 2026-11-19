@@ -134,6 +134,14 @@ export function createFilesUserStore(baseDir: string): UserStore {
       return toPublic(user)
     },
 
+    async updateUser(username, changes) {
+      const user = await assertUserExists(normalizeUsername(username))
+      if (changes.pseudonym !== undefined) user.pseudonym = changes.pseudonym.trim()
+      if (changes.role !== undefined) user.role = changes.role
+      await writeUserFile(baseDir, user)
+      return toPublic(user)
+    },
+
     async authenticate(username, password) {
       const normalized = normalizeUsername(username)
       const user = await readUserFile(baseDir, normalized)

@@ -12,6 +12,8 @@ export default defineNuxtConfig({
       icons: [
         'lucide:user',
         'lucide:user-plus',
+        'lucide:plus',
+        'lucide:x',
         'lucide:key-round',
         'lucide:log-out',
         'lucide:eye',

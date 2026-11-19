@@ -13,15 +13,15 @@ dist/
 
 # --- Данные среды исполнения (НЕ код) ---
 # content/ — отдельный git-репозиторий (учебный контент, см. specs/03-git-journal.md)
-content/
+/content/
 # users/, sessions/ и roles/ — секреты и состояние рантайма, в git не попадают
-users/
-sessions/
-roles/
-qr-tokens/
+/users/
+/sessions/
+/roles/
+/qr-tokens/
 # изолированные данные для локальных тестов
-test-users/
-test-content/
+/test-users/
+/test-content/
 
 # --- Прочее ---
 .DS_Store

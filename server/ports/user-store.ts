@@ -29,6 +29,9 @@ export interface UserStore {
   /** Сменить роль аккаунта (роль должна существовать — проверяет роут). */
   changeRole(username: string, role: string): Promise<UserPublic>
 
+  /** Обновить данные аккаунта (псевдоним и/или роль). */
+  updateUser(username: string, changes: { pseudonym?: string, role?: string }): Promise<UserPublic>
+
   /** Проверить вход: null при неверных учётных данных. */
   authenticate(username: string, password: string): Promise<UserPublic | null>
 }
