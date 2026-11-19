@@ -619,6 +619,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   function streamDir(courseSlug: string): string {
     return resolveDataPath(courseDir(baseDir, courseSlug), 'stream')
   }
+  function streamCommentsDir(courseSlug: string, postId: string): string {
+    return resolveDataPath(streamDir(courseSlug), postId, 'comments')
+  }
   /** Участник курса (или null → 404): читаемость = canSee. */
   async function requireCourseMember(actor: UserPublic, courseSlug: string): Promise<CourseFile> {
     const norm = normalizeSlug(courseSlug)
@@ -1334,7 +1337,19 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const result: StreamPost[] = []
       for (const file of files) {
         const p = await readYaml<StreamPost>(resolveDataPath(dir, file))
-        if (p?.id && p.html !== undefined) result.push(p)
+        if (p?.id && p.html !== undefined) {
+          // время последнего комментария
+          const commentsDir = streamCommentsDir(norm, p.id)
+          let latest: string | null = null
+          try {
+            const commentFiles = (await readdir(commentsDir)).filter(x => x.endsWith('.yml'))
+            for (const cf of commentFiles) {
+              const c = await readYaml<StreamComment>(resolveDataPath(commentsDir, cf))
+              if (c?.createdAt && (!latest || c.createdAt > latest)) latest = c.createdAt
+            }
+          } catch { /* каталога нет — нет комментариев */ }
+          result.push({ ...p, lastCommentAt: latest })
+        }
       }
       return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     },
@@ -1361,6 +1376,55 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       return post
     },
 
+    async listStreamComments(actor, courseSlug, postId) {
+      const norm = normalizeSlug(courseSlug)
+      await requireCourseMember(actor, norm)
+      const dir = streamCommentsDir(norm, postId)
+      let files: string[]
+      try {
+        files = (await readdir(dir)).filter(x => x.endsWith('.yml'))
+      } catch {
+        return []
+      }
+      const result: StreamComment[] = []
+      for (const file of files) {
+        const c = await readYaml<StreamComment>(resolveDataPath(dir, file))
+        if (c?.id && c.html !== undefined) result.push(c)
+      }
+      return result.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    },
+
+    async addStreamComment(actor, courseSlug, postId, text) {
+      const norm = normalizeSlug(courseSlug)
+      await requireCourseMember(actor, norm)
+      const comment: StreamComment = {
+        id: `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`,
+        author: actor.username,
+        text,
+        html: renderDocMarkdown(text, {
+          courseSlug: norm,
+          materialSlug: 'comments',
+          linkTitles: {},
+          attachments: [],
+        }).html,
+        createdAt: new Date().toISOString(),
+      }
+      const dir = streamCommentsDir(norm, postId)
+      await ensureDir(dir)
+      await writeYaml(resolveDataPath(dir, `${comment.id}.yml`), comment)
+
+      // обновляем lastCommentAt в посте
+      const postPath = resolveDataPath(streamDir(norm), `${postId}.yml`)
+      const post = await readYaml<StreamPost>(postPath)
+      if (post) {
+        post.lastCommentAt = comment.createdAt
+        await writeYaml(postPath, post)
+      }
+
+      journal.record(actor.pseudonym, `прокомментировал пост ${postId} в ленте ${norm}`)
+      return comment
+    },
+
     // --- журнал оценок ---
 
     async getGradebook(actor, courseSlug) {
@@ -1381,7 +1445,17 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         for (const file of files) {
           const p = await readYaml<StreamPost>(resolveDataPath(dir, file))
           if (p?.id && p.html !== undefined) {
-            feed.push({ ...p, course: c.slug, courseTitle: c.title })
+            // время последнего комментария
+            const commentsDir = streamCommentsDir(c.slug, p.id)
+            let latest: string | null = null
+            try {
+              const commentFiles = (await readdir(commentsDir)).filter(x => x.endsWith('.yml'))
+              for (const cf of commentFiles) {
+                const cc = await readYaml<StreamComment>(resolveDataPath(commentsDir, cf))
+                if (cc?.createdAt && (!latest || cc.createdAt > latest)) latest = cc.createdAt
+              }
+            } catch { /* каталога нет — нет комментариев */ }
+            feed.push({ ...p, course: c.slug, courseTitle: c.title, lastCommentAt: latest })
           }
         }
       }

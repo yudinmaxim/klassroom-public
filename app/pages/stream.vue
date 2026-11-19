@@ -3,6 +3,7 @@ import type { CourseSummary, StreamFeedPost } from '#shared/types'
 import { errText } from '#shared/errors'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
 import { onNotification } from '~/composables/useNotifications'
+import { useStreamChat, streamHasUnread } from '~/composables/useStreamChat'
 
 const crumbs = useBreadcrumbs()
 crumbs.value = [{ label: 'Лента' }]
@@ -17,6 +18,8 @@ const text = ref('')
 const courseSlug = ref('')
 const filterCourse = ref('')
 const busy = ref(false)
+
+const { openThread } = useStreamChat()
 
 const visiblePosts = computed(() =>
   filterCourse.value ? posts.value.filter(p => p.course === filterCourse.value) : posts.value,
@@ -41,9 +44,9 @@ onMounted(() => {
   void loadCourses()
 })
 
-// live-обновление: новый пост в любом доступном курсе
+// live-обновление: новый пост или комментарий в любом доступном курсе
 onMounted(() => onNotification((n) => {
-  if (n.type === 'stream.posted') void load()
+  if (n.type === 'stream.posted' || n.type === 'stream.comment.created') void load()
 }))
 
 async function send() {
@@ -62,6 +65,14 @@ async function send() {
   } finally {
     busy.value = false
   }
+}
+
+function openPostChat(p: StreamFeedPost) {
+  openThread({
+    slug: p.course,
+    pid: p.id,
+    label: `${p.author} — ${p.text.slice(0, 40)}${p.text.length > 40 ? '…' : ''}`,
+  })
 }
 </script>
 
@@ -107,12 +118,32 @@ async function send() {
       class="card"
       style="margin-bottom: 10px; padding: 12px 14px;"
     >
-      <p class="muted" style="margin: 0 0 4px; font-size: 12px;">
-        <NuxtLink :to="`/courses/${p.course}`">{{ p.courseTitle }}</NuxtLink>
-        · {{ p.author }} · {{ new Date(p.createdAt).toLocaleString('ru') }}
-      </p>
+      <div class="row" style="align-items: center; justify-content: space-between;">
+        <p class="muted" style="margin: 0 0 4px; font-size: 12px;">
+          <NuxtLink :to="`/courses/${p.course}`">{{ p.courseTitle }}</NuxtLink>
+          · {{ p.author }} · {{ new Date(p.createdAt).toLocaleString('ru') }}
+        </p>
+        <button class="small" @click="openPostChat(p)">
+          Обсуждение
+          <span
+            v-if="streamHasUnread(p.course, p.id, p.lastCommentAt)"
+            class="unread-dot"
+          />
+        </button>
+      </div>
       <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
       <div class="md-body" v-html="p.html" />
     </div>
   </div>
 </template>
+
+<style scoped>
+.unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  margin-left: 6px;
+}
+</style>

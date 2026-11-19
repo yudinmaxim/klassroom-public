@@ -168,6 +168,20 @@ export interface StreamPost {
   /** санитизированный html, отрендеренный при записи */
   html: string
   createdAt: string
+  /** Время последнего комментария (для индикации непрочитанных). */
+  lastCommentAt?: string | null
+}
+
+/** Комментарий к посту ленты (courses/<slug>/stream/<pid>/comments/<cid>.yml). */
+export interface StreamComment {
+  id: string
+  /** username автора (ученик или учитель) */
+  author: string
+  /** markdown-исходник */
+  text: string
+  /** санитизированный html, отрендеренный при записи */
+  html: string
+  createdAt: string
 }
 
 /** Пост ленты с привязкой к курсу (глобальная лента /stream). */
@@ -245,6 +259,7 @@ export interface NotifyPayload {
     | 'submission.graded'
     | 'comment.created'
     | 'stream.posted'
+    | 'stream.comment.created'
     | 'roster.changed'
     | 'roster.enrolled'
   /** slug курса — для ссылки и контекста */
