@@ -19,6 +19,14 @@ const visibleSections = computed(() =>
   filterCourse.value ? sections.value.filter(s => s.course.slug === filterCourse.value) : sections.value,
 )
 
+const exportAvailable = computed(() => visibleSections.value.some(s => s.book.canSeeAll))
+
+function exportUrl(format: 'csv' | 'md') {
+  const params = new URLSearchParams({ format })
+  if (filterCourse.value) params.set('course', filterCourse.value)
+  return `/api/grades/export?${params}`
+}
+
 async function load() {
   try {
     sections.value = await $fetch<GradebookSection[]>('/api/grades')
@@ -54,6 +62,11 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
         <option value="">Все курсы</option>
         <option v-for="c in courses" :key="c.slug" :value="c.slug">{{ c.title }}</option>
       </select>
+      <template v-if="exportAvailable">
+        <span class="muted">Экспорт:</span>
+        <a class="small" :href="exportUrl('csv')">CSV</a>
+        <a class="small" :href="exportUrl('md')">MD</a>
+      </template>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
