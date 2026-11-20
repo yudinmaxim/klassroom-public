@@ -90,9 +90,7 @@ const topicSlug = computed(() => (route.params.topic ? String(route.params.topic
 </script>
 
 <template>
-  <div class="page" :class="{ 'is-full': fullWidth, 'toc-split': showToc }">
-    <TopicsToc v-if="showToc" :course-slug="slug" :active-slug="topicSlug" />
-    <div class="page-col">
+  <div class="page" :class="{ 'is-full': fullWidth }">
     <header class="page-head">
       <h1 class="page-title">{{ courseData?.course?.title ?? '…' }}</h1>
       <div class="page-actions">
@@ -119,6 +117,8 @@ const topicSlug = computed(() => (route.params.topic ? String(route.params.topic
         {{ tab.label }}
       </NuxtLink>
     </nav>
+
+    <TopicsToc v-if="showToc" :course-slug="slug" :active-slug="topicSlug" />
 
     <div class="course-body">
       <NuxtPage />
@@ -148,7 +148,6 @@ const topicSlug = computed(() => (route.params.topic ? String(route.params.topic
           </button>
         </div>
       </div>
-    </div>
     </div>
   </div>
 </template>

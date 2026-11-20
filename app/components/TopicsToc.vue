@@ -57,8 +57,13 @@ const tocOpen = ref(false)
 .toc-toggle svg { width: 15px; height: 15px; }
 
 .toc-panel {
-  position: sticky;
-  top: 72px;
+  /* плавающая панель: вне потока, у левого края .container,
+     по высоте — всей контентной области страницы */
+  position: absolute;
+  left: 0;
+  top: 24px;
+  bottom: 24px;
+  width: 236px;
   display: flex;
   flex-direction: column;
   background: var(--card);
@@ -66,11 +71,9 @@ const tocOpen = ref(false)
   border-radius: 12px;
   padding: 12px 10px;
   box-shadow: 0 1px 3px rgba(35, 42, 53, 0.05);
-  /* не выше видимой области: 72px топбар + 24px зазор снизу */
-  max-height: calc(100vh - 96px);
-  max-width: 100%;
   overflow: hidden;
   min-width: 0;
+  z-index: 20;
 }
 .toc-head {
   font-size: 12px;
@@ -113,6 +116,10 @@ const tocOpen = ref(false)
   .toc-panel {
     position: static;
     display: none;
+    width: auto;
+    top: auto;
+    bottom: auto;
+    left: auto;
     max-height: none;
     margin-bottom: 12px;
   }
