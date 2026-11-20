@@ -10,7 +10,8 @@ const props = defineProps<{
 
 interface TocMaterial { slug: string, title: string }
 
-const { data } = await useFetch<{ materials: TocMaterial[] }>(
+// lazy: не блокируем рендер страницы (await useFetch суспендил бы весь layout)
+const { data } = useLazyFetch<{ materials: TocMaterial[] }>(
   `/api/courses/${props.courseSlug}/topics`,
 )
 const materials = computed(() => data.value?.materials ?? [])

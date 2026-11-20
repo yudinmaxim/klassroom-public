@@ -80,8 +80,12 @@ watchEffect(() => {
 
 const fullWidth = usePageFullWidth()
 
-// оглавление тем — на всех страницах раздела /topics (список, просмотр, new)
-const showToc = computed(() => route.path.startsWith(`/courses/${slug.value}/topics`))
+// оглавление тем — только на странице просмотра темы (/topics/<slug>,
+// не на списке /topics и не на /topics/new)
+const showToc = computed(() => {
+  const t = route.params.topic
+  return typeof t === 'string' && t.length > 0 && t !== 'new'
+})
 const topicSlug = computed(() => (route.params.topic ? String(route.params.topic) : undefined))
 </script>
 
