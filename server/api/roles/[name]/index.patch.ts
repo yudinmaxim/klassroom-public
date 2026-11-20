@@ -1,4 +1,4 @@
-import { builtinDefaultsFor, filterKnownPermissions } from '../../../lib/permissions'
+import { filterKnownPermissions } from '../../../lib/permissions'
 import { requirePermission } from '../../../utils/can'
 import { parseJson, saveRoleBodySchema, roleNameParamSchema } from '../../../lib/validation'
 import { httpError } from '../../../lib/errors'
