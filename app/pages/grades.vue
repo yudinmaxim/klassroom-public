@@ -51,6 +51,25 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
   if (c.updatedAt && c.status === 'returned') parts.push(`проверено ${new Date(c.updatedAt).toLocaleString('ru')}`)
   return parts.join(' · ')
 }
+
+/** Средний балл строки: среднее (grade/maxPoints*100) по проверенным работам. */
+function rowAverage(row: GradebookSection['book']['rows'][number], book: GradebookSection['book']) {
+  const parts: number[] = []
+  row.cells.forEach((c, i) => {
+    const a = book.assignments[i]
+    if (c.status !== 'returned' || c.grade === null) return
+    parts.push(a?.maxPoints ? (c.grade / a.maxPoints) * 100 : c.grade)
+  })
+  if (!parts.length) return null
+  return Math.round(parts.reduce((s, v) => s + v, 0) / parts.length)
+}
+
+function avgClass(avg: number | null) {
+  if (avg === null) return ''
+  if (avg >= 80) return 'avg-good'
+  if (avg >= 55) return 'avg-mid'
+  return 'avg-bad'
+}
 </script>
 
 <template>
@@ -72,39 +91,57 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
     <p v-if="error" class="error">{{ error }}</p>
     <p v-else-if="!visibleSections.length" class="muted">Нет курсов с опубликованными заданиями.</p>
 
-    <div v-for="s in visibleSections" :key="s.course.slug" class="card" style="margin-bottom: 16px;">
-      <h2 v-if="s.book.canSeeAll" style="margin-top: 0;">
-        <NuxtLink :to="`/courses/${s.course.slug}`">{{ s.course.title }}</NuxtLink>
-      </h2>
+    <div v-for="s in visibleSections" :key="s.course.slug" class="card gb-card" style="margin-bottom: 16px;">
+      <div class="gb-course-head">
+        <h2 style="margin: 0;">
+          <NuxtLink :to="`/courses/${s.course.slug}`">{{ s.course.title }}</NuxtLink>
+        </h2>
+        <span v-if="s.book.canSeeAll" class="gb-stats">
+          Учеников: {{ s.book.rows.length }}
+        </span>
+      </div>
       <div class="table-wrap">
         <table class="table gradebook">
           <thead>
             <tr>
               <th v-if="s.book.canSeeAll" class="gb-student">Ученик</th>
-              <th v-for="a in s.book.assignments" :key="a.id" :title="a.due ? `до ${new Date(a.due).toLocaleDateString('ru')}` : ''">
-                <NuxtLink :to="`/courses/${s.course.slug}/assignments/${a.slug}`">{{ a.title }}</NuxtLink>
+              <th v-for="a in s.book.assignments" :key="a.id" class="gb-asg" :title="a.due ? `до ${new Date(a.due).toLocaleDateString('ru')}` : ''">
+                <NuxtLink :to="`/courses/${s.course.slug}/assignments/${a.slug}`" class="gb-asg-link">
+                  <span class="gb-asg-title">{{ a.title }}</span>
+                  <span v-if="a.due" class="gb-asg-due">до {{ new Date(a.due).toLocaleDateString('ru') }}</span>
+                </NuxtLink>
               </th>
+              <th v-if="s.book.canSeeAll" class="gb-avg">Средний</th>
             </tr>
           </thead>
           <tbody>
             <!-- учитель: строка на каждого ученика -->
             <template v-if="s.book.canSeeAll">
               <tr v-for="row in s.book.rows" :key="row.student">
-                <td class="gb-student">{{ row.student }}</td>
+                <td class="gb-student">
+                  <span class="gb-who">
+                    <span class="avatar avatar-xs" aria-hidden="true">{{ row.student.slice(0, 1).toUpperCase() }}</span>
+                    {{ row.student }}
+                  </span>
+                </td>
                 <td
                   v-for="(c, i) in row.cells"
                   :key="c.assignmentId"
                   class="gb-cell"
-                  :class="`st-${c.status}`"
                   :title="cellTitle(c, s.book.assignments[i]!)"
                 >
-                  <template v-if="c.status === 'returned'">
-                    <strong v-if="c.grade !== null">{{ c.grade }}</strong>
-                    <span v-else class="muted">✓</span>
-                    <span v-if="c.maxPoints" class="gb-max">/{{ c.maxPoints }}</span>
-                  </template>
-                  <span v-else-if="c.status === 'submitted'" class="muted">…</span>
-                  <span v-else class="muted">—</span>
+                  <span v-if="c.status === 'returned'" class="gb-badge" :class="c.grade !== null ? 'ok' : 'done'">
+                    <template v-if="c.grade !== null">{{ c.grade }}<small v-if="c.maxPoints">/{{ c.maxPoints }}</small></template>
+                    <template v-else>✓</template>
+                  </span>
+                  <span v-else-if="c.status === 'submitted'" class="gb-badge wait">…</span>
+                  <span v-else class="gb-none">—</span>
+                </td>
+                <td class="gb-avg">
+                  <span v-if="rowAverage(row, s.book) !== null" class="gb-avg-val" :class="avgClass(rowAverage(row, s.book))">
+                    {{ rowAverage(row, s.book) }}%
+                  </span>
+                  <span v-else class="gb-none">—</span>
                 </td>
               </tr>
             </template>
@@ -114,16 +151,14 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
                 v-for="(c, i) in s.book.rows[0].cells"
                 :key="c.assignmentId"
                 class="gb-cell"
-                :class="`st-${c.status}`"
                 :title="cellTitle(c, s.book.assignments[i]!)"
               >
-                <template v-if="c.status === 'returned'">
-                  <strong v-if="c.grade !== null">{{ c.grade }}</strong>
-                  <span v-else class="muted">✓</span>
-                  <span v-if="c.maxPoints" class="gb-max">/{{ c.maxPoints }}</span>
-                </template>
-                <span v-else-if="c.status === 'submitted'" class="muted">…</span>
-                <span v-else class="muted">—</span>
+                <span v-if="c.status === 'returned'" class="gb-badge" :class="c.grade !== null ? 'ok' : 'done'">
+                  <template v-if="c.grade !== null">{{ c.grade }}<small v-if="c.maxPoints">/{{ c.maxPoints }}</small></template>
+                  <template v-else>✓</template>
+                </span>
+                <span v-else-if="c.status === 'submitted'" class="gb-badge wait">…</span>
+                <span v-else class="gb-none">—</span>
               </td>
             </tr>
           </tbody>
@@ -137,45 +172,119 @@ function cellTitle(c: GradebookSection['book']['rows'][number]['cells'][number],
 .table-wrap {
   overflow-x: auto;
 }
+.gb-card { padding: 18px 20px 10px; }
+.gb-course-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.gb-stats { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
 .gradebook {
   /* separate, не collapse — иначе sticky-колонка глючит с border-collapse */
   border-collapse: separate;
   border-spacing: 0;
-  /* ширина по контенту: одна колонка не растягивается на всю карточку */
   width: max-content;
 }
 .gradebook th,
 .gradebook td {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border, #e5e7eb);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
   text-align: center;
   white-space: nowrap;
 }
+.gradebook tbody tr:last-child td { border-bottom: none; }
+.gradebook tbody tr:nth-child(even) td { background: var(--bg-soft); }
+.gradebook tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, var(--bg-soft)); }
+
 .gradebook th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.gb-asg-link {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--ink);
+  max-width: 140px;
+}
+.gb-asg-link:hover .gb-asg-title { color: var(--accent); text-decoration: underline; }
+.gb-asg-title {
   font-size: 12px;
   font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
 }
+.gb-asg-due { font-size: 10px; font-weight: 400; color: var(--muted); text-transform: none; letter-spacing: 0; }
+
 .gb-student {
   text-align: left !important;
-  font-weight: 500;
   position: sticky;
   left: 0;
   z-index: 1;
-  background: var(--bg, #fff);
+  background: var(--card);
   /* визуальный разделитель между липкой колонкой и скроллящимися */
-  box-shadow: 1px 0 0 var(--border, #e5e7eb);
+  box-shadow: 1px 0 0 var(--line);
 }
-tr.is-mine .gb-student {
-  color: var(--accent, #2563eb);
+.gradebook thead .gb-student { background: var(--card); }
+.gradebook tbody tr:nth-child(even) .gb-student { background: var(--card); }
+.gradebook tbody tr:hover .gb-student { background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+
+.gb-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
 }
-.gb-cell.st-submitted {
-  color: var(--warn, #b45309);
+.avatar-xs {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  border-radius: 7px;
 }
-.gb-cell.st-returned strong {
-  color: var(--ok, #15803d);
+
+.gb-badge {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+  min-width: 34px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
 }
-.gb-max {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
+.gb-badge small { font-size: 10px; font-weight: 500; opacity: 0.75; }
+.gb-badge.ok {
+  background: color-mix(in srgb, var(--ok) 14%, #fff);
+  color: var(--ok);
 }
+.gb-badge.done {
+  background: color-mix(in srgb, var(--ok) 10%, #fff);
+  color: var(--ok);
+}
+.gb-badge.wait {
+  background: color-mix(in srgb, var(--warn) 30%, #fff);
+  color: var(--warn-ink);
+}
+.gb-none { color: var(--muted); opacity: 0.5; }
+
+.gb-avg { font-weight: 600; }
+.gb-avg-val { font-size: 13px; }
+.avg-good { color: var(--ok); }
+.avg-mid { color: var(--accent); }
+.avg-bad { color: var(--danger); }
 </style>
