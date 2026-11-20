@@ -223,18 +223,22 @@ tbody tr:hover td { background: var(--bg-soft); }
 }
 .course-content { flex: 1 0 auto; padding-bottom: 32px; min-width: 0; }
 
-/* Страница с оглавлением тем: панель — колонка ЛЕВЕЕ .course-content,
-   не внутри неё (между боковым меню и контентом) */
-.course-page.toc-split {
+/* Страница курса с оглавлением тем: панель — колонка ЛЕВЕЕ контента,
+   у самого бокового меню (grid на уровне .page, max-width снят) */
+.page.toc-split {
+  max-width: none;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1440px);
   gap: 16px;
   align-items: start;
 }
-.course-page.toc-split > .course-content { min-width: 0; }
-.course-page.toc-split > .page-foot { grid-column: 1 / -1; }
+.page.toc-split > .page-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 @media (max-width: 1100px) {
-  .course-page.toc-split { grid-template-columns: 1fr; }
+  .page.toc-split { grid-template-columns: 1fr; }
 }
 
 /* Модалка и боковая панель */

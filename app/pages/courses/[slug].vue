@@ -79,10 +79,16 @@ watchEffect(() => {
 })
 
 const fullWidth = usePageFullWidth()
+
+// оглавление тем — на всех страницах раздела /topics (список, просмотр, new)
+const showToc = computed(() => route.path.startsWith(`/courses/${slug.value}/topics`))
+const topicSlug = computed(() => (route.params.topic ? String(route.params.topic) : undefined))
 </script>
 
 <template>
-  <div class="page" :class="{ 'is-full': fullWidth }">
+  <div class="page" :class="{ 'is-full': fullWidth, 'toc-split': showToc }">
+    <TopicsToc v-if="showToc" :course-slug="slug" :active-slug="topicSlug" />
+    <div class="page-col">
     <header class="page-head">
       <h1 class="page-title">{{ courseData?.course?.title ?? '…' }}</h1>
       <div class="page-actions">
@@ -138,6 +144,7 @@ const fullWidth = usePageFullWidth()
           </button>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>

@@ -56,8 +56,7 @@ async function deleteMaterial(m: MaterialRow) {
 </script>
 
 <template>
-  <div class="course-page toc-split">
-  <TopicsToc v-if="course" :course-slug="course.slug" />
+  <div class="course-page">
   <div class="course-content">
     <div class="card">
       <SectionHead>
