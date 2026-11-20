@@ -133,7 +133,8 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 </script>
 
 <template>
-  <div v-if="material" class="course-page">
+  <div v-if="material" class="course-page toc-split">
+  <TopicsToc :course-slug="slug" :active-slug="materialSlug" />
   <div class="course-content">
     <header class="page-head">
       <h1 class="page-title">{{ material.title }}</h1>
