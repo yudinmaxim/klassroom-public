@@ -28,6 +28,9 @@ export interface ContentStore {
     patch: { title?: string, description?: string, gradingScale?: GradingScale },
   ): Promise<Course>
 
+  /** Удалить курс целиком (владелец или admin). */
+  deleteCourse(actor: UserPublic, slug: string): Promise<void>
+
   /** Зачислить ученика (владелец или admin). */
   addStudent(actor: UserPublic, slug: string, username: string): Promise<Course>
 

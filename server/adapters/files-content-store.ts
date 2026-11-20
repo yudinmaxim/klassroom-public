@@ -798,6 +798,13 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       return toCourse(f, await readRoster(baseDir, norm))
     },
 
+    async deleteCourse(actor, slug) {
+      const norm = normalizeSlug(slug)
+      const f = await loadForManage(actor, norm)
+      await rm(courseDir(baseDir, norm), { recursive: true, force: true })
+      journal.record(actor.pseudonym, `удалил курс ${norm} «${f.title}»`)
+    },
+
     async addStudent(actor, slug, username) {
       const norm = normalizeSlug(slug)
       const f = await loadForManage(actor, norm)
