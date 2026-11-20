@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { errText } from '#shared/errors'
-
 const { data: me } = await useFetch('/api/auth/me', { key: 'me' })
 if (!me.value?.user) {
   // гостям на главной нечего смотреть — сразу на вход
   await navigateTo('/login', { replace: true })
 }
 
-const { data, refresh } = await useFetch('/api/courses')
+const { data } = await useFetch('/api/courses')
 const crumbs = useBreadcrumbs()
 crumbs.value = [{ label: 'Курсы' }]
 const user = computed(() => me.value?.user ?? null)
@@ -25,28 +23,6 @@ const stats = computed(() => {
 })
 
 const showForm = ref(false)
-const form = reactive({ title: '', description: '' })
-const error = ref('')
-const busy = ref(false)
-
-async function createCourse() {
-  error.value = ''
-  busy.value = true
-  try {
-    const res = await $fetch<{ course: { slug: string } }>('/api/courses', {
-      method: 'POST',
-      body: form,
-    })
-    form.title = ''
-    form.description = ''
-    await refresh()
-    await navigateTo(`/courses/${res.course.slug}`)
-  } catch (e) {
-    error.value = errText(e, 'Не удалось создать курс')
-  } finally {
-    busy.value = false
-  }
-}
 </script>
 
 <template>
@@ -56,8 +32,8 @@ async function createCourse() {
         <h1 class="dash-title">Добро пожаловать, {{ user.pseudonym }}</h1>
         <p class="dash-sub">Ваши курсы и учебное пространство</p>
       </div>
-      <button v-if="canCreate" class="primary" @click="showForm = !showForm">
-        {{ showForm ? 'Отмена' : 'Создать курс' }}
+      <button v-if="canCreate" class="primary" @click="showForm = true">
+        Создать курс
       </button>
     </div>
 
@@ -74,23 +50,6 @@ async function createCourse() {
         <span class="stat-value">{{ stats.teaching }}</span>
         <span class="stat-label">Веду я</span>
       </div>
-    </div>
-
-    <div v-if="showForm" class="card">
-      <h2>Новый курс</h2>
-      <form class="form" @submit.prevent="createCourse">
-        <label>
-          Название
-          <input v-model="form.title" placeholder="Например: Геометрия 9А" required>
-        </label>
-        <label>
-          Описание (необязательно)
-          <textarea v-model="form.description" rows="2" />
-        </label>
-        <p class="muted">Адрес курса (slug) сформируется из названия автоматически.</p>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button class="primary" :disabled="busy">Создать</button>
-      </form>
     </div>
 
     <div v-if="courses.length" class="courses-grid">
@@ -117,6 +76,12 @@ async function createCourse() {
     <p v-else class="muted">
       {{ canCreate ? 'Курсов пока нет — создайте первый.' : 'Вас пока не зачислили ни на один курс.' }}
     </p>
+
+    <CoursePanel
+      v-if="showForm"
+      @close="showForm = false"
+      @saved="(slug) => navigateTo(`/courses/${slug}`)"
+    />
   </div>
 </template>
 
