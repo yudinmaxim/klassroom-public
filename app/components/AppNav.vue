@@ -14,6 +14,16 @@ async function logout() {
 
 const isActive = (path: string) =>
   path === '/' ? route.path === '/' || route.path.startsWith('/courses/') : route.path.startsWith(path)
+
+const profileOpen = ref(false)
+const initials = computed(() =>
+  (user.value?.pseudonym ?? '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+)
+const roleLabel = computed(() => ({
+  admin: 'Администратор',
+  teacher: 'Учитель',
+  student: 'Ученик',
+} as Record<string, string>)[user.value?.role ?? ''] ?? '')
 </script>
 
 <template>
@@ -42,7 +52,11 @@ const isActive = (path: string) =>
         </template>
       </nav>
       <div v-if="user" class="sidebar-foot">
-        <span class="user-name">{{ user.pseudonym }}</span>
+        <span class="avatar" aria-hidden="true">{{ initials }}</span>
+        <div class="sidebar-user">
+          <span class="user-name">{{ user.pseudonym }}</span>
+          <span class="user-role">{{ roleLabel }}</span>
+        </div>
         <span class="tip tip-up">
           <button class="icon-btn" aria-label="Выйти" @click="logout">
             <Icon name="lucide:log-out" />
@@ -61,6 +75,30 @@ const isActive = (path: string) =>
             <span v-if="i < crumbs.length - 1" class="crumb-sep">/</span>
           </template>
         </nav>
+        <div class="spacer" />
+        <div v-if="user" class="dropdown">
+          <button
+            class="profile-btn"
+            aria-haspopup="menu"
+            :aria-expanded="profileOpen"
+            @click="profileOpen = !profileOpen"
+          >
+            <span class="avatar avatar-sm" aria-hidden="true">{{ initials }}</span>
+            <span class="profile-name">{{ user.pseudonym }}</span>
+            <Icon name="lucide:chevron-down" class="profile-caret" />
+          </button>
+          <div v-if="profileOpen" class="dropdown-backdrop" @click="profileOpen = false" />
+          <div v-if="profileOpen" class="dropdown-menu profile-menu" role="menu">
+            <div class="profile-menu-head">
+              <span class="avatar" aria-hidden="true">{{ initials }}</span>
+              <div>
+                <div class="profile-menu-name">{{ user.pseudonym }}</div>
+                <div class="profile-menu-role">{{ roleLabel }}</div>
+              </div>
+            </div>
+            <button role="menuitem" @click="logout">Выйти</button>
+          </div>
+        </div>
       </header>
       <main class="container">
         <slot />
