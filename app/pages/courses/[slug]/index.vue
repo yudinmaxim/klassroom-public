@@ -57,26 +57,6 @@ const scaleLabel: Record<GradingScale['type'], string> = {
   passfail: 'Зачёт / незачёт',
 }
 
-// --- удаление курса (как в GitLab: подтверждение вводом названия) ---
-const showDelete = ref(false)
-const deleteInput = ref('')
-const deleting = ref(false)
-const deleteError = ref('')
-
-const deleteReady = computed(() => course.value && deleteInput.value.trim() === course.value.title)
-
-async function confirmDelete() {
-  if (!course.value || !deleteReady.value) return
-  deleting.value = true
-  deleteError.value = ''
-  try {
-    await $fetch(`/api/courses/${course.value.slug}`, { method: 'DELETE' })
-    await navigateTo('/')
-  } catch (e) {
-    deleteError.value = errText(e, 'Не удалось удалить курс')
-    deleting.value = false
-  }
-}
 </script>
 
 <template>
@@ -103,11 +83,6 @@ async function confirmDelete() {
         </label>
         <p v-if="saveError" class="error">{{ saveError }}</p>
       </form>
-      <div class="danger-zone">
-        <button class="danger-btn" type="button" @click="showDelete = true; deleteInput = ''; deleteError = ''">
-          Удалить курс
-        </button>
-      </div>
     </div>
     <div v-else class="card">
       <SectionHead>О курсе</SectionHead>
@@ -121,42 +96,5 @@ async function confirmDelete() {
       {{ saving ? 'Сохранение…' : 'Сохранить' }}
     </button>
   </footer>
-
-  <div v-if="showDelete" class="modal-backdrop" @click.self="showDelete = false">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Удаление курса">
-      <div class="modal-head">
-        <h2>Удалить курс?</h2>
-        <button class="icon-btn" aria-label="Закрыть" @click="showDelete = false">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
-      <p>
-        Курс <strong>«{{ course?.title }}»</strong> и все его материалы, задания
-        и сдачи будут удалены безвозвратно.
-      </p>
-      <label>
-        Для подтверждения введите название курса
-        <input v-model="deleteInput" :placeholder="course?.title" autocomplete="off">
-      </label>
-      <p v-if="deleteError" class="error">{{ deleteError }}</p>
-      <div class="modal-foot">
-        <button @click="showDelete = false">Отмена</button>
-        <button class="danger-btn" :disabled="!deleteReady || deleting" @click="confirmDelete">
-          {{ deleting ? 'Удаление…' : 'Удалить курс' }}
-        </button>
-      </div>
-    </div>
-  </div>
   </div>
 </template>
-
-<style scoped>
-.danger-zone { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
-.danger-btn {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #fff;
-}
-.danger-btn:hover:not(:disabled) { filter: brightness(1.08); }
-.modal label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); margin-top: 10px; }
-</style>
