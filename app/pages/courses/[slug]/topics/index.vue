@@ -11,8 +11,8 @@ const crumbs = useBreadcrumbs()
 watchEffect(() => {
   const c = course.value
   crumbs.value = c
-    ? [{ label: 'Курсы', to: '/courses' }, { label: c.title, to: `/courses/${c.slug}` }]
-    : [{ label: 'Курсы', to: '/courses' }]
+    ? [{ label: 'Курсы', to: '/' }, { label: c.title, to: `/courses/${c.slug}` }]
+    : [{ label: 'Курсы', to: '/' }]
 })
 
 interface MaterialRow { slug: string, title: string, type: string, updatedAt: string }

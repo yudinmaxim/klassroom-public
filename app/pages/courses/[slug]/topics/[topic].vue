@@ -29,13 +29,13 @@ watchEffect(() => {
   const courseTitle = coursePageData.value?.course?.title ?? slug.value
   crumbs.value = material.value
     ? [
-        { label: 'Курсы', to: '/courses' },
+        { label: 'Курсы', to: '/' },
         { label: courseTitle, to: `/courses/${slug.value}` },
         { label: 'Темы', to: `/courses/${slug.value}/topics` },
         { label: material.value.title },
       ]
     : [
-        { label: 'Курсы', to: '/courses' },
+        { label: 'Курсы', to: '/' },
         { label: courseTitle, to: `/courses/${slug.value}` },
       ]
 })

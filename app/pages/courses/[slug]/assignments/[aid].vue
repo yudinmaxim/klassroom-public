@@ -27,13 +27,13 @@ watchEffect(() => {
   const courseTitle = coursePageData.value?.course?.title ?? slug.value
   crumbs.value = assignment.value
     ? [
-        { label: 'Курсы', to: '/courses' },
+        { label: 'Курсы', to: '/' },
         { label: courseTitle, to: `/courses/${slug.value}` },
         { label: 'Задания', to: `/courses/${slug.value}/assignments` },
         { label: assignment.value.title },
       ]
     : [
-        { label: 'Курсы', to: '/courses' },
+        { label: 'Курсы', to: '/' },
         { label: courseTitle, to: `/courses/${slug.value}` },
       ]
 })

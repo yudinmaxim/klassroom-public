@@ -16,7 +16,7 @@ const crumbs = useBreadcrumbs()
 watchEffect(() => {
   const courseTitle = coursePageData.value?.course?.title ?? slug.value
   crumbs.value = [
-    { label: 'Курсы', to: '/courses' },
+    { label: 'Курсы', to: '/' },
     { label: courseTitle, to: `/courses/${slug.value}` },
     { label: 'Новая тема' },
   ]
