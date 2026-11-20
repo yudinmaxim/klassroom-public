@@ -57,13 +57,13 @@ const tocOpen = ref(false)
 .toc-toggle svg { width: 15px; height: 15px; }
 
 .toc-panel {
-  /* плавающая панель: вне потока, у левого края .container,
-     по высоте — всей контентной области страницы */
+  /* плавающая панель: вне потока, у левого края .container с отступом
+     от бокового меню; высота по контенту, ограничена видимой областью */
   position: absolute;
-  left: 0;
+  left: 32px;
   top: 24px;
-  bottom: 24px;
   width: 236px;
+  max-height: calc(100vh - 96px);
   display: flex;
   flex-direction: column;
   background: var(--card);
