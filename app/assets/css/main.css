@@ -693,9 +693,18 @@ tbody tr:hover td { background: var(--bg-soft); }
 @media (max-width: 900px) { .md-split { grid-template-columns: 1fr; } }
 .md-split textarea { min-height: 480px; font-family: ui-monospace, monospace; font-size: 13px; }
 
-/* Редактор материала: md-editor-v3 */
-.md-editor-wrap .w-md-editor { height: 520px; border-radius: 8px; }
+/* Редактор материала: md-editor-v3.
+   Углы: внутренние панели имеют свои фоны — клипаем контейнером
+   и скругляем тулбар/контент по краям. */
+.md-editor-wrap .w-md-editor,
+.md-editor-wrap.sm .w-md-editor {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.md-editor-wrap .w-md-editor { height: 520px; }
 .md-editor-wrap.sm .w-md-editor { height: 240px; }
+.md-editor-wrap .w-md-editor-toolbar { border-radius: 10px 10px 0 0; }
+.md-editor-wrap .w-md-editor-content { border-radius: 0 0 10px 10px; overflow: hidden; }
 .md-editor-wrap .w-md-editor-text-input,
 .md-editor-wrap .w-md-editor-text-pre { font-family: ui-monospace, monospace; font-size: 13px; }
 
