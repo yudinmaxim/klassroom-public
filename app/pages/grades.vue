@@ -94,7 +94,7 @@ function avgClass(avg: number | null) {
     <div v-for="s in visibleSections" :key="s.course.slug" class="card gb-card" style="margin-bottom: 16px;">
       <div class="gb-course-head">
         <h2 style="margin: 0;">
-          <NuxtLink :to="`/courses/${s.course.slug}`">{{ s.course.title }}</NuxtLink>
+          Курс: <NuxtLink :to="`/courses/${s.course.slug}`">{{ s.course.title }}</NuxtLink>
         </h2>
         <span v-if="s.book.canSeeAll" class="gb-stats">
           Учеников: {{ s.book.rows.length }}
