@@ -37,6 +37,7 @@ const tocOpen = ref(false)
         :to="`/courses/${courseSlug}/topics/${m.slug}`"
         class="toc-item"
         :class="{ active: m.slug === activeSlug }"
+        :title="m.title"
       >
         {{ m.title }}
       </NuxtLink>
@@ -57,13 +58,17 @@ const tocOpen = ref(false)
 .toc-panel {
   position: sticky;
   top: 72px;
+  display: flex;
+  flex-direction: column;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px 10px;
   box-shadow: 0 1px 3px rgba(35, 42, 53, 0.05);
+  /* не выше видимой области: 72px топбар + 24px зазор снизу */
   max-height: calc(100vh - 96px);
-  overflow-y: auto;
+  max-width: 100%;
+  overflow: hidden;
   min-width: 0;
 }
 .toc-head {
@@ -78,6 +83,10 @@ const tocOpen = ref(false)
   display: flex;
   flex-direction: column;
   gap: 1px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .toc-item {
   display: block;
