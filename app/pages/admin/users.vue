@@ -75,7 +75,7 @@ async function resetPassword(u: UserPublic) {
   try {
     const res = await $fetch<{ generatedPassword?: string }>(
       `/api/users/${u.username}/password`,
-      { method: 'POST' },
+      { method: 'POST', body: {} },
     )
     if (res.generatedPassword) revealedSecret.value = res.generatedPassword
     await refresh()
@@ -140,6 +140,8 @@ async function copySecret() {
         </button>
       </div>
     </div>
+
+    <p v-if="error" class="error">{{ error }}</p>
 
     <div class="card">
       <h2>Все аккаунты</h2>
