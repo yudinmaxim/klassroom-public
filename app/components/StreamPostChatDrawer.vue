@@ -6,9 +6,20 @@ import { useStreamChat } from '~/composables/useStreamChat'
 
 /**
  * Боковая панель-чата по треду поста ленты. Монтируется в app.vue — живёт
- * при навигации и закрывается только явным ×.
+ * при навигации; закрывается явным × или кликом вне панели.
  */
 const { open, ctx, closeThread } = useStreamChat()
+
+const panelEl = ref<HTMLElement | null>(null)
+
+// клик вне панели закрывает её; capture-фаза — чтобы клик, открывший
+// панель, не успел её же закрыть (open ещё false на момент capture)
+function onDocClick(e: MouseEvent) {
+  if (!open.value || !panelEl.value) return
+  if (!panelEl.value.contains(e.target as Node)) closeThread()
+}
+onMounted(() => document.addEventListener('click', onDocClick, true))
+onBeforeUnmount(() => document.removeEventListener('click', onDocClick, true))
 
 const comments = ref<StreamComment[]>([])
 const text = ref('')
@@ -60,7 +71,7 @@ async function send() {
 </script>
 
 <template>
-  <aside v-if="open" class="side-panel chat-panel">
+  <aside v-if="open" ref="panelEl" class="side-panel chat-panel">
       <div class="modal-head">
         <h2>Обсуждение поста<template v-if="ctx?.label"> — {{ ctx.label }}</template></h2>
         <button class="small" aria-label="Закрыть" @click="closeThread">×</button>
