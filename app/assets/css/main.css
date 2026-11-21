@@ -87,6 +87,10 @@ input, select, textarea {
 
 input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--muted) 65%, transparent); }
 
+/* Одинаковая высота у однострочных полей (date/number имеют свою внутреннюю метрику) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select { height: 40px; }
+
 input:hover, select:hover, textarea:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 }
