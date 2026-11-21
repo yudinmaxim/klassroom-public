@@ -342,12 +342,13 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
       <template v-if="assignment.maxPoints"> · {{ assignment.maxPoints }} балл.</template>
       · обновлено {{ fmtDate(assignment.updatedAt) }}
     </p>
-    <p v-if="assignment.type === 'private' && assignment.audience.length" class="muted">
+    <p v-if="assignment.type === 'private' && assignment.audience.length" class="audience-note">
       Для: {{ assignment.audience.map(pseudo).join(', ') }}
     </p>
 
     <!-- Просмотр -->
     <div v-if="!editing">
+      <h2>Задание</h2>
       <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
       <div class="md-body" v-html="assignment.html" />
 

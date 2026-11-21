@@ -1038,7 +1038,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     async getAssignment(actor, courseSlug, assignmentSlug) {
       const norm = normalizeSlug(courseSlug)
       const { course, f, role } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'view')
-      const description = (await readString(assignmentDescriptionPath(norm, f.id))) ?? ''
+      const rawDescription = (await readString(assignmentDescriptionPath(norm, f.id))) ?? ''
+      // лидирующий H1, дублирующий название задания, на странице не нужен
+      const escTitle = f.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const description = rawDescription.replace(new RegExp(`^\\s*#\\s+${escTitle}[ \\t]*\\n?`, 'i'), '')
       const { renderDocMarkdown } = await import('../lib/md')
       const linkTitles: Record<string, string> = {}
       try {
