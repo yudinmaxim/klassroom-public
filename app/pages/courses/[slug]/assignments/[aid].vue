@@ -543,7 +543,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                 <textarea v-model="gradeForms[s.username].feedback" rows="3" />
               </label>
               <button class="primary" :disabled="gradeBusy === s.username" @click="grade(s.username)">
-                {{ gradeBusy === s.username ? 'Сохраняю…' : 'Оценить и вернуть' }}
+                {{ gradeBusy === s.username ? 'Сохраняю…' : 'Оценить' }}
               </button>
             </div>
           </div>
