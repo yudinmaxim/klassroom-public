@@ -121,11 +121,30 @@ label.check {
   cursor: pointer;
 }
 label.check input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
   margin: 0;
-  accent-color: var(--accent);
+  flex: none;
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  background: var(--card);
   cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+label.check input[type="checkbox"]:hover { border-color: var(--accent-bright); }
+label.check input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+label.check input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background-color: var(--card);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f5f8b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px;
 }
 /* в .row чекбокс опускаем к нижнему краю — выравниваем текст с инпутами */
 .row > label.check { align-self: flex-end; padding-bottom: 10px; }
