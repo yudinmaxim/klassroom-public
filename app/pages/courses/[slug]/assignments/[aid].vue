@@ -328,7 +328,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.feedback }}</p>
             </div>
           </div>
-          <div class="md-editor-wrap sm" style="margin-top: 8px;">
+          <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
+          <div class="md-editor-wrap sm">
             <MdEditor
               v-model="answer"
               language="en-US"
@@ -347,7 +348,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </div>
         </template>
         <template v-else>
-          <div class="md-editor-wrap sm" style="margin-top: 8px;">
+          <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
+          <div class="md-editor-wrap sm">
             <MdEditor
               v-model="answer"
               language="en-US"
