@@ -123,12 +123,14 @@ label.check {
 label.check input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
+  box-sizing: border-box;
   width: 18px;
   height: 18px;
+  aspect-ratio: 1;
   margin: 0;
   flex: none;
   border: 1.5px solid var(--accent);
-  border-radius: 0;
+  border-radius: 5px;
   background: var(--card);
   cursor: pointer;
   transition: border-color .15s ease, box-shadow .15s ease;
