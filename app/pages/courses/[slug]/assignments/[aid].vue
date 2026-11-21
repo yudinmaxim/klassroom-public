@@ -320,6 +320,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <p class="muted">
             <template v-if="mySubmission.grade !== null">Оценка: <strong>{{ mySubmission.grade }}</strong> · </template>Сдано {{ fmtDate(mySubmission.submittedAt) }}
           </p>
+          <p class="muted" style="margin: 10px 0 6px;">Ваш ответ:</p>
           <pre class="answer-text">{{ mySubmission.answer }}</pre>
           <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
             <strong>Комментарий учителя:</strong>
