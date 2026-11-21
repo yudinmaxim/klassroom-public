@@ -138,8 +138,18 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     <header class="page-head">
       <h1 class="page-title">{{ material.title }}</h1>
       <div v-if="!editing && canEdit" class="page-actions">
-        <button class="small" @click="startEdit">Редактировать</button>
-        <button class="small" :disabled="deleting" @click="removeMaterial">Удалить</button>
+        <span class="tip">
+          <button class="icon-btn" aria-label="Редактировать тему" @click="startEdit">
+            <Icon name="lucide:pencil" />
+          </button>
+          <span class="tip-body">Редактировать</span>
+        </span>
+        <span class="tip">
+          <button class="icon-btn danger" aria-label="Удалить тему" :disabled="deleting" @click="removeMaterial">
+            <Icon name="lucide:trash-2" />
+          </button>
+          <span class="tip-body">Удалить</span>
+        </span>
       </div>
     </header>
 

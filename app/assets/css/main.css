@@ -381,6 +381,7 @@ tbody tr:hover td { background: var(--bg-soft); }
   gap: 8px;
   flex-shrink: 0;
 }
+.page-actions .tip { display: inline-flex; }
 .page-body { margin-top: 14px; padding-bottom: 32px; }
 .page-foot {
   position: sticky;
