@@ -1,6 +1,6 @@
 import type { AssignmentSummary, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 import { renderDocMarkdown } from '../lib/md'
-import { readdir, rm, type Dirent } from 'node:fs/promises'
+import { readdir, rename, rm, type Dirent } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { slugify } from '../lib/slug'
 import { httpError } from '../lib/errors'
@@ -472,10 +472,20 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   function historyBase(ts: string): string {
     return ts.replace(/[:.]/g, '-')
   }
-  /** Заархивировать текущую версию сдачи перед перезаписью. */
+  /** Заархивировать текущую версию сдачи перед перезаписью (вместе с вложениями). */
   async function archiveSubmission(courseSlug: string, aid: string, username: string, sub: SubmissionFile): Promise<void> {
     const hdir = submissionHistoryDir(courseSlug, aid, username)
     const base = historyBase(sub.submittedAt ?? sub.updatedAt ?? new Date().toISOString())
+    // вложения текущей сдачи принадлежат этой версии — переносим в history/<base>/attachments/
+    const names = await listSubmissionAttachmentNames(courseSlug, aid, username)
+    if (names.length) {
+      const hAtt = resolveDataPath(hdir, base, ATTACHMENTS_DIR)
+      const curAtt = submissionAttachmentsDir(courseSlug, aid, username)
+      await ensureDir(hAtt)
+      for (const n of names) {
+        await rename(resolveDataPath(curAtt, n), resolveDataPath(hAtt, n))
+      }
+    }
     await ensureDir(hdir)
     await writeYaml(resolveDataPath(hdir, `${base}.yml`), {
       status: sub.status,
@@ -483,6 +493,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       feedback: sub.feedback,
       submittedAt: sub.submittedAt,
       updatedAt: sub.updatedAt,
+      ...(names.length ? { attachments: names } : {}),
     })
     const answer = await readString(submissionAnswerPath(courseSlug, aid, username))
     if (answer) await atomicWriteString(resolveDataPath(hdir, `${base}.md`), answer)
@@ -498,15 +509,17 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     }
     const result: SubmissionVersion[] = []
     for (const file of files) {
-      const meta = await readYaml<{ submittedAt: string | null, grade: number | null, feedback: string }>(resolveDataPath(hdir, file))
+      const meta = await readYaml<{ submittedAt: string | null, grade: number | null, feedback: string, attachments?: string[] }>(resolveDataPath(hdir, file))
       if (!meta) continue
       const base = file.replace(/\.yml$/, '')
       const answer = (await readString(resolveDataPath(hdir, `${base}.md`))) ?? ''
       result.push({
+        file: base,
         submittedAt: meta.submittedAt ?? '',
         grade: meta.grade,
         feedback: meta.feedback,
         answer,
+        attachments: meta.attachments ?? [],
       })
     }
     return result.sort((a, b) => a.submittedAt.localeCompare(b.submittedAt))
@@ -1371,6 +1384,15 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const { f } = await loadSubmissionAccess(actor, norm, assignmentSlug, username)
       const clean = validateAttachmentName(name)
       const data = await readBytes(resolveDataPath(submissionAttachmentsDir(norm, f.id, username), clean))
+      return data ? { data, mime: mimeFor(clean) } : null
+    },
+
+    async getSubmissionHistoryAttachment(actor, courseSlug, assignmentSlug, username, file, name) {
+      const norm = normalizeSlug(courseSlug)
+      const { f } = await loadSubmissionAccess(actor, norm, assignmentSlug, username)
+      if (!/^[A-Za-z0-9-]+$/.test(file)) httpError(400, 'Некорректная версия')
+      const clean = validateAttachmentName(name)
+      const data = await readBytes(resolveDataPath(submissionHistoryDir(norm, f.id, username), file, ATTACHMENTS_DIR, clean))
       return data ? { data, mime: mimeFor(clean) } : null
     },
 

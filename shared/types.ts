@@ -286,8 +286,12 @@ export interface NotifyPayload {
 
 /** Одна версия сдачи в истории пересдач (submissions/<user>/history/). */
 export interface SubmissionVersion {
+  /** Имя файла версии в history/ (без расширения) — для ссылок на вложения. */
+  file: string
   submittedAt: string
   grade: number | null
   feedback: string
   answer: string
+  /** Имена файлов-вложений этой версии (history/<file>/attachments/). */
+  attachments: string[]
 }

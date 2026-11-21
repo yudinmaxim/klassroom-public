@@ -141,6 +141,9 @@ const myUsername = computed(() => mySubmission.value?.username ?? meData.value?.
 function attachmentUrl(username: string, name: string): string {
   return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/attachments/${encodeURIComponent(name)}`
 }
+function historyAttachmentUrl(username: string, file: string, name: string): string {
+  return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/history/${file}/attachments/${encodeURIComponent(name)}`
+}
 function attachmentsApi(username: string): string {
   return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/attachments`
 }
@@ -253,7 +256,7 @@ function toggleSub(username: string) {
   openSub.value = openSub.value === username ? null : username
   if (!gradeForms[username]) {
     const s = submissions.value.find(x => x.username === username)
-    gradeForms[username] = { grade: s?.grade ?? null, feedback: s?.feedback ?? '' }
+    gradeForms[username] = { grade: s?.grade ?? null, feedback: '' }
   }
 }
 
@@ -459,30 +462,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                 </span>
               </div>
               <p class="sub-body">{{ s.answer }}</p>
-              <div v-if="s.attachments?.length" class="file-chips">
-                <a
-                  v-for="n in s.attachments.slice(0, 3)"
-                  :key="n"
-                  class="file-chip"
-                  :href="attachmentUrl(s.username, n)"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  <Icon name="lucide:paperclip" />{{ n }}
-                </a>
-                <details v-if="s.attachments.length > 3" class="files-more">
-                  <summary class="file-chip">… ещё {{ s.attachments.length - 3 }}</summary>
-                  <div class="files-more-list">
-                    <a
-                      v-for="n in s.attachments.slice(3)"
-                      :key="n"
-                      :href="attachmentUrl(s.username, n)"
-                      target="_blank"
-                      rel="noopener"
-                    >{{ n }}</a>
-                  </div>
-                </details>
-              </div>
+              <FileChips
+                v-if="s.attachments?.length"
+                :files="s.attachments"
+                :href-for="(n: string) => attachmentUrl(s.username, n)"
+              />
               <div v-if="s.feedback" class="card-nested">
                 <strong>Комментарий учителя:</strong>
                 <p class="sub-body-sm">{{ s.feedback }}</p>
@@ -512,6 +496,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                     </span>
                   </div>
                   <p class="sub-body">{{ v.answer }}</p>
+                  <FileChips
+                    v-if="v.attachments.length"
+                    :files="v.attachments"
+                    :href-for="(n: string) => historyAttachmentUrl(s.username, v.file, n)"
+                  />
                   <div v-if="v.feedback" class="card-nested">
                     <strong>Комментарий учителя:</strong>
                     <p class="sub-body-sm">{{ v.feedback }}</p>
@@ -651,58 +640,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
   margin: 6px 0 0;
   font-size: 13px;
 }
-.file-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-}
-.file-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  font-size: 13px;
-  color: var(--accent);
-  text-decoration: none;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
-.file-chip:hover { border-color: var(--accent); }
-.file-chip svg { width: 13px; height: 13px; flex: none; }
-.files-more { position: relative; }
-.files-more > summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-}
-.files-more > summary::-webkit-details-marker { display: none; }
-.files-more-list {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 4px);
-  left: 0;
-  min-width: 200px;
-  max-width: 340px;
-  display: flex;
-  flex-direction: column;
-  padding: 6px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(35, 42, 53, 0.12);
-}
-.files-more-list a {
-  padding: 6px 8px;
-  font-size: 13px;
-  color: var(--ink);
-  text-decoration: none;
-  border-radius: 6px;
-  overflow-wrap: anywhere;
-}
-.files-more-list a:hover { background: var(--bg-soft, #f6f6f6); }
 .sub-history {
   display: flex;
   flex-direction: column;
@@ -716,4 +653,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
   border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--line));
   border-radius: 8px;
 }
+/* комментарий учителя внутри версии — белая подложка, чтобы не сливался с фоном блока */
+.sub-version .card-nested { background: var(--card, #fff); }
 </style>

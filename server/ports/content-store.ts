@@ -214,6 +214,16 @@ export interface ContentStore {
     name: string,
   ): Promise<{ data: Buffer, mime: string } | null>
 
+  /** Скачать вложение конкретной версии сдачи из истории. */
+  getSubmissionHistoryAttachment(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+    file: string,
+    name: string,
+  ): Promise<{ data: Buffer, mime: string } | null>
+
   /** Лента курса (stream): участникам курса. */
   listStreamPosts(actor: UserPublic, courseSlug: string): Promise<StreamPost[]>
 
