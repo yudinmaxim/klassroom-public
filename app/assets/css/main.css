@@ -53,7 +53,8 @@ body {
 }
 
 .card-nested {
-  background: var(--bg-soft);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
   padding: 14px 16px;
   margin: 12px 0 0;
   box-shadow: none;
