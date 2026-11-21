@@ -487,6 +487,16 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
 
             <div class="form" style="margin-top: 20px;">
               <div class="row">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  Оценка
+                  <input
+                    v-model.number="gradeForms[s.username].grade"
+                    type="number"
+                    min="0"
+                    :max="assignment.maxPoints ?? 1000"
+                    style="width: 90px; flex: none;"
+                  >
+                </label>
                 <label
                   class="check"
                   title="Клик переключает: по умолчанию → разрешена → запрещена"
@@ -502,16 +512,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                     Пересдача
                     <span class="muted">— {{ resubmitStateLabel(s.username) }}</span>
                   </span>
-                </label>
-                <label style="flex: 1; display: flex; align-items: center; gap: 8px;">
-                  Оценка
-                  <input
-                    v-model.number="gradeForms[s.username].grade"
-                    type="number"
-                    min="0"
-                    :max="assignment.maxPoints ?? 1000"
-                    style="flex: 1;"
-                  >
                 </label>
               </div>
               <label>
