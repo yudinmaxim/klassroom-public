@@ -486,31 +486,33 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             </div>
 
             <div class="form" style="margin-top: 10px;">
-              <label
-                class="check"
-                title="Клик переключает: по умолчанию → разрешена → запрещена"
-              >
-                <input
-                  type="checkbox"
-                  :checked="resubmitOverrideOf(s.username) === 'allow'"
-                  :indeterminate.prop="resubmitOverrideOf(s.username) === ''"
-                  :disabled="resubmitBusy === s.username"
-                  @click.prevent="cycleResubmit(s.username)"
+              <div class="row">
+                <label
+                  class="check"
+                  title="Клик переключает: по умолчанию → разрешена → запрещена"
                 >
-                <span>
-                  Пересдача
-                  <span class="muted">— {{ resubmitStateLabel(s.username) }}</span>
-                </span>
-              </label>
-              <label>
-                Оценка
-                <input
-                  v-model.number="gradeForms[s.username].grade"
-                  type="number"
-                  min="0"
-                  :max="assignment.maxPoints ?? 1000"
-                >
-              </label>
+                  <input
+                    type="checkbox"
+                    :checked="resubmitOverrideOf(s.username) === 'allow'"
+                    :indeterminate.prop="resubmitOverrideOf(s.username) === ''"
+                    :disabled="resubmitBusy === s.username"
+                    @click.prevent="cycleResubmit(s.username)"
+                  >
+                  <span>
+                    Пересдача
+                    <span class="muted">— {{ resubmitStateLabel(s.username) }}</span>
+                  </span>
+                </label>
+                <label style="flex: 0 0 160px;">
+                  Оценка
+                  <input
+                    v-model.number="gradeForms[s.username].grade"
+                    type="number"
+                    min="0"
+                    :max="assignment.maxPoints ?? 1000"
+                  >
+                </label>
+              </div>
               <label>
                 Комментарий
                 <textarea v-model="gradeForms[s.username].feedback" rows="3" />
