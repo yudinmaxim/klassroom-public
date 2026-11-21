@@ -106,6 +106,26 @@ select {
   cursor: pointer;
 }
 
+/* Чекбокс-опция в формах: в строку с полями, акцентный цвет */
+label.check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+label.check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+/* в .row чекбокс опускаем к нижнему краю — выравниваем текст с инпутами */
+.row > label.check { align-self: flex-end; padding-bottom: 10px; }
+
 button {
   font: inherit;
   padding: 8px 16px;

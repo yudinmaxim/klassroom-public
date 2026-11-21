@@ -76,18 +76,18 @@ async function save() {
       </label>
       <div class="row" style="gap: 16px;">
         <label>
-          Дедлайн
+          Дата сдачи
           <input v-model="form.due" type="date">
         </label>
         <label>
           Макс. баллов
           <input v-model.number="form.maxPoints" type="number" min="1" max="1000" style="width: 110px;">
         </label>
+        <label class="check">
+          <input v-model="form.allowResubmit" type="checkbox">
+          Разрешить пересдачу
+        </label>
       </div>
-      <label style="display: flex; gap: 8px; align-items: center;">
-        <input v-model="form.allowResubmit" type="checkbox">
-        Разрешить пересдачу
-      </label>
       <div class="md-editor-wrap" style="margin-top: 10px;">
         <MdEditor
           id="wikiroom-assignment-new-editor"
