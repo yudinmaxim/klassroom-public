@@ -67,7 +67,7 @@ const roleLabel = computed(() => ({
     </aside>
 
     <div class="main-col">
-      <header v-if="crumbs.length" class="topbar">
+      <header class="topbar">
         <nav v-if="crumbs.length" class="crumbs" aria-label="Хлебные крошки">
           <template v-for="(c, i) in crumbs" :key="i">
             <NuxtLink v-if="c.to" :to="c.to" class="crumb">{{ c.label }}</NuxtLink>
