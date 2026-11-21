@@ -322,7 +322,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </p>
           <div class="card" style="margin: 10px 0;">
             <strong>Ваш ответ:</strong>
-            <pre class="answer-text" style="margin-top: 8px;">{{ mySubmission.answer }}</pre>
+            <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.answer }}</p>
             <div v-if="mySubmission.feedback" class="card card-nested">
               <strong>Комментарий учителя:</strong>
               <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.feedback }}</p>
