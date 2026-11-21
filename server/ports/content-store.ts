@@ -106,6 +106,7 @@ export interface ContentStore {
       due?: string | null
       maxPoints?: number | null
       description?: string
+      allowResubmit?: boolean
     },
   ): Promise<AssignmentSummary>
 
@@ -122,6 +123,7 @@ export interface ContentStore {
       maxPoints?: number | null
       description?: string
       status?: 'draft' | 'published'
+      allowResubmit?: boolean
     },
   ): Promise<Assignment>
 
@@ -149,6 +151,15 @@ export interface ContentStore {
     assignmentSlug: string,
     username: string,
   ): Promise<{ submission: Submission, history: SubmissionVersion[] }>
+
+  /** Переопределить правило пересдачи для ученика (null — к общему). */
+  setResubmitOverride(
+    actor: UserPublic,
+    courseSlug: string,
+    assignmentSlug: string,
+    username: string,
+    allowed: boolean | null,
+  ): Promise<Assignment>
 
   /** Поставить оценку и комментарий, вернуть работу ученику. */
   gradeSubmission(

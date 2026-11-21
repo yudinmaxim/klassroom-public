@@ -377,6 +377,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     maxPoints: number | null
     createdAt: string
     updatedAt: string
+    /** Пересдача разрешена по умолчанию (undefined = true для старых файлов). */
+    allowResubmit?: boolean
+    /** username → boolean: индивидуальное переопределение пересдачи. */
+    resubmitOverrides?: Record<string, boolean>
   }
   interface SubmissionFile {
     status: 'submitted' | 'returned'
@@ -435,6 +439,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   function canSubmit(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], f: AssignmentFile): boolean {
     return canSeeAssignment(actor, role, course, roster, f)
       && role.permissions.includes('submissions.create')
+  }
+
+  /** Эффективное правило пересдачи: индивидуальное переопределение > общий флаг (default true). */
+  function resubmitAllowedFor(f: AssignmentFile, username: string): boolean {
+    return f.resubmitOverrides?.[username] ?? f.allowResubmit ?? true
   }
 
   /** Учитель проверяет сдачи. */
@@ -1028,7 +1037,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
     async getAssignment(actor, courseSlug, assignmentSlug) {
       const norm = normalizeSlug(courseSlug)
-      const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'view')
+      const { course, f, role } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'view')
       const description = (await readString(assignmentDescriptionPath(norm, f.id))) ?? ''
       const { renderDocMarkdown } = await import('../lib/md')
       const linkTitles: Record<string, string> = {}
@@ -1045,11 +1054,15 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         linkTitles,
         attachments: [],
       })
+      const canManage = canManageAssignment(actor, role, course)
       return {
         slug: f.slug, title: f.title, type: f.type, audience: f.audience,
         status: f.status, due: f.due, maxPoints: f.maxPoints,
         createdAt: f.createdAt, updatedAt: f.updatedAt,
         description, html: rendered.html,
+        allowResubmit: f.allowResubmit ?? true,
+        resubmitOverrides: canManage ? (f.resubmitOverrides ?? {}) : {},
+        canResubmit: resubmitAllowedFor(f, actor.username),
       }
     },
 
@@ -1080,6 +1093,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         maxPoints: input.maxPoints ?? null,
         createdAt: now,
         updatedAt: now,
+        allowResubmit: input.allowResubmit ?? true,
+        resubmitOverrides: {},
       }
 
       await ensureDir(assignmentDir(norm, dirId))
@@ -1128,6 +1143,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         f.maxPoints = patch.maxPoints
         changes.push('обновил баллы')
       }
+      if (patch.allowResubmit !== undefined && patch.allowResubmit !== (f.allowResubmit ?? true)) {
+        f.allowResubmit = patch.allowResubmit
+        changes.push(patch.allowResubmit ? 'разрешил пересдачу' : 'запретил пересдачу')
+      }
       if (patch.status !== undefined && patch.status !== f.status) {
         f.status = patch.status
         changes.push(patch.status === 'published' ? 'выдал задание' : 'снял с выдачи')
@@ -1163,6 +1182,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const { f } = await loadAssignmentForActor(actor, norm, assignmentSlug, 'submit')
       const now = new Date().toISOString()
       const existing = await readSubmissionFile(norm, f.id, actor.username)
+      if (existing && !resubmitAllowedFor(f, actor.username)) {
+        httpError(403, 'Пересдача по этому заданию запрещена')
+      }
       // пересдача — текущую версию уносим в history/ до перезаписи
       if (existing) await archiveSubmission(norm, f.id, actor.username, existing)
       const sub: SubmissionFile = {
@@ -1179,6 +1201,26 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       await atomicWriteString(submissionAnswerPath(norm, f.id, actor.username), answer)
       journal.record(actor.pseudonym, `сдал задание ${f.slug} в ${norm}`)
       return submissionView(norm, f.id, actor.username, sub)
+    },
+
+    async setResubmitOverride(actor, courseSlug, assignmentSlug, username, allowed) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadAssignmentForManage(actor, norm, assignmentSlug)
+      const roster = await readRoster(baseDir, norm)
+      if (!roster.includes(username)) httpError(400, `Не в составе курса: ${username}`)
+      const overrides = { ...(f.resubmitOverrides ?? {}) }
+      if (allowed === null) {
+        const { [username]: _removed, ...rest } = overrides
+        f.resubmitOverrides = Object.keys(rest).length ? rest : undefined
+      } else {
+        overrides[username] = allowed
+        f.resubmitOverrides = overrides
+      }
+      f.updatedAt = new Date().toISOString()
+      await writeAssignmentFile(norm, f)
+      await refreshIndex(norm)
+      journal.record(actor.pseudonym, `${allowed === null ? 'сбросил' : allowed ? 'разрешил' : 'запретил'} пересдачу ${f.slug} для ${username} в ${norm}`)
+      return impl.getAssignment(actor, norm, f.slug)
     },
 
     async getOwnSubmission(actor, courseSlug, assignmentSlug) {

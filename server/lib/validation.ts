@@ -182,6 +182,7 @@ export const createAssignmentBodySchema = z.object({
   due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата: ГГГГ-ММ-ДД').nullable().optional(),
   maxPoints: z.number().int().min(1).max(1000).nullable().optional(),
   description: z.string().max(MAX_MD_CHARS, 'Описание слишком длинное').default(''),
+  allowResubmit: z.boolean().optional(),
 })
 
 export const updateAssignmentBodySchema = createAssignmentBodySchema
@@ -195,6 +196,11 @@ export const commentBodySchema = z.object({
 
 export const submitAssignmentBodySchema = z.object({
   answer: z.string().min(1, 'Ответ пустой').max(MAX_MD_CHARS, 'Ответ слишком длинный'),
+})
+
+/** Переопределение пересдачи для конкретного ученика; null — сброс к общему правилу. */
+export const resubmitOverrideBodySchema = z.object({
+  allowed: z.boolean().nullable(),
 })
 
 export const gradeSubmissionBodySchema = z.object({

@@ -27,6 +27,7 @@ const form = reactive({
   due: '',
   maxPoints: null as number | null,
   description: '',
+  allowResubmit: true,
 })
 
 const saveError = ref('')
@@ -46,6 +47,7 @@ async function save() {
           due: form.due || null,
           maxPoints: form.maxPoints,
           description: form.description,
+          allowResubmit: form.allowResubmit,
         },
       },
     )
@@ -82,6 +84,10 @@ async function save() {
           <input v-model.number="form.maxPoints" type="number" min="1" max="1000" style="width: 110px;">
         </label>
       </div>
+      <label style="display: flex; gap: 8px; align-items: center;">
+        <input v-model="form.allowResubmit" type="checkbox">
+        Разрешить пересдачу
+      </label>
       <div class="md-editor-wrap" style="margin-top: 10px;">
         <MdEditor
           id="wikiroom-assignment-new-editor"

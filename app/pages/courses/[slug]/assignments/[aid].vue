@@ -45,6 +45,7 @@ const form = reactive({
   due: '',
   maxPoints: null as number | null,
   description: '',
+  allowResubmit: true,
 })
 
 function startEdit() {
@@ -54,6 +55,7 @@ function startEdit() {
   form.due = a.due ?? ''
   form.maxPoints = a.maxPoints
   form.description = a.description
+  form.allowResubmit = a.allowResubmit
   editing.value = true
 }
 
@@ -77,6 +79,7 @@ async function save() {
         due: form.due || null,
         maxPoints: form.maxPoints,
         description: form.description,
+        allowResubmit: form.allowResubmit,
       },
     })
     editing.value = false
@@ -254,6 +257,31 @@ function toggleSub(username: string) {
   }
 }
 
+// --- правило пересдачи: общее на задании + переопределения per-student ---
+const resubmitBusy = ref('')
+
+function resubmitOverrideOf(username: string): '' | 'allow' | 'deny' {
+  const v = assignment.value?.resubmitOverrides?.[username]
+  return v === undefined ? '' : v ? 'allow' : 'deny'
+}
+
+async function onResubmitChange(username: string, e: Event) {
+  const v = (e.target as HTMLSelectElement).value
+  resubmitBusy.value = username
+  gradeError.value = ''
+  try {
+    await $fetch(
+      `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/resubmit`,
+      { method: 'PATCH', body: { allowed: v === '' ? null : v === 'allow' } },
+    )
+    await refresh()
+  } catch (err) {
+    gradeError.value = errText(err, 'Не удалось изменить правило пересдачи')
+  } finally {
+    resubmitBusy.value = ''
+  }
+}
+
 async function grade(username: string) {
   gradeBusy.value = username
   gradeError.value = ''
@@ -328,24 +356,29 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.feedback }}</p>
             </div>
           </div>
-          <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
-          <div class="md-editor-wrap sm">
-            <MdEditor
-              v-model="answer"
-              language="en-US"
-              :toolbars="MD_TOOLBARS"
-            />
-          </div>
-          <div class="row" style="margin-top: 10px; gap: 10px; align-items: center;">
-            <AttachmentField
-              :items="mySubmission?.attachments ?? []"
-              :busy="attachBusy"
-              :link-for="(n: string) => attachmentUrl(myUsername, n)"
-              @upload="uploadAttachment"
-              @remove="removeAttachment"
-            />
-            <span class="muted" style="font-size: 12px;">до 10 МБ</span>
-          </div>
+          <template v-if="assignment.canResubmit">
+            <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
+            <div class="md-editor-wrap sm">
+              <MdEditor
+                v-model="answer"
+                language="en-US"
+                :toolbars="MD_TOOLBARS"
+              />
+            </div>
+            <div class="row" style="margin-top: 10px; gap: 10px; align-items: center;">
+              <AttachmentField
+                :items="mySubmission?.attachments ?? []"
+                :busy="attachBusy"
+                :link-for="(n: string) => attachmentUrl(myUsername, n)"
+                @upload="uploadAttachment"
+                @remove="removeAttachment"
+              />
+              <span class="muted" style="font-size: 12px;">до 10 МБ</span>
+            </div>
+          </template>
+          <p v-else class="muted" style="margin-top: 10px;">
+            Пересдача запрещена — преподаватель не разрешил сдавать работу повторно.
+          </p>
         </template>
         <template v-else>
           <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
@@ -358,7 +391,13 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </div>
         </template>
         <p v-if="submitError" class="error">{{ submitError }}</p>
-        <button class="primary" style="margin-top: 8px;" :disabled="submitBusy || !answer.trim()" @click="submit">
+        <button
+          v-if="!mySubmission || assignment.canResubmit"
+          class="primary"
+          style="margin-top: 8px;"
+          :disabled="submitBusy || !answer.trim()"
+          @click="submit"
+        >
           {{ submitBusy ? 'Отправляю…' : mySubmission ? 'Пересдать' : 'Сдать' }}
         </button>
       </div>
@@ -430,6 +469,20 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             </div>
 
             <div class="form" style="margin-top: 10px;">
+              <label style="max-width: 260px;">
+                Пересдача
+                <select
+                  :value="resubmitOverrideOf(s.username)"
+                  :disabled="resubmitBusy === s.username"
+                  @change="onResubmitChange(s.username, $event)"
+                >
+                  <option value="">
+                    По умолчанию ({{ assignment.allowResubmit ? 'разрешена' : 'запрещена' }})
+                  </option>
+                  <option value="allow">Разрешена</option>
+                  <option value="deny">Запрещена</option>
+                </select>
+              </label>
               <label>
                 Оценка
                 <input
@@ -470,6 +523,10 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             <input v-model.number="form.maxPoints" type="number" min="1" max="1000" style="width: 110px;">
           </label>
         </div>
+        <label style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
+          <input v-model="form.allowResubmit" type="checkbox">
+          Разрешить пересдачу
+        </label>
         <div class="md-editor-wrap" style="margin-top: 10px;">
           <MdEditor
             id="wikiroom-assignment-editor"

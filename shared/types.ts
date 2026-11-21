@@ -142,6 +142,12 @@ export interface Assignment {
   description: string
   /** санитизированный HTML описания. */
   html: string
+  /** Пересдача разрешена по умолчанию для всех (default true). */
+  allowResubmit: boolean
+  /** Индивидуальные переопределения пересдачи — только для проверяющих. */
+  resubmitOverrides: Record<string, boolean>
+  /** Эффективное правило для текущего пользователя. */
+  canResubmit: boolean
 }
 
 /** Сдача ученика. */
