@@ -449,40 +449,75 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             </div>
           </div>
           <div v-if="openSub === s.username" style="margin-top: 10px;">
-            <p class="muted">Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template></p>
-            <pre class="answer-text">{{ s.answer }}</pre>
-            <AttachmentField
-              v-if="s.attachments?.length"
-              :items="s.attachments"
-              :uploadable="false"
-              :link-for="(n: string) => attachmentUrl(s.username, n)"
-            />
+            <!-- Текущая версия сдачи -->
+            <div class="sub-answer">
+              <div class="row sub-meta">
+                <strong>Ответ учащегося</strong>
+                <span class="muted">
+                  Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template>
+                  <template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
+                </span>
+              </div>
+              <p class="sub-body">{{ s.answer }}</p>
+              <div v-if="s.attachments?.length" class="file-chips">
+                <a
+                  v-for="n in s.attachments.slice(0, 3)"
+                  :key="n"
+                  class="file-chip"
+                  :href="attachmentUrl(s.username, n)"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <Icon name="lucide:paperclip" />{{ n }}
+                </a>
+                <details v-if="s.attachments.length > 3" class="files-more">
+                  <summary class="file-chip">… ещё {{ s.attachments.length - 3 }}</summary>
+                  <div class="files-more-list">
+                    <a
+                      v-for="n in s.attachments.slice(3)"
+                      :key="n"
+                      :href="attachmentUrl(s.username, n)"
+                      target="_blank"
+                      rel="noopener"
+                    >{{ n }}</a>
+                  </div>
+                </details>
+              </div>
+              <div v-if="s.feedback" class="card-nested">
+                <strong>Комментарий учителя:</strong>
+                <p class="sub-body-sm">{{ s.feedback }}</p>
+              </div>
+            </div>
 
-            <div style="margin-top: 8px;">
+            <!-- История версий — как диалог -->
+            <div style="margin-top: 12px;">
               <button class="small" @click="toggleHistory(s.username)">
-                {{ historyOpen[s.username] ? 'Скрыть историю' : 'История версий' }}
+                {{ historyOpen[s.username] ? 'Скрыть историю' : 'Показать историю' }}
+                <template v-if="historyFor[s.username]?.length"> ({{ historyFor[s.username].length }})</template>
               </button>
               <p v-if="historyLoading === s.username" class="muted" style="margin: 6px 0 0;">Загрузка…</p>
-              <template v-else-if="historyOpen[s.username]">
-                <p v-if="!historyFor[s.username]?.length" class="muted" style="margin: 6px 0 0;">
-                  Предыдущих версий нет — это первая сдача.
-                </p>
+              <p v-else-if="historyOpen[s.username] && !historyFor[s.username]?.length" class="muted" style="margin: 6px 0 0;">
+                Предыдущих версий нет — это первая сдача.
+              </p>
+              <div v-else-if="historyOpen[s.username]" class="sub-history">
                 <div
                   v-for="(v, i) in historyFor[s.username]"
                   :key="v.submittedAt"
-                  class="card"
-                  style="margin: 8px 0; padding: 12px;"
+                  class="sub-version"
                 >
-                  <p class="muted" style="margin: 0 0 6px;">
-                    Версия {{ i + 1 }} · сдана {{ fmtDate(v.submittedAt) }}
-                    <template v-if="v.grade !== null"> · оценка: {{ v.grade }}</template>
-                  </p>
-                  <pre class="answer-text">{{ v.answer }}</pre>
-                  <p v-if="v.feedback" style="white-space: pre-wrap; margin: 8px 0 0;">
-                    <strong>Комментарий:</strong> {{ v.feedback }}
-                  </p>
+                  <div class="row sub-meta">
+                    <strong>Версия {{ i + 1 }}</strong>
+                    <span class="muted">
+                      {{ fmtDate(v.submittedAt) }}<template v-if="v.grade !== null"> · оценка: <strong>{{ v.grade }}</strong></template>
+                    </span>
+                  </div>
+                  <p class="sub-body">{{ v.answer }}</p>
+                  <div v-if="v.feedback" class="card-nested">
+                    <strong>Комментарий учителя:</strong>
+                    <p class="sub-body-sm">{{ v.feedback }}</p>
+                  </div>
                 </div>
-              </template>
+              </div>
             </div>
 
             <div class="form" style="margin-top: 20px;">
@@ -595,14 +630,90 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
   border-radius: 50%;
   background: var(--danger, #d64545);
 }
-.answer-text {
+.sub-answer {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--card, #fff);
+}
+.sub-meta {
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.sub-body {
   white-space: pre-wrap;
-  background: var(--bg-soft, #f6f6f6);
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+.sub-body-sm {
+  white-space: pre-wrap;
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.file-chip:hover { border-color: var(--accent); }
+.file-chip svg { width: 13px; height: 13px; flex: none; }
+.files-more { position: relative; }
+.files-more > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.files-more > summary::-webkit-details-marker { display: none; }
+.files-more-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 12px;
-  max-height: 320px;
-  overflow: auto;
-  font-size: 14px;
+  box-shadow: 0 4px 14px rgba(35, 42, 53, 0.12);
+}
+.files-more-list a {
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.files-more-list a:hover { background: var(--bg-soft, #f6f6f6); }
+.sub-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.sub-version {
+  padding: 10px 12px;
+  background: var(--bg-soft, #f6f6f6);
+  border: 1px solid var(--line);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  border-radius: 8px;
 }
 </style>

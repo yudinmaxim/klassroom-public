@@ -26,6 +26,7 @@ export default defineNuxtConfig({
         'lucide:arrow-right',
         'lucide:chevron-down',
         'lucide:chevron-up',
+        'lucide:paperclip',
       ],
     },
   },
