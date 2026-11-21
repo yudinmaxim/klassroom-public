@@ -259,20 +259,30 @@ function toggleSub(username: string) {
 
 // --- правило пересдачи: общее на задании + переопределения per-student ---
 const resubmitBusy = ref('')
+const RESUBMIT_STATES = ['', 'allow', 'deny'] as const
+type ResubmitState = (typeof RESUBMIT_STATES)[number]
 
-function resubmitOverrideOf(username: string): '' | 'allow' | 'deny' {
+function resubmitOverrideOf(username: string): ResubmitState {
   const v = assignment.value?.resubmitOverrides?.[username]
   return v === undefined ? '' : v ? 'allow' : 'deny'
 }
 
-async function onResubmitChange(username: string, e: Event) {
-  const v = (e.target as HTMLSelectElement).value
+function resubmitStateLabel(username: string): string {
+  const o = resubmitOverrideOf(username)
+  if (o === 'allow') return 'разрешена'
+  if (o === 'deny') return 'запрещена'
+  return `по умолчанию (${assignment.value?.allowResubmit ? 'разрешена' : 'запрещена'})`
+}
+
+async function cycleResubmit(username: string) {
+  const cur = resubmitOverrideOf(username)
+  const next = RESUBMIT_STATES[(RESUBMIT_STATES.indexOf(cur) + 1) % RESUBMIT_STATES.length]
   resubmitBusy.value = username
   gradeError.value = ''
   try {
     await $fetch(
       `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/resubmit`,
-      { method: 'PATCH', body: { allowed: v === '' ? null : v === 'allow' } },
+      { method: 'PATCH', body: { allowed: next === '' ? null : next === 'allow' } },
     )
     await refresh()
   } catch (err) {
@@ -476,19 +486,21 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             </div>
 
             <div class="form" style="margin-top: 10px;">
-              <label style="max-width: 260px;">
-                Пересдача
-                <select
-                  :value="resubmitOverrideOf(s.username)"
+              <label
+                class="check"
+                title="Клик переключает: по умолчанию → разрешена → запрещена"
+              >
+                <input
+                  type="checkbox"
+                  :checked="resubmitOverrideOf(s.username) === 'allow'"
+                  :indeterminate.prop="resubmitOverrideOf(s.username) === ''"
                   :disabled="resubmitBusy === s.username"
-                  @change="onResubmitChange(s.username, $event)"
+                  @click.prevent="cycleResubmit(s.username)"
                 >
-                  <option value="">
-                    По умолчанию ({{ assignment.allowResubmit ? 'разрешена' : 'запрещена' }})
-                  </option>
-                  <option value="allow">Разрешена</option>
-                  <option value="deny">Запрещена</option>
-                </select>
+                <span>
+                  Пересдача
+                  <span class="muted">— {{ resubmitStateLabel(s.username) }}</span>
+                </span>
               </label>
               <label>
                 Оценка

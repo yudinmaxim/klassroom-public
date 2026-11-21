@@ -150,6 +150,14 @@ label.check input[type="checkbox"]:checked {
   background-position: center;
   background-size: 15px;
 }
+label.check input[type="checkbox"]:indeterminate {
+  border-color: var(--accent);
+  background-color: var(--card);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f5f8b' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px;
+}
 /* в .row чекбокс опускаем к нижнему краю — выравниваем текст с инпутами */
 .row > label.check { align-self: flex-end; padding-bottom: 10px; }
 
