@@ -1,5 +1,6 @@
 <script setup lang="ts">
-/** Чипы-ссылки на файлы: первые 3 видны, остальные — за выпадашкой «… ещё N». */
+/** Чипы-ссылки на файлы: первые 3 видны, остальные — за выпадашкой «… ещё N».
+ *  Клик открывает модалку предпросмотра; href сохраняется для контекстного меню. */
 const props = defineProps<{
   files: string[]
   hrefFor: (name: string) => string
@@ -17,6 +18,13 @@ function onDocClick(e: MouseEvent) {
 }
 onMounted(() => document.addEventListener('click', onDocClick))
 onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
+
+// предпросмотр файла в модалке
+const preview = ref<{ name: string, url: string } | null>(null)
+function openPreview(name: string) {
+  rootEl.value?.querySelector('details[open]')?.removeAttribute('open')
+  preview.value = { name, url: props.hrefFor(name) }
+}
 </script>
 
 <template>
@@ -26,8 +34,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
       :key="n"
       class="file-chip"
       :href="hrefFor(n)"
-      target="_blank"
-      rel="noopener"
+      @click.prevent="openPreview(n)"
     >
       <Icon name="lucide:paperclip" />{{ n }}
     </a>
@@ -38,11 +45,11 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
           v-for="n in hidden"
           :key="n"
           :href="hrefFor(n)"
-          target="_blank"
-          rel="noopener"
+          @click.prevent="openPreview(n)"
         >{{ n }}</a>
       </div>
     </details>
+    <FilePreviewModal :file="preview" @close="preview = null" />
   </div>
 </template>
 
