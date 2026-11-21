@@ -485,7 +485,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               </template>
             </div>
 
-            <div class="form" style="margin-top: 10px;">
+            <div class="form" style="margin-top: 20px;">
               <div class="row">
                 <label
                   class="check"
@@ -503,13 +503,14 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                     <span class="muted">— {{ resubmitStateLabel(s.username) }}</span>
                   </span>
                 </label>
-                <label style="flex: 0 0 160px;">
+                <label style="flex: 1; display: flex; align-items: center; gap: 8px;">
                   Оценка
                   <input
                     v-model.number="gradeForms[s.username].grade"
                     type="number"
                     min="0"
                     :max="assignment.maxPoints ?? 1000"
+                    style="flex: 1;"
                   >
                 </label>
               </div>
