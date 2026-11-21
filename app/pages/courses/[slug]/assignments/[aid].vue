@@ -320,11 +320,13 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <p class="muted">
             <template v-if="mySubmission.grade !== null">Оценка: <strong>{{ mySubmission.grade }}</strong> · </template>Сдано {{ fmtDate(mySubmission.submittedAt) }}
           </p>
-          <p class="muted" style="margin: 10px 0 6px;">Ваш ответ:</p>
-          <pre class="answer-text">{{ mySubmission.answer }}</pre>
-          <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
-            <strong>Комментарий учителя:</strong>
-            <p style="white-space: pre-wrap;">{{ mySubmission.feedback }}</p>
+          <div class="card" style="margin: 10px 0;">
+            <strong>Ваш ответ:</strong>
+            <pre class="answer-text" style="margin-top: 8px;">{{ mySubmission.answer }}</pre>
+            <div v-if="mySubmission.feedback" class="card card-nested">
+              <strong>Комментарий учителя:</strong>
+              <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.feedback }}</p>
+            </div>
           </div>
           <div class="md-editor-wrap sm" style="margin-top: 8px;">
             <MdEditor
