@@ -467,7 +467,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                 :files="s.attachments"
                 :href-for="(n: string) => attachmentUrl(s.username, n)"
               />
-              <div v-if="s.feedback" class="card-nested">
+              <div v-if="s.feedback" class="card card-nested">
                 <strong>Комментарий учителя:</strong>
                 <p class="sub-body-sm">{{ s.feedback }}</p>
               </div>
@@ -501,7 +501,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                     :files="v.attachments"
                     :href-for="(n: string) => historyAttachmentUrl(s.username, v.file, n)"
                   />
-                  <div v-if="v.feedback" class="card-nested">
+                  <div v-if="v.feedback" class="card card-nested">
                     <strong>Комментарий учителя:</strong>
                     <p class="sub-body-sm">{{ v.feedback }}</p>
                   </div>

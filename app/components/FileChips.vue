@@ -8,10 +8,19 @@ const props = defineProps<{
 const VISIBLE = 3
 const visible = computed(() => props.files.slice(0, VISIBLE))
 const hidden = computed(() => props.files.slice(VISIBLE))
+
+// дропдаун «… ещё N» закрывается кликом вне его
+const rootEl = ref<HTMLElement | null>(null)
+function onDocClick(e: MouseEvent) {
+  const d = rootEl.value?.querySelector('details[open]')
+  if (d && !d.contains(e.target as Node)) d.removeAttribute('open')
+}
+onMounted(() => document.addEventListener('click', onDocClick))
+onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 </script>
 
 <template>
-  <div class="file-chips">
+  <div ref="rootEl" class="file-chips">
     <a
       v-for="n in visible"
       :key="n"
