@@ -315,8 +315,18 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
       <h1 class="page-title">{{ assignment.title }}</h1>
       <div v-if="!editing && canEdit" class="page-actions">
         <button v-if="assignment.status === 'draft'" class="small" @click="publishOpen = true">Выдать</button>
-        <button class="small" @click="startEdit">Редактировать</button>
-        <button class="small" :disabled="deleting" @click="removeAssignment">Удалить</button>
+        <span class="tip">
+          <button class="icon-btn" aria-label="Редактировать задание" @click="startEdit">
+            <Icon name="lucide:pencil" />
+          </button>
+          <span class="tip-body">Редактировать</span>
+        </span>
+        <span class="tip">
+          <button class="icon-btn danger" aria-label="Удалить задание" :disabled="deleting" @click="removeAssignment">
+            <Icon name="lucide:trash-2" />
+          </button>
+          <span class="tip-body">Удалить</span>
+        </span>
       </div>
       <div v-if="!editing && !canEdit && mySubmission" class="page-actions">
         <button class="small chat-btn" @click="openChat({ slug, aid, username: myUsername, label: 'Ваша сдача' })">
