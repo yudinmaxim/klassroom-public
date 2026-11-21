@@ -94,7 +94,7 @@ const topicSlug = computed(() => (route.params.topic ? String(route.params.topic
     <header class="page-head">
       <h1 class="page-title">{{ courseData?.course?.title ?? '…' }}</h1>
       <div class="page-actions">
-        <span v-if="canManage" class="tip">
+        <span v-if="canManage && activeTab === 'info'" class="tip">
           <button
             class="icon-btn danger"
             aria-label="Удалить курс"
