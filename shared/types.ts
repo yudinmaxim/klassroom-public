@@ -158,6 +158,8 @@ export interface Submission {
   grade: number | null
   feedback: string
   answer: string
+  /** санитизированный HTML ответа (рендерится из markdown при чтении). */
+  html: string
   submittedAt: string | null
   updatedAt: string | null
   /** Имена файлов-вложений сдачи (submissions/<user>/attachments/). */
@@ -292,6 +294,8 @@ export interface SubmissionVersion {
   grade: number | null
   feedback: string
   answer: string
+  /** санитизированный HTML ответа версии. */
+  html: string
   /** Имена файлов-вложений этой версии (history/<file>/attachments/). */
   attachments: string[]
 }

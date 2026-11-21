@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { MdPreview } from 'md-editor-v3'
+import { highlightText } from '@speed-highlight/core'
 import 'md-editor-v3/lib/style.css'
+import '@speed-highlight/core/themes/github-light.css'
 
-/** Модалка предпросмотра файла: рендер по расширению (img/pdf/media/md/text/other). */
+/** Модалка предпросмотра файла: рендер по расширению (img/pdf/media/md/csv/text/other). */
 const props = defineProps<{
   file: { name: string, url: string } | null
 }>()
@@ -13,30 +15,33 @@ const AUDIO_EXT = new Set(['mp3', 'wav', 'ogg', 'm4a', 'flac'])
 const VIDEO_EXT = new Set(['mp4', 'webm', 'mov', 'm4v'])
 const MD_EXT = new Set(['md', 'markdown'])
 const TEXT_EXT = new Set([
-  'txt', 'text', 'log', 'json', 'csv', 'tsv', 'xml', 'yaml', 'yml', 'ini', 'cfg',
-  'py', 'js', 'ts', 'vue', 'html', 'htm', 'css', 'scss', 'sql', 'sh', 'env',
+  'txt', 'text', 'log', 'json', 'js', 'mjs', 'ts', 'vue', 'html', 'htm', 'css', 'scss',
+  'sql', 'sh', 'bash', 'env', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'toml', 'py',
 ])
 
 const ext = computed(() => props.file?.name.split('.').pop()?.toLowerCase() ?? '')
-const kind = computed<'image' | 'pdf' | 'audio' | 'video' | 'md' | 'text' | 'other'>(() => {
+const kind = computed<'image' | 'pdf' | 'audio' | 'video' | 'md' | 'csv' | 'text' | 'other'>(() => {
   if (IMAGE_EXT.has(ext.value)) return 'image'
   if (ext.value === 'pdf') return 'pdf'
   if (AUDIO_EXT.has(ext.value)) return 'audio'
   if (VIDEO_EXT.has(ext.value)) return 'video'
   if (MD_EXT.has(ext.value)) return 'md'
+  if (ext.value === 'csv') return 'csv'
   if (TEXT_EXT.has(ext.value)) return 'text'
   return 'other'
 })
 
-// текстовые форматы тянем целиком для <pre>/MdPreview
+// текстовые форматы тянем целиком для <pre>/таблицы/MdPreview/подсветки
 const text = ref('')
 const textLoading = ref(false)
 const textError = ref('')
+const NEED_TEXT = new Set(['md', 'csv', 'text'])
 watch(() => props.file, async (f) => {
   text.value = ''
+  highlighted.value = ''
   textError.value = ''
   textLoading.value = false
-  if (!f || (kind.value !== 'md' && kind.value !== 'text')) return
+  if (!f || !NEED_TEXT.has(kind.value)) return
   textLoading.value = true
   try {
     const res = await fetch(f.url)
@@ -48,6 +53,51 @@ watch(() => props.file, async (f) => {
     textLoading.value = false
   }
 }, { immediate: true })
+
+// подсветка кода для текстовых файлов (speed-highlight, язык по расширению)
+const HL_LANG: Record<string, string> = {
+  py: 'py', json: 'json', js: 'js', mjs: 'js', ts: 'ts', html: 'html', htm: 'html',
+  vue: 'html', css: 'css', scss: 'css', sql: 'sql', sh: 'bash', bash: 'bash',
+  yaml: 'yaml', yml: 'yaml', xml: 'xml', ini: 'ini', cfg: 'ini', toml: 'toml',
+  log: 'log', env: 'ini', txt: 'plain', text: 'plain',
+}
+const highlighted = ref('')
+watch([text, () => ext.value], async ([src]) => {
+  highlighted.value = ''
+  if (!src || kind.value !== 'text') return
+  try {
+    highlighted.value = await highlightText(src, (HL_LANG[ext.value] ?? 'plain') as never, true)
+  } catch {
+    highlighted.value = ''
+  }
+})
+
+// csv → таблица (первая строка — заголовок)
+const csvRows = computed(() => {
+  if (kind.value !== 'csv' || !text.value) return []
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let inQ = false
+  for (let i = 0; i < text.value.length; i++) {
+    const c = text.value[i]!
+    if (inQ) {
+      if (c === '"') {
+        if (text.value[i + 1] === '"') { cell += '"'; i++ } else inQ = false
+      } else cell += c
+    } else if (c === '"') inQ = true
+    else if (c === ',') { row.push(cell); cell = '' }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text.value[i + 1] === '\n') i++
+      row.push(cell); cell = ''
+      if (row.length > 1 || row[0] !== '') rows.push(row)
+      row = []
+    } else cell += c
+  }
+  row.push(cell)
+  if (row.length > 1 || row[0] !== '') rows.push(row)
+  return rows
+})
 
 // Esc закрывает модалку
 function onKeydown(e: KeyboardEvent) {
@@ -76,11 +126,27 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
         <iframe v-else-if="kind === 'pdf'" :src="file.url" class="preview-frame" />
         <audio v-else-if="kind === 'audio'" :src="file.url" controls class="preview-audio" />
         <video v-else-if="kind === 'video'" :src="file.url" controls class="preview-video" />
-        <template v-else-if="kind === 'md' || kind === 'text'">
+        <template v-else-if="NEED_TEXT.has(kind)">
           <p v-if="textLoading" class="muted">Загрузка…</p>
           <p v-else-if="textError" class="error">{{ textError }}</p>
-          <MdPreview v-else-if="kind === 'md'" :model-value="text" class="preview-md" />
-          <pre v-else class="preview-text">{{ text }}</pre>
+          <template v-else>
+            <MdPreview v-if="kind === 'md'" :model-value="text" class="preview-md" />
+            <div v-else-if="kind === 'csv' && csvRows.length" class="preview-csv">
+              <table>
+                <thead>
+                  <tr><th v-for="(c, i) in csvRows[0]" :key="i">{{ c }}</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(r, ri) in csvRows.slice(1)" :key="ri">
+                    <td v-for="(c, ci) in r" :key="ci">{{ c }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- eslint-disable-next-line vue/no-v-html -- подсветка экранирует исходник -->
+            <div v-else-if="kind === 'text' && highlighted" class="preview-code" v-html="highlighted" />
+            <pre v-else class="preview-text">{{ text }}</pre>
+          </template>
         </template>
         <div v-else class="preview-fallback">
           <p class="muted">Предпросмотр для этого типа файла недоступен.</p>
@@ -128,6 +194,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 .preview-text {
   margin: 0;
   padding: 12px;
+  font-family: Consolas, 'Courier New', Monaco, monospace;
   font-size: 13px;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -136,6 +203,36 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+.preview-code {
+  font-family: Consolas, 'Courier New', Monaco, monospace;
+  font-size: 13px;
+  background: var(--bg-soft, #f6f6f6);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 0;
+  overflow: auto;
+}
+.preview-code :deep([class*=shj-lang-]) {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 8px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.preview-csv {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.preview-csv table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.preview-csv th, .preview-csv td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+.preview-csv th { background: var(--bg-soft, #f6f6f6); }
 .preview-md { font-size: 14px; }
 .preview-fallback {
   margin: auto;

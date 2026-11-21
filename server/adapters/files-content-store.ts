@@ -243,6 +243,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     gif: 'image/gif',
     webp: 'image/webp',
     bmp: 'image/bmp',
+    svg: 'image/svg+xml',
+    avif: 'image/avif',
     pdf: 'application/pdf',
     txt: 'text/plain; charset=utf-8',
     md: 'text/plain; charset=utf-8',
@@ -519,6 +521,12 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         grade: meta.grade,
         feedback: meta.feedback,
         answer,
+        html: renderDocMarkdown(answer, {
+          courseSlug,
+          materialSlug: 'answers',
+          linkTitles: {},
+          attachments: [],
+        }).html,
         attachments: meta.attachments ?? [],
       })
     }
@@ -661,7 +669,14 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     const attachments = await listSubmissionAttachmentNames(courseSlug, aid, username)
     return {
       username, status: sub.status, grade: sub.grade, feedback: sub.feedback,
-      answer, submittedAt: sub.submittedAt, updatedAt: sub.updatedAt, attachments,
+      answer,
+      html: renderDocMarkdown(answer, {
+        courseSlug,
+        materialSlug: 'answers',
+        linkTitles: {},
+        attachments: [],
+      }).html,
+      submittedAt: sub.submittedAt, updatedAt: sub.updatedAt, attachments,
     }
   }
 

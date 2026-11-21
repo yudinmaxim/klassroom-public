@@ -370,7 +370,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </p>
           <div class="card" style="margin: 10px 0;">
             <strong>Ваш ответ:</strong>
-            <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.answer }}</p>
+            <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
+            <div class="md-body" style="margin: 6px 0 0; font-size: 14px;" v-html="mySubmission.html" />
             <div v-if="mySubmission.feedback" class="card card-nested">
               <strong>Комментарий учителя:</strong>
               <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.feedback }}</p>
@@ -461,7 +462,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                   <template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
                 </span>
               </div>
-              <p class="sub-body">{{ s.answer }}</p>
+              <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
+              <div class="md-body sub-body" v-html="s.html" />
               <FileChips
                 v-if="s.attachments?.length"
                 :files="s.attachments"
@@ -495,7 +497,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                       {{ fmtDate(v.submittedAt) }}<template v-if="v.grade !== null"> · оценка: <strong>{{ v.grade }}</strong></template>
                     </span>
                   </div>
-                  <p class="sub-body">{{ v.answer }}</p>
+                  <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
+                  <div class="md-body sub-body" v-html="v.html" />
                   <FileChips
                     v-if="v.attachments.length"
                     :files="v.attachments"

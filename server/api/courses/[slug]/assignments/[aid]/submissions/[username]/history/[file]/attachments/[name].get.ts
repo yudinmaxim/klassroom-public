@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   if (!fileData) httpError(404, 'Файл не найден')
 
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  const inline = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'pdf', 'mp3', 'mp4', 'webm'].includes(ext)
+  const inline = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'mp3', 'mp4', 'webm'].includes(ext)
 
   setHeader(event, 'content-type', fileData.mime)
   setHeader(event, 'content-disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(name)}`)
