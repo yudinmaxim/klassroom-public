@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js/lib/common'
 import sanitizeHtml from 'sanitize-html'
 import { slugify } from './slug'
 import type { RenderedMaterial, TocEntry } from '../ports/material-plugin'
@@ -14,14 +15,27 @@ import type { RenderedMaterial, TocEntry } from '../ports/material-plugin'
  *    пути переписываются на API-выдачу с проверкой прав.
  */
 
-const md = new MarkdownIt({ html: false, linkify: true, breaks: false })
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: false,
+  // подсветка кода в fenced-блоках ```lang (highlight.js, common-сборка)
+  highlight(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
+      } catch { /* fallthrough — обычный вывод */ }
+    }
+    return ''
+  },
+})
 
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'p', 'br', 'hr',
     'ul', 'ol', 'li',
-    'blockquote', 'pre', 'code', 'kbd',
+    'blockquote', 'pre', 'code', 'kbd', 'span',
     'a', 'img',
     'strong', 'em', 'del', 's', 'sup', 'sub', 'mark',
     'table', 'thead', 'tbody', 'tr', 'th', 'td',
@@ -30,8 +44,14 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     a: ['href', 'title'],
     img: ['src', 'alt', 'title', 'width', 'height'],
+    code: ['class'],
+    span: ['class'],
     th: ['style'],
     td: ['style'],
+  },
+  allowedClasses: {
+    code: [/^language-/],
+    span: [/^hljs/],
   },
   allowedStyles: {
     th: { 'text-align': [/^left$/, /^right$/, /^center$/] },

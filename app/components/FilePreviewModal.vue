@@ -32,6 +32,7 @@ const kind = computed<'image' | 'pdf' | 'audio' | 'video' | 'md' | 'csv' | 'text
 })
 
 // текстовые форматы тянем целиком для <pre>/таблицы/MdPreview/подсветки
+const highlighted = ref('')
 const text = ref('')
 const textLoading = ref(false)
 const textError = ref('')
@@ -61,8 +62,14 @@ const HL_LANG: Record<string, string> = {
   yaml: 'yaml', yml: 'yaml', xml: 'xml', ini: 'ini', cfg: 'ini', toml: 'toml',
   log: 'log', env: 'ini', txt: 'plain', text: 'plain',
 }
-const highlighted = ref('')
-watch([text, () => ext.value], async ([src]) => {
+// json показываем с отступами (pretty-print), остальное — как есть
+const displayText = computed(() => {
+  if (ext.value === 'json' && text.value) {
+    try { return JSON.stringify(JSON.parse(text.value), null, 2) } catch { /* сырой текст */ }
+  }
+  return text.value
+})
+watch([displayText, () => ext.value], async ([src]) => {
   highlighted.value = ''
   if (!src || kind.value !== 'text') return
   try {
@@ -144,8 +151,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
               </table>
             </div>
             <!-- eslint-disable-next-line vue/no-v-html -- подсветка экранирует исходник -->
-            <div v-else-if="kind === 'text' && highlighted" class="preview-code" v-html="highlighted" />
-            <pre v-else class="preview-text">{{ text }}</pre>
+            <div v-else-if="kind === 'text' && highlighted" class="shj-lang-code preview-code" v-html="highlighted" />
+            <pre v-else class="preview-text">{{ displayText }}</pre>
           </template>
         </template>
         <div v-else class="preview-fallback">
@@ -206,19 +213,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 .preview-code {
   font-family: Consolas, 'Courier New', Monaco, monospace;
   font-size: 13px;
+  line-height: 1.5;
+  white-space: pre;
   background: var(--bg-soft, #f6f6f6);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 4px 0;
-  overflow: auto;
-}
-.preview-code :deep([class*=shj-lang-]) {
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
-  padding: 8px 12px;
   margin: 0;
-  font-size: 13px;
+  padding: 8px 12px;
+  overflow: auto;
 }
 .preview-csv {
   overflow: auto;
