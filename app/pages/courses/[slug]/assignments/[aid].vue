@@ -121,6 +121,11 @@ async function loadOwnSubmission() {
 if (!canEdit.value) void loadOwnSubmission()
 
 const mySubmission = computed<Submission | null>(() => ownSubmission.value)
+const studentStatusTitle = computed(() => {
+  const s = mySubmission.value
+  if (!s) return 'Вы не сдавали работу'
+  return s.status === 'returned' ? 'Проверено' : 'Вы сдали на проверку'
+})
 const answer = ref('')
 const submitBusy = ref(false)
 const submitError = ref('')
@@ -310,14 +315,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
 
       <!-- Сдача ученика -->
       <div v-if="!canEdit && assignment.status === 'published'" style="margin-top: 22px; border-top: 1px solid var(--line); padding-top: 16px;">
-        <h2>Ваш ответ</h2>
+        <h2>{{ studentStatusTitle }}</h2>
         <template v-if="mySubmission">
           <p class="muted">
-            Статус: {{ subStatusLabel(mySubmission.status) }}
-            <template v-if="mySubmission.grade !== null"> · оценка: {{ mySubmission.grade }}</template>
-            · сдано {{ fmtDate(mySubmission.submittedAt) }}
+            <template v-if="mySubmission.grade !== null">Оценка: <strong>{{ mySubmission.grade }}</strong> · </template>Сдано {{ fmtDate(mySubmission.submittedAt) }}
           </p>
-          <h3 style="margin: 10px 0 6px;">Ваша сдача</h3>
           <pre class="answer-text">{{ mySubmission.answer }}</pre>
           <div v-if="mySubmission.feedback" class="card" style="margin: 10px 0;">
             <strong>Комментарий учителя:</strong>
