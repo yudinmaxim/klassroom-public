@@ -578,7 +578,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         </div>
         <div class="md-editor-wrap" style="margin-top: 10px;">
           <MdEditor
-            id="wikiroom-assignment-editor"
+            id="klassroom-assignment-editor"
             v-model="form.description"
             language="en-US"
             :toolbars="MD_TOOLBARS"

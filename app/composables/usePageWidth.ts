@@ -4,7 +4,7 @@
  * любая страница может читать/менять это состояние.
  */
 export function usePageFullWidth() {
-  return useState('wikiroom-page-full-width', () => false)
+  return useState('klassroom-page-full-width', () => false)
 }
 
 export function setPageFullWidth(value: boolean) {

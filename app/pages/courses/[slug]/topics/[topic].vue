@@ -191,7 +191,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         </label>
         <div class="md-editor-wrap" style="margin-top: 10px;">
           <MdEditor
-            id="wikiroom-material-editor"
+            id="klassroom-material-editor"
             v-model="form.content"
             language="en-US"
             :toolbars="MD_TOOLBARS"

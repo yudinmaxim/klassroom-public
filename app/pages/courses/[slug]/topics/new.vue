@@ -105,7 +105,7 @@ async function attachFile(file: File) {
       </label>
       <div class="md-editor-wrap" style="margin-top: 10px;">
         <MdEditor
-          id="wikiroom-topic-new-editor"
+          id="klassroom-topic-new-editor"
           v-model="form.content"
           language="en-US"
           :toolbars="MD_TOOLBARS"

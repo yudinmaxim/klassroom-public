@@ -1,6 +1,6 @@
-# Wikiroom
+# Классная комната (klassroom)
 
-Self-hosted платформа для дистанционных занятий (упрощённый аналог Google Classroom)
+Self-hosted площадка для проведения занятий (упрощённый аналог Google Classroom)
 с файловым хранением данных. Стек: Nuxt 4 + Nitro, TypeScript.
 
 Спецификации для реализации — в [`specs/`](./specs/):

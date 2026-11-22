@@ -54,8 +54,8 @@ export function createGitJournal(repoDir: string): GitJournal {
     await git(['add', '-A'])
     try {
       await git([
-        '-c', 'user.name=wikiroom',
-        '-c', 'user.email=wikiroom@localhost',
+        '-c', 'user.name=klassroom',
+        '-c', 'user.email=klassroom@localhost',
         'commit', '-m', message,
       ])
     } catch (err) {

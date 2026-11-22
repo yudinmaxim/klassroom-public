@@ -51,7 +51,7 @@ interface ContentStore {
 // store.query('assignments', { where: { due: '<2026-12-01' } })
 ```
 
-Выбор адаптера — конфигом (`WIKIROOM_STORE=files|sqlite`) через nitro-плагин `useStore()`.
+Выбор адаптера — конфигом (`KLASSROOM_STORE=files|sqlite`) через nitro-плагин `useStore()`.
 
 ### Контракт адаптеров
 

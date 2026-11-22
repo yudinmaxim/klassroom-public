@@ -4,7 +4,7 @@ import { createFilesUserStore } from '../adapters/files-user-store'
 /**
  * Точка доступа к порту UserStore (автоимпортируется Nitro из server/utils).
  * Адаптер выбирается один раз за жизнь процесса; в будущем — по конфигу
- * (WIKIROOM_STORE, specs/01-architecture.md).
+ * (KLASSROOM_STORE, specs/01-architecture.md).
  */
 export type { UserStore }
 
