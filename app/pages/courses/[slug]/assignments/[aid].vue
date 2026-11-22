@@ -646,7 +646,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
   gap: 12px;
 }
 .sub-body {
-  white-space: pre-wrap;
   margin: 8px 0 0;
   font-size: 14px;
 }
