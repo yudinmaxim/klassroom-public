@@ -15,17 +15,31 @@ import type { RenderedMaterial, TocEntry } from '../ports/material-plugin'
  *    пути переписываются на API-выдачу с проверкой прав.
  */
 
+// Автоопределение языка для фенсов без ```lang: только уверенные совпадения,
+// чтобы не раскрашивать обычный текст случайными токенами.
+const AUTO_LANGS = [
+  'python', 'javascript', 'typescript', 'json', 'bash', 'shell', 'sql',
+  'html', 'xml', 'css', 'yaml', 'cpp', 'c', 'java',
+]
+const PLAIN_LANGS = new Set(['text', 'plain', 'plaintext', 'txt'])
+const AUTO_MIN_RELEVANCE = 3
+
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   breaks: false,
   // подсветка кода в fenced-блоках ```lang (highlight.js, common-сборка)
   highlight(code, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
-      } catch { /* fallthrough — обычный вывод */ }
-    }
+    try {
+      if (lang) {
+        if (hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
+        }
+        if (PLAIN_LANGS.has(lang.toLowerCase())) return ''
+      }
+      const auto = hljs.highlightAuto(code, AUTO_LANGS)
+      if (auto.relevance >= AUTO_MIN_RELEVANCE) return auto.value
+    } catch { /* fallthrough — обычный вывод */ }
     return ''
   },
 })
