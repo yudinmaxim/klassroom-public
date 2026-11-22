@@ -255,9 +255,14 @@ async function toggleHistory(username: string) {
 function toggleSub(username: string) {
   openSub.value = openSub.value === username ? null : username
   if (!gradeForms[username]) {
-    const s = submissions.value.find(x => x.username === username)
-    gradeForms[username] = { grade: s?.grade ?? null, feedback: '' }
+    gradeForms[username] = { grade: null, feedback: '' }
   }
+}
+
+// «Оценить» активна только при заполненных оценке и комментарии
+function gradeReady(username: string): boolean {
+  const f = gradeForms[username]
+  return !!f && typeof f.grade === 'number' && String(f.feedback).trim() !== ''
 }
 
 // --- правило пересдачи: общее на задании + переопределения per-student ---
@@ -317,7 +322,7 @@ const fmtDate = (iso: string | null) =>
 const typeLabel = (t: string) => (t === 'private' ? 'частное' : 'общее')
 const statusLabel = (s: string) => (s === 'published' ? 'Выдано' : 'Не выдано')
 const subStatusLabel = (s: string) =>
-  ({ submitted: 'на проверке', returned: 'проверено' })[s] ?? s
+  ({ submitted: 'На проверке', returned: 'Проверено' })[s] ?? s
 const pseudo = (u: string) => subsNames.value[u] ?? u
 </script>
 
@@ -438,6 +443,9 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <span class="muted"> · {{ s.username }}</span>
             </div>
             <div class="row" style="gap: 10px;">
+              <span class="muted">
+                Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template>
+              </span>
               <span class="muted">{{ subStatusLabel(s.status) }}</span>
               <span v-if="s.grade !== null"><strong>{{ s.grade }}</strong></span>
               <button
@@ -459,8 +467,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <div class="row sub-meta">
                 <strong>Ответ учащегося</strong>
                 <span class="muted">
-                  Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template>
-                  <template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
+                  {{ subStatusLabel(s.status) }}<template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
                 </span>
               </div>
               <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
@@ -546,7 +553,12 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                 Комментарий
                 <textarea v-model="gradeForms[s.username].feedback" rows="3" />
               </label>
-              <button class="primary" :disabled="gradeBusy === s.username" @click="grade(s.username)">
+              <button
+                class="primary"
+                :disabled="gradeBusy === s.username || !gradeReady(s.username)"
+                :title="gradeReady(s.username) ? '' : 'Заполните оценку и комментарий'"
+                @click="grade(s.username)"
+              >
                 {{ gradeBusy === s.username ? 'Сохраняю…' : 'Оценить' }}
               </button>
             </div>
