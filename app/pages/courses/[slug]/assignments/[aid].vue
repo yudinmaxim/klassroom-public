@@ -443,7 +443,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <span class="muted"> · {{ s.username }}</span>
             </div>
             <div class="row" style="gap: 10px;">
-              <span class="muted">
+              <span v-if="openSub !== s.username" class="muted">
                 Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template>
               </span>
               <span class="muted">{{ subStatusLabel(s.status) }}</span>
@@ -467,7 +467,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <div class="row sub-meta">
                 <strong>Ответ учащегося</strong>
                 <span class="muted">
-                  {{ subStatusLabel(s.status) }}<template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
+                  Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template>
+                  · {{ subStatusLabel(s.status) }}<template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
                 </span>
               </div>
               <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
