@@ -432,7 +432,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         <p v-if="subsLoading" class="muted">Загрузка…</p>
         <p v-else-if="!submissions.length" class="muted">Сдач пока нет.</p>
         <div v-for="s in submissions" :key="s.username" class="card" style="margin-bottom: 10px;">
-          <div class="row" style="justify-content: space-between;">
+          <div class="row sub-head" style="justify-content: space-between;" @click="toggleSub(s.username)">
             <div>
               <strong>{{ pseudo(s.username) }}</strong>
               <span class="muted"> · {{ s.username }}</span>
@@ -442,14 +442,15 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <span v-if="s.grade !== null"><strong>{{ s.grade }}</strong></span>
               <button
                 class="small chat-btn"
-                @click="openChat({ slug, aid, username: s.username, label: pseudo(s.username) })"
+                @click.stop="openChat({ slug, aid, username: s.username, label: pseudo(s.username) })"
               >
                 Обсуждение
                 <span v-if="chatUnread({ slug, aid, username: s.username })" class="unread-dot" />
               </button>
-              <button class="small" @click="toggleSub(s.username)">
-                {{ openSub === s.username ? 'Скрыть' : 'Открыть' }}
-              </button>
+              <Icon
+                :name="openSub === s.username ? 'lucide:chevron-down' : 'lucide:chevron-right'"
+                class="sub-caret"
+              />
             </div>
           </div>
           <div v-if="openSub === s.username" style="margin-top: 10px;">
@@ -612,6 +613,18 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
 </template>
 
 <style scoped>
+.sub-head {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+.sub-head:hover { background: var(--bg-soft, #f6f6f6); }
+.sub-caret {
+  align-self: center;
+  color: var(--muted, #888);
+  flex-shrink: 0;
+}
 .chat-btn { position: relative; }
 .unread-dot {
   position: absolute;
