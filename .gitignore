@@ -1,0 +1,29 @@
+# --- Nuxt / Nitro ---
+node_modules/
+.nuxt/
+.output/
+dist/
+.data/
+
+# --- Логи, окружение ---
+*.log
+.env
+.env.*
+!.env.example
+
+# --- Данные среды исполнения (НЕ код) ---
+# content/ — отдельный git-репозиторий (учебный контент, см. specs/03-git-journal.md)
+/content/
+# users/, sessions/ и roles/ — секреты и состояние рантайма, в git не попадают
+/users/
+/sessions/
+/roles/
+/qr-tokens/
+# изолированные данные для локальных тестов
+/test-users/
+/test-content/
+
+# --- Прочее ---
+.DS_Store
+*.tsbuildinfo
+.docs/
