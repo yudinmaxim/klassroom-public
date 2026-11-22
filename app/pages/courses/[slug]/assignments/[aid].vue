@@ -619,7 +619,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
   padding: 2px 4px;
   margin: -2px -4px;
 }
-.sub-head:hover { background: var(--bg-soft, #f6f6f6); }
 .sub-caret {
   align-self: center;
   color: var(--muted, #888);
