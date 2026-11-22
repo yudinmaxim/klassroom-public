@@ -317,8 +317,22 @@ async function grade(username: string) {
   }
 }
 
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
+const fmtDate = (iso: string | null) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+}
+// «Сдано X · обновлено Y» — пустые/битые даты пропускаются
+function datesLabel(submittedAt: string | null, updatedAt?: string | null): string {
+  const parts: string[] = []
+  const s = fmtDate(submittedAt)
+  if (s) parts.push(`Сдано ${s}`)
+  const u = fmtDate(updatedAt ?? null)
+  if (u) parts.push(`обновлено ${u}`)
+  return parts.join(' · ')
+}
 const typeLabel = (t: string) => (t === 'private' ? 'частное' : 'общее')
 const statusLabel = (s: string) => (s === 'published' ? 'Выдано' : 'Не выдано')
 const subStatusLabel = (s: string) =>
@@ -358,7 +372,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
       <template v-if="assignment.status === 'published'">{{ typeLabel(assignment.type) }} · </template>{{ statusLabel(assignment.status) }}
       <template v-if="assignment.due"> · до {{ assignment.due }}</template>
       <template v-if="assignment.maxPoints"> · {{ assignment.maxPoints }} балл.</template>
-      · обновлено {{ fmtDate(assignment.updatedAt) }}
+      <template v-if="fmtDate(assignment.updatedAt)"> · обновлено {{ fmtDate(assignment.updatedAt) }}</template>
     </p>
     <!-- Просмотр -->
     <div v-if="!editing">
@@ -371,7 +385,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         <h2>{{ studentStatusTitle }}</h2>
         <template v-if="mySubmission">
           <p class="muted">
-            <template v-if="mySubmission.grade !== null">Оценка: <strong>{{ mySubmission.grade }}</strong> · </template>Сдано {{ fmtDate(mySubmission.submittedAt) }}
+            <template v-if="mySubmission.grade !== null">Оценка: <strong>{{ mySubmission.grade }}</strong> · </template><template v-if="fmtDate(mySubmission.submittedAt)">Сдано {{ fmtDate(mySubmission.submittedAt) }}</template>
           </p>
           <div class="card" style="margin: 10px 0;">
             <strong>Ваш ответ:</strong>
@@ -443,8 +457,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <span class="muted"> · {{ s.username }}</span>
             </div>
             <div class="row" style="gap: 10px;">
-              <span v-if="openSub !== s.username" class="muted">
-                Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template>
+              <span v-if="openSub !== s.username && datesLabel(s.submittedAt, s.updatedAt)" class="muted">
+                {{ datesLabel(s.submittedAt, s.updatedAt) }}
               </span>
               <span class="muted">{{ subStatusLabel(s.status) }}</span>
               <span v-if="s.grade !== null"><strong>{{ s.grade }}</strong></span>
@@ -467,8 +481,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               <div class="row sub-meta">
                 <strong>Ответ учащегося</strong>
                 <span class="muted">
-                  Сдано {{ fmtDate(s.submittedAt) }}<template v-if="s.updatedAt"> · обновлено {{ fmtDate(s.updatedAt) }}</template>
-                  · {{ subStatusLabel(s.status) }}<template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
+                  <template v-if="datesLabel(s.submittedAt, s.updatedAt)">{{ datesLabel(s.submittedAt, s.updatedAt) }} · </template>{{ subStatusLabel(s.status) }}<template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
                 </span>
               </div>
               <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
@@ -503,7 +516,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                   <div class="row sub-meta">
                     <strong>Версия {{ i + 1 }}</strong>
                     <span class="muted">
-                      {{ fmtDate(v.submittedAt) }}<template v-if="v.grade !== null"> · оценка: <strong>{{ v.grade }}</strong></template>
+                      <template v-if="fmtDate(v.submittedAt)">{{ fmtDate(v.submittedAt) }} · </template><template v-if="v.grade !== null">оценка: <strong>{{ v.grade }}</strong></template>
                     </span>
                   </div>
                   <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
