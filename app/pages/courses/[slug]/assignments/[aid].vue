@@ -662,7 +662,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
   background: var(--danger, #d64545);
 }
 .sub-grade-title {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 15px;
 }
 .sub-answer {
