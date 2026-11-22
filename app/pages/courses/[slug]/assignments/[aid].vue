@@ -534,7 +534,8 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
               </div>
             </div>
 
-            <div class="form" style="margin-top: 20px;">
+            <div class="form" style="margin-top: 40px;">
+              <h3 class="sub-grade-title">Оценивание:</h3>
               <div class="row">
                 <label style="display: flex; align-items: center; gap: 8px;">
                   Оценка
@@ -659,6 +660,10 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
   height: 9px;
   border-radius: 50%;
   background: var(--danger, #d64545);
+}
+.sub-grade-title {
+  margin: 0 0 12px;
+  font-size: 15px;
 }
 .sub-answer {
   border: 1px solid var(--line);
