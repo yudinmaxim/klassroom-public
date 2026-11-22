@@ -42,7 +42,12 @@ function onChange(e: Event) {
       <li v-for="name in items" :key="name" class="row" style="gap: 8px;">
         <a v-if="linkFor" :href="linkFor(name)" target="_blank">{{ name }}</a>
         <template v-else>{{ name }}</template>
-        <button class="small" @click="emit('remove', name)">удалить</button>
+        <span class="tip">
+          <button class="icon-btn danger" :aria-label="`Удалить ${name}`" @click="emit('remove', name)">
+            <Icon name="lucide:trash-2" />
+          </button>
+          <span class="tip-body">Удалить</span>
+        </span>
       </li>
     </ul>
   </div>
