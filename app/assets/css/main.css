@@ -474,7 +474,7 @@ tbody tr:hover td { background: var(--bg-soft); }
   top: 0;
   height: 100vh;
   background: var(--sidebar-bg);
-  padding: 12px 12px 18px;
+  padding: 8px 12px 18px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -483,17 +483,15 @@ tbody tr:hover td { background: var(--bg-soft); }
 .brand {
   display: flex;
   align-items: center;
-  height: 38px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   text-decoration: none;
   padding: 0 10px;
 }
 
 .brand-img {
-  height: 30px;
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .side-nav {
@@ -668,6 +666,7 @@ tbody tr:hover td { background: var(--bg-soft); }
     padding: 10px 16px;
   }
   .brand { padding: 0 12px 0 0; }
+  .brand-img { width: auto; height: 30px; }
   .side-nav { flex-direction: row; }
   .sidebar-foot {
     margin-top: 0;
