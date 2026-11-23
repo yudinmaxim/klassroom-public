@@ -175,11 +175,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 
         <div v-if="docPayload.attachments.length" style="margin-top: 26px; border-top: 1px solid var(--line); padding-top: 14px;">
           <h2>Вложения</h2>
-          <ul>
-            <li v-for="a in docPayload.attachments" :key="a">
-              <a :href="attachmentUrl(a)" target="_blank" rel="noopener">{{ a }}</a>
-            </li>
-          </ul>
+          <FileChips :files="docPayload.attachments" :href-for="attachmentUrl" />
         </div>
       </div>
     </div>

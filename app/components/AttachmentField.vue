@@ -38,17 +38,11 @@ function onChange(e: Event) {
     <button v-if="props.uploadable" class="small" :disabled="busy || disabled" @click="pick">
       {{ busy ? 'Загрузка…' : 'Приложить файл' }}
     </button>
-    <ul v-if="items.length" style="margin-top: 8px;">
-      <li v-for="name in items" :key="name" class="row" style="gap: 8px;">
-        <a v-if="linkFor" :href="linkFor(name)" target="_blank">{{ name }}</a>
-        <template v-else>{{ name }}</template>
-        <span class="tip">
-          <button class="icon-btn danger" :aria-label="`Удалить ${name}`" @click="emit('remove', name)">
-            <Icon name="lucide:trash-2" />
-          </button>
-          <span class="tip-body">Удалить</span>
-        </span>
-      </li>
-    </ul>
+    <FileChips
+      v-if="items.length"
+      :files="items"
+      :href-for="linkFor"
+      :remove-file="uploadable ? (n: string) => emit('remove', n) : undefined"
+    />
   </div>
 </template>
