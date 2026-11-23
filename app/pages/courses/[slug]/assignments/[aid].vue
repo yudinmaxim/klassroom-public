@@ -425,7 +425,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
             <div
               class="md-editor-wrap sm"
-              :class="{ 'drop-target': answerDrop.dragOver }"
               @dragover="answerDrop.onDragover"
               @dragleave="answerDrop.onDragleave"
               @drop="answerDrop.onDrop"
@@ -457,7 +456,6 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
           <div
             class="md-editor-wrap sm"
-            :class="{ 'drop-target': answerDrop.dragOver }"
             @dragover="answerDrop.onDragover"
             @dragleave="answerDrop.onDragleave"
             @drop="answerDrop.onDrop"

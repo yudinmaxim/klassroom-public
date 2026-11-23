@@ -207,7 +207,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         </label>
         <div
           class="md-editor-wrap"
-          :class="{ 'drop-target': topicDrop.dragOver }"
           style="margin-top: 10px;"
           @dragover="topicDrop.onDragover"
           @dragleave="topicDrop.onDragleave"
