@@ -135,8 +135,11 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 <template>
   <div v-if="material" class="course-page">
   <div class="course-content">
-    <header class="page-head">
-      <h1 class="page-title">{{ material.title }}</h1>
+    <header class="page-head topic-hero">
+      <div class="topic-hero-text">
+        <h1 class="page-title">{{ material.title }}</h1>
+        <p v-if="!editing" class="muted topic-meta">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
+      </div>
       <div v-if="!editing && canEdit" class="page-actions">
         <span class="tip">
           <button class="icon-btn" aria-label="Редактировать тему" @click="startEdit">
@@ -153,7 +156,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
       </div>
     </header>
 
-    <p v-if="!editing" class="muted">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
     <p v-if="saveError && !editing" class="error">{{ saveError }}</p>
     <p v-if="saveError && editing" class="error" style="margin-bottom: 10px;">{{ saveError }}</p>
 
@@ -225,3 +227,18 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
   </footer>
   </div>
 </template>
+
+<style scoped>
+/* «Герой»-полоса темы: заголовок + мета на подложке, отделяет шапку от контента */
+.topic-hero {
+  align-items: center;
+  background: var(--bg-soft, #f6f6f6);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 4px;
+}
+.topic-hero-text { flex: 1; min-width: 0; }
+.topic-hero .page-title { margin: 0; }
+.topic-meta { margin: 4px 0 0; font-size: 13px; }
+</style>
