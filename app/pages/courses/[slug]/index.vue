@@ -353,13 +353,14 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 
 .cover-field { display: grid; gap: 8px; margin-bottom: 14px; }
 .cover-label { font-size: 13px; font-weight: 600; }
+/* превью обложки — те же пропорции, что у баннера на просмотре */
 .cover-preview img {
   display: block;
-  max-width: 280px;
-  max-height: 140px;
+  width: 100%;
+  max-height: 260px;
   object-fit: cover;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
 }
 .cover-actions { display: flex; align-items: center; gap: 10px; }
 .cover-upload-btn {
