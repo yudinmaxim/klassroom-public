@@ -20,9 +20,11 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [links: ExternalLink[]] }>()
 
 const blockError = ref('')
+const blockIndex = ref<number | null>(null)
 
 function add() {
   blockError.value = ''
+  blockIndex.value = null
   emit('update:modelValue', [...props.modelValue, { title: '', url: '' }])
 }
 function remove(i: number) {
@@ -32,15 +34,18 @@ function remove(i: number) {
     const refs = externalLinkRefMatches(props.content, l.url)
     if (refs.length) {
       blockError.value = `Ссылка «${l.title || l.url}» используется в тексте (${refs.length} раз). Сначала уберите её из текста.`
+      blockIndex.value = i
       props.highlight?.(refs[0].index, refs[0].length)
       return
     }
   }
   blockError.value = ''
+  blockIndex.value = null
   emit('update:modelValue', props.modelValue.filter((_, idx) => idx !== i))
 }
 function set(i: number, patch: Partial<ExternalLink>) {
   blockError.value = ''
+  blockIndex.value = null
   emit('update:modelValue', props.modelValue.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
 }
 
@@ -96,9 +101,18 @@ defineExpose({ validLinks })
 
 <template>
   <div class="links-field">
+    <p class="links-field-hint muted">
+      Внешние источники: видео, статьи, тренажёры. Enter в поле адреса подтянет
+      название страницы, а за ручку ссылку можно перетащить в текст — вставится
+      markdown-ссылка. Ссылки из текста попадают сюда автоматически при сохранении.
+      Ссылку, которая есть в тексте, удалить нельзя — сначала уберите её оттуда.
+    </p>
     <div
       v-for="(l, i) in modelValue"
       :key="i"
+      class="links-field-item"
+    >
+    <div
       class="links-field-row"
       :class="{ 'is-fetching': fetching === i }"
     >
@@ -144,12 +158,7 @@ defineExpose({ validLinks })
         <Icon name="lucide:trash-2" />
       </button>
     </div>
-    <p v-if="blockError" class="error" style="margin: 0;">{{ blockError }}</p>
-    <div class="links-field-hint muted">
-      Внешние источники: видео, статьи, тренажёры. Enter в поле адреса подтянет
-      название страницы, а за ручку ссылку можно перетащить в текст — вставится
-      markdown-ссылка. Ссылки из текста попадают сюда автоматически при сохранении.
-      Ссылку, которая есть в тексте, удалить нельзя — сначала уберите её оттуда.
+    <p v-if="blockIndex === i" class="error links-field-error">{{ blockError }}</p>
     </div>
     <button class="small" @click="add">+ Добавить ссылку</button>
   </div>
@@ -192,5 +201,7 @@ defineExpose({ validLinks })
 .links-field-refresh.is-loading svg { animation: links-spin 0.8s linear infinite; }
 @keyframes links-spin { to { transform: rotate(360deg); } }
 .links-field-row.is-fetching > input { opacity: 0.6; }
-.links-field-hint { font-size: 12px; line-height: 1.45; }
+.links-field-item { display: flex; flex-direction: column; gap: 4px; }
+.links-field-error { margin: 0; font-size: 12px; }
+.links-field-hint { margin: 0 0 2px; font-size: 12px; line-height: 1.45; }
 </style>
