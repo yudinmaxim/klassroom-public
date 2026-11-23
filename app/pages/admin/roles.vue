@@ -47,7 +47,7 @@ async function resetRole(role: RoleDef) {
     </template>
 
     <p class="muted">
-      Роль — набор пермишенов (спека 08). Роли teacher/student системные: их наборы прав
+      Роли teacher/student системные: их наборы прав
       можно менять, сами роли удалить нельзя. Роль admin — неизменяемая.
     </p>
 
