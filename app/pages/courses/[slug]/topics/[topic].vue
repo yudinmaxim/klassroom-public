@@ -58,7 +58,26 @@ function startEdit() {
   form.content = docPayload.value?.content ?? ''
   form.links = (docPayload.value?.links ?? []).map(l => ({ ...l }))
   editing.value = true
+  savedSnapshot.value = editSnapshot()
 }
+
+// --- защита от ухода без сохранения ---
+const savedSnapshot = ref('')
+function editSnapshot() {
+  return JSON.stringify({ t: form.title, c: form.content, l: form.links })
+}
+const dirty = computed(() => editing.value && editSnapshot() !== savedSnapshot.value)
+
+onBeforeRouteLeave(() => {
+  if (dirty.value && !window.confirm('Тема не сохранена. Уйти без сохранения?')) return false
+})
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (!dirty.value) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
 
 function cancelEdit() {
   editing.value = false
@@ -96,6 +115,7 @@ async function save() {
       body: { title: form.title, content: form.content, links: validFormLinks() },
     })
     editing.value = false
+    savedSnapshot.value = ''
     await refresh()
   } catch (e) {
     saveError.value = errText(e, 'Не удалось сохранить тему')
@@ -248,10 +268,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     <!-- Редактирование -->
     <div v-if="editing" style="margin-top: 14px;">
       <div>
-        <label>
-          Название
-          <input v-model="form.title">
-        </label>
+        <h2 style="margin: 0 0 10px;">Редактирование темы</h2>
         <div
           class="md-editor-wrap"
           style="margin-top: 10px;"
