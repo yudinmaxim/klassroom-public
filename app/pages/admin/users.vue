@@ -27,6 +27,27 @@ function onSaved(generatedPassword?: string) {
 }
 
 const resetting = ref<string | null>(null)
+const resetTarget = ref<UserPublic | null>(null)
+
+async function confirmResetPassword() {
+  const u = resetTarget.value
+  resetTarget.value = null
+  if (!u) return
+  error.value = ''
+  resetting.value = u.username
+  try {
+    const res = await $fetch<{ generatedPassword?: string }>(
+      `/api/users/${u.username}/password`,
+      { method: 'POST', body: {} },
+    )
+    if (res.generatedPassword) revealedSecret.value = res.generatedPassword
+    await refresh()
+  } catch (e) {
+    error.value = errText(e, 'Не удалось сбросить пароль')
+  } finally {
+    resetting.value = null
+  }
+}
 
 // --- QR-вход ---
 const qrUser = ref<UserPublic | null>(null)
@@ -66,23 +87,6 @@ async function generateQr() {
     qrError.value = errText(e, 'Не удалось создать QR-код')
   } finally {
     qrBusy.value = false
-  }
-}
-
-async function resetPassword(u: UserPublic) {
-  error.value = ''
-  resetting.value = u.username
-  try {
-    const res = await $fetch<{ generatedPassword?: string }>(
-      `/api/users/${u.username}/password`,
-      { method: 'POST', body: {} },
-    )
-    if (res.generatedPassword) revealedSecret.value = res.generatedPassword
-    await refresh()
-  } catch (e) {
-    error.value = errText(e, 'Не удалось сбросить пароль')
-  } finally {
-    resetting.value = null
   }
 }
 
@@ -173,7 +177,7 @@ async function copySecret() {
                   class="icon-btn"
                   aria-label="Сбросить пароль"
                   :disabled="resetting === u.username"
-                  @click="resetPassword(u)"
+                  @click="resetTarget = u"
                 >
                   <Icon name="lucide:key-round" />
                 </button>
@@ -202,6 +206,16 @@ async function copySecret() {
       :roles="roles"
       @close="panelUser = undefined"
       @saved="onSaved"
+    />
+
+    <ConfirmModal
+      v-if="resetTarget"
+      title="Сбросить пароль?"
+      :message="`Пароль пользователя «${resetTarget.pseudonym}» будет сброшен, все его активные сессии завершатся. Новый пароль показывается один раз.`"
+      confirm-label="Сбросить пароль"
+      danger
+      @confirm="confirmResetPassword"
+      @cancel="resetTarget = null"
     />
   </div>
 </template>
