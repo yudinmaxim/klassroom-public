@@ -483,19 +483,20 @@ tbody tr:hover td { background: var(--bg-soft); }
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   height: 38px;
   margin-bottom: 10px;
-  font-weight: 700;
-  font-size: 17px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
   text-decoration: none;
   color: var(--ink);
   padding: 0 10px;
 }
 
 .brand-logo {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
