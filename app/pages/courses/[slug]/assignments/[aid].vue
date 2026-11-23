@@ -102,9 +102,10 @@ async function save() {
 
 const deleting = ref(false)
 const publishOpen = ref(false)
+const deleteOpen = ref(false)
 
-async function removeAssignment() {
-  if (!window.confirm('Удалить задание вместе со всеми сдачами?')) return
+async function confirmRemoveAssignment() {
+  deleteOpen.value = false
   deleting.value = true
   try {
     await $fetch(`/api/courses/${slug.value}/assignments/${aid.value}`, { method: 'DELETE' })
@@ -430,7 +431,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           <span class="tip-body">Редактировать</span>
         </span>
         <span class="tip">
-          <button class="icon-btn danger" aria-label="Удалить задание" :disabled="deleting" @click="removeAssignment">
+          <button class="icon-btn danger" aria-label="Удалить задание" :disabled="deleting" @click="deleteOpen = true">
             <Icon name="lucide:trash-2" />
           </button>
           <span class="tip-body">Удалить</span>
@@ -741,6 +742,16 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
       :title="assignment.title"
       @close="publishOpen = false"
       @changed="publishOpen = false; refresh()"
+    />
+
+    <ConfirmModal
+      v-if="deleteOpen"
+      title="Удалить задание?"
+      message="Задание будет удалено вместе со всеми сдачами и комментариями."
+      confirm-label="Удалить"
+      danger
+      @confirm="confirmRemoveAssignment"
+      @cancel="deleteOpen = false"
     />
   </div>
 

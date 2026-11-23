@@ -64,8 +64,12 @@ function openAssignment(a: AssignmentRow) {
   void navigateTo(`/courses/${course.value?.slug}/assignments/${a.slug}`)
 }
 
-async function deleteAssignment(a: AssignmentRow) {
-  if (!window.confirm(`Удалить задание «${a.title}» вместе со сдачами?`)) return
+const deleteTarget = ref<AssignmentRow | null>(null)
+
+async function confirmDeleteAssignment() {
+  const a = deleteTarget.value
+  deleteTarget.value = null
+  if (!a) return
   assignmentsError.value = ''
   try {
     await $fetch(`/api/courses/${course.value?.slug}/assignments/${a.slug}`, { method: 'DELETE' })
@@ -191,7 +195,7 @@ async function unpublishAssignment(a: AssignmentRow) {
                 <button
                   class="icon-btn danger"
                   aria-label="Удалить задание"
-                  @click.stop="deleteAssignment(a)"
+                  @click.stop="deleteTarget = a"
                 >
                   <Icon name="lucide:trash-2" />
                 </button>
@@ -211,6 +215,16 @@ async function unpublishAssignment(a: AssignmentRow) {
       :title="publishTarget.title"
       @close="publishTarget = null"
       @changed="publishTarget = null; loadAssignments()"
+    />
+
+    <ConfirmModal
+      v-if="deleteTarget"
+      title="Удалить задание?"
+      :message="`«${deleteTarget.title}» будет удалено вместе со всеми сдачами и комментариями.`"
+      confirm-label="Удалить"
+      danger
+      @confirm="confirmDeleteAssignment"
+      @cancel="deleteTarget = null"
     />
   </div>
   </div>

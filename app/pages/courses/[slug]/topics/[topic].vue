@@ -68,9 +68,21 @@ function editSnapshot() {
 }
 const dirty = computed(() => editing.value && editSnapshot() !== savedSnapshot.value)
 
+const leaveConfirmOpen = ref(false)
+let leaveResolve: ((v: boolean) => void) | null = null
+
 onBeforeRouteLeave(() => {
-  if (dirty.value && !window.confirm('Тема не сохранена. Уйти без сохранения?')) return false
+  if (!dirty.value) return true
+  return new Promise<boolean>((resolve) => {
+    leaveResolve = resolve
+    leaveConfirmOpen.value = true
+  })
 })
+function answerLeave(stay: boolean) {
+  leaveConfirmOpen.value = false
+  leaveResolve?.(stay)
+  leaveResolve = null
+}
 function onBeforeUnload(e: BeforeUnloadEvent) {
   if (!dirty.value) return
   e.preventDefault()
@@ -126,8 +138,10 @@ async function save() {
 
 const deleting = ref(false)
 
-async function removeMaterial() {
-  if (!window.confirm('Удалить тему вместе с вложениями? Восстановить можно только из git-журнала.')) return
+const deleteOpen = ref(false)
+
+async function confirmRemoveMaterial() {
+  deleteOpen.value = false
   deleting.value = true
   try {
     await $fetch(`/api/courses/${slug.value}/topics/${materialSlug.value}`, { method: 'DELETE' })
@@ -226,7 +240,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           <span class="tip-body">Редактировать</span>
         </span>
         <span class="tip">
-          <button class="icon-btn danger" aria-label="Удалить тему" :disabled="deleting" @click="removeMaterial">
+          <button class="icon-btn danger" aria-label="Удалить тему" :disabled="deleting" @click="deleteOpen = true">
             <Icon name="lucide:trash-2" />
           </button>
           <span class="tip-body">Удалить</span>
@@ -322,6 +336,25 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     </button>
     <button @click="cancelEdit">Отмена</button>
   </footer>
+
+  <ConfirmModal
+    v-if="deleteOpen"
+    title="Удалить тему?"
+    message="Тема будет удалена вместе со всеми вложениями. Восстановить можно только из git-журнала."
+    confirm-label="Удалить"
+    danger
+    @confirm="confirmRemoveMaterial"
+    @cancel="deleteOpen = false"
+  />
+  <ConfirmModal
+    v-if="leaveConfirmOpen"
+    title="Несохранённые изменения"
+    message="Тема не сохранена. Уйти без сохранения?"
+    confirm-label="Уйти без сохранения"
+    danger
+    @confirm="answerLeave(true)"
+    @cancel="answerLeave(false)"
+  />
   </div>
 </template>
 

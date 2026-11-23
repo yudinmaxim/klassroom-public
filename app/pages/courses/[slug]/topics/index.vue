@@ -43,8 +43,12 @@ const materialUrl = (m: MaterialRow) => `/courses/${course.value?.slug}/topics/$
 function openMaterial(m: MaterialRow) { void navigateTo(materialUrl(m)) }
 function editMaterial(m: MaterialRow) { void navigateTo(`${materialUrl(m)}?edit=1`) }
 
-async function deleteMaterial(m: MaterialRow) {
-  if (!window.confirm(`Удалить материал «${m.title}» вместе с вложениями?`)) return
+const deleteTarget = ref<MaterialRow | null>(null)
+
+async function confirmDeleteMaterial() {
+  const m = deleteTarget.value
+  deleteTarget.value = null
+  if (!m) return
   materialsError.value = ''
   try {
     await $fetch(materialUrl(m), { method: 'DELETE' })
@@ -110,7 +114,7 @@ async function deleteMaterial(m: MaterialRow) {
                 <button
                   class="icon-btn danger"
                   aria-label="Удалить тему"
-                  @click.stop="deleteMaterial(m)"
+                  @click.stop="deleteTarget = m"
                 >
                   <Icon name="lucide:trash-2" />
                 </button>
@@ -122,6 +126,16 @@ async function deleteMaterial(m: MaterialRow) {
       </table>
       <p v-else class="muted">Нет тем для отображения.</p>
     </div>
+
+    <ConfirmModal
+      v-if="deleteTarget"
+      title="Удалить тему?"
+      :message="`«${deleteTarget.title}» будет удалена вместе со всеми вложениями. Восстановить можно только из git-журнала.`"
+      confirm-label="Удалить"
+      danger
+      @confirm="confirmDeleteMaterial"
+      @cancel="deleteTarget = null"
+    />
   </div>
   </div>
 </template>
