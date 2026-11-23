@@ -29,10 +29,13 @@ async function add() {
   blockIndex.value = null
   emit('update:modelValue', [...props.modelValue, { title: '', url: '' }])
   await nextTick()
+  // даём браузеру кадр на layout, затем скроллим и фокусируем новое поле
+  await new Promise(r => requestAnimationFrame(r))
   const items = rootEl.value?.querySelectorAll<HTMLElement>('.links-field-item')
   const last = items?.[items.length - 1]
-  last?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  last?.querySelector<HTMLInputElement>('.links-field-title input')?.focus()
+  const input = last?.querySelector<HTMLInputElement>('.links-field-title input')
+  input?.scrollIntoView({ block: 'nearest' })
+  input?.focus({ preventScroll: true })
 }
 function remove(i: number) {
   const l = props.modelValue[i]
