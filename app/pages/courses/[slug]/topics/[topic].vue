@@ -229,12 +229,10 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 </template>
 
 <style scoped>
-/* Шапка темы: заголовок + мета, отделённые от контента нижним бордером */
+/* Шапка темы: воздух между заголовком и содержимым */
 .topic-hero {
   align-items: center;
-  border-bottom: 1px solid var(--line);
-  padding: 0 0 12px;
-  margin-bottom: 20px;
+  margin-bottom: 32px;
 }
 .topic-hero-text { flex: 1; min-width: 0; }
 .topic-hero .page-title { margin: 0; }
