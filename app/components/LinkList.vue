@@ -44,6 +44,12 @@ const statByUrl = computed(() => {
 const statOf = (url: string) => statByUrl.value.get(url)
 const statNames = (s?: LinkStat) =>
   s ? s.users.map(u => `${u.pseudonym}${u.count > 1 ? ` ×${u.count}` : ''}`).join(', ') : ''
+
+/** Тултип с полным названием — только когда текст реально обрезан ellipsis. */
+function titleTip(e: MouseEvent, full: string) {
+  const el = e.currentTarget as HTMLElement
+  el.title = el.scrollWidth > el.clientWidth ? full : ''
+}
 </script>
 
 <template>
@@ -57,7 +63,7 @@ const statNames = (s?: LinkStat) =>
       rel="noopener noreferrer"
     >
       <Icon name="lucide:external-link" />
-      <span class="ext-link-title">{{ l.title }}</span>
+      <span class="ext-link-title" @mouseenter="titleTip($event, l.title)">{{ l.title }}</span>
       <span class="ext-link-domain">{{ domain(l.url) }}</span>
       <template v-if="showStats && statOf(l.url)?.users.length">
         <span class="ext-link-stats">· {{ statOf(l.url)!.users.length }}</span>
@@ -92,7 +98,7 @@ const statNames = (s?: LinkStat) =>
 }
 .ext-link:hover { border-color: var(--accent); }
 .ext-link svg { width: 15px; height: 15px; flex: none; color: var(--accent); }
-.ext-link-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ext-link-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ext-link-domain { color: var(--muted); font-size: 12px; flex: none; }
 .ext-link-stats { color: var(--muted); font-size: 12px; flex: none; }
 .ext-link-info {
