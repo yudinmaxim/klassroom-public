@@ -195,7 +195,6 @@ const scaleLabel: Record<GradingScale['type'], string> = {
   <div class="course-content">
     <!-- Просмотр -->
     <div v-if="!editing" class="course-info">
-      <img v-if="coverUrl" class="course-cover" :src="coverUrl" alt="Обложка курса">
       <div class="course-info-body">
         <div class="course-info-head">
           <SectionHead>О курсе</SectionHead>
@@ -225,6 +224,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
           · Учеников: {{ course?.students.length ?? 0 }}
         </p>
       </div>
+      <img v-if="coverUrl" class="course-cover" :src="coverUrl" alt="Обложка курса">
     </div>
 
     <!-- Редактирование -->
@@ -338,7 +338,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
   max-height: 260px;
   object-fit: cover;
   border-radius: 12px;
-  margin-bottom: 16px;
+  margin-top: 16px;
 }
 .course-info-body { min-width: 0; }
 .course-info-head {
