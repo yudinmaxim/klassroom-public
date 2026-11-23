@@ -72,6 +72,18 @@ const qrUrl = ref('')
 const qrExpires = ref('')
 const qrError = ref('')
 const qrBusy = ref(false)
+// адреса, по которым ссылку сможет открыть телефон (локалхост → LAN-IP)
+const qrBases = ref<string[]>([])
+const qrBase = ref('')
+let qrToken = ''
+
+async function renderQr() {
+  if (!qrToken || !qrBase.value) return
+  qrUrl.value = `${qrBase.value}/login/qr?t=${qrToken}`
+  qrImage.value = await QRCode.toDataURL(qrUrl.value, { width: 240, margin: 1 })
+}
+
+watch(qrBase, () => { void renderQr() })
 
 async function copyQrUrl() {
   if (await copyText(qrUrl.value)) flashCopied('qr')
@@ -81,18 +93,30 @@ function closeQr() {
   qrUser.value = null
   qrImage.value = ''
   qrUrl.value = ''
+  qrToken = ''
+  qrBases.value = []
 }
 async function generateQr() {
   if (!qrUser.value) return
   qrError.value = ''
   qrBusy.value = true
   try {
-    const res = await $fetch<{ token: string, expiresAt: string }>(
+    const res = await $fetch<{ token: string, expiresAt: string, bases?: string[] }>(
       `/api/users/${qrUser.value.username}/qr`,
       { method: 'POST', body: { ttl: qrTtl.value } },
     )
-    qrUrl.value = `${window.location.origin}/login/qr?t=${res.token}`
-    qrImage.value = await QRCode.toDataURL(qrUrl.value, { width: 240, margin: 1 })
+    qrToken = res.token
+    qrBases.value = res.bases?.length ? res.bases : [window.location.origin]
+    // по умолчанию — не-localhost адрес; приоритет 192.168 > 10.x > 172.x > прочие
+    const rank = (b: string) => {
+      const ip = b.match(/\d+\.\d+\.\d+\.\d+/)?.[0] ?? ''
+      if (ip.startsWith('192.168.')) return 0
+      if (ip.startsWith('10.')) return 1
+      if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return 2
+      return ip ? 3 : 4
+    }
+    qrBase.value = [...qrBases.value].sort((a, b) => rank(a) - rank(b))[0]!
+    await renderQr()
     qrExpires.value = new Date(res.expiresAt).toLocaleString('ru-RU')
   } catch (e) {
     qrError.value = errText(e, 'Не удалось создать QR-код')
@@ -146,6 +170,12 @@ async function copySecret() {
         </label>
         <button class="primary" :disabled="qrBusy" @click="generateQr">Создать QR</button>
       </div>
+      <label v-if="qrImage && qrBases.length > 1" style="margin-top: 12px; max-width: 340px;">
+        Адрес для телефона
+        <select v-model="qrBase">
+          <option v-for="b in qrBases" :key="b" :value="b">{{ b }}</option>
+        </select>
+      </label>
       <p v-if="qrError" class="error" style="margin-top: 10px;">{{ qrError }}</p>
       <div v-if="qrImage" style="margin-top: 14px;">
         <img :src="qrImage" alt="QR-код входа" style="border: 1px solid var(--line); border-radius: 8px;">
@@ -199,7 +229,7 @@ async function copySecret() {
                 <button
                   class="icon-btn"
                   aria-label="QR-вход"
-                  @click="qrUser = u; resetTarget = null; qrImage = ''; qrUrl = ''"
+                  @click="qrUser = u; resetTarget = null; qrImage = ''; qrUrl = ''; qrToken = ''; qrBases = []; qrBase = ''"
                 >
                   <Icon name="lucide:qr-code" />
                 </button>

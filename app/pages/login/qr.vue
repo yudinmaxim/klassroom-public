@@ -6,14 +6,13 @@ const token = computed(() => String(route.query.t ?? ''))
 
 useBreadcrumbs().value = []
 
-const state = ref<'pending' | 'ok' | 'gone'>('pending')
+const state = ref<'pending' | 'ok' | 'gone' | 'error'>('pending')
 const pseudonym = ref('')
+const errorMsg = ref('')
 
-onMounted(async () => {
-  if (!/^[a-f0-9]{32}$/.test(token.value)) {
-    state.value = 'gone'
-    return
-  }
+async function attempt() {
+  state.value = 'pending'
+  errorMsg.value = ''
   try {
     const res = await $fetch<{ user: { pseudonym: string } }>('/api/auth/qr', {
       method: 'POST',
@@ -25,10 +24,25 @@ onMounted(async () => {
     // короткая пауза, чтобы ученик увидел подтверждение, затем на главную
     setTimeout(() => navigateTo('/'), 1500)
   } catch (e) {
-    // 410 — сгоревший/просроченный токен; остальное — тоже «не получилось»
-    state.value = 'gone'
-    void errText(e, '')
+    const status = (e as { status?: number, statusCode?: number }).status
+      ?? (e as { statusCode?: number }).statusCode
+    if (status === 410 || status === 400) {
+      // сгоревший/просроченный токен
+      state.value = 'gone'
+    } else {
+      // сеть/сервер — можно повторить
+      state.value = 'error'
+      errorMsg.value = errText(e, 'Не удалось проверить ссылку')
+    }
   }
+}
+
+onMounted(() => {
+  if (!/^[a-f0-9]{32}$/.test(token.value)) {
+    state.value = 'gone'
+    return
+  }
+  void attempt()
 })
 </script>
 
@@ -43,6 +57,11 @@ onMounted(async () => {
       <template v-else-if="state === 'ok'">
         <h1>Вход выполнен</h1>
         <p>Здравствуйте, <strong>{{ pseudonym }}</strong>! Сейчас откроем курсы…</p>
+      </template>
+      <template v-else-if="state === 'error'">
+        <h1>Не удалось войти</h1>
+        <p class="muted">{{ errorMsg }}</p>
+        <button class="primary" @click="attempt">Повторить</button>
       </template>
       <template v-else>
         <h1>Ссылка недействительна</h1>
