@@ -73,10 +73,9 @@ function avgClass(avg: number | null) {
 </script>
 
 <template>
-  <div>
-    <div class="row" style="margin-bottom: 16px; gap: 10px; align-items: center;">
-      <h1 style="margin: 0;">Оценки</h1>
-      <div class="spacer" />
+  <PageShell>
+    <template #title>Оценки</template>
+    <template #actions>
       <select v-model="filterCourse" aria-label="Фильтр по курсу">
         <option value="">Все курсы</option>
         <option v-for="c in courses" :key="c.slug" :value="c.slug">{{ c.title }}</option>
@@ -86,7 +85,7 @@ function avgClass(avg: number | null) {
         <a class="small" :href="exportUrl('csv')">CSV</a>
         <a class="small" :href="exportUrl('md')">MD</a>
       </template>
-    </div>
+    </template>
 
     <p v-if="error" class="error">{{ error }}</p>
     <p v-else-if="!visibleSections.length" class="muted">Нет курсов с опубликованными заданиями.</p>
@@ -165,7 +164,7 @@ function avgClass(avg: number | null) {
         </table>
       </div>
     </div>
-  </div>
+  </PageShell>
 </template>
 
 <style scoped>

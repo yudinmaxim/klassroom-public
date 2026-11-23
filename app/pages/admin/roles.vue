@@ -38,14 +38,15 @@ async function resetRole(role: RoleDef) {
 </script>
 
 <template>
-  <div class="roles-page">
-    <div class="row" style="margin-bottom: 16px;">
-      <h1 style="margin: 0;">Роли</h1>
-      <div class="spacer" />
+  <PageShell>
+    <template #title>Роли</template>
+    <template #actions>
       <button class="icon-btn" aria-label="Создать роль" @click="panelRole = null">
         <Icon name="lucide:plus" />
       </button>
-    </div>
+    </template>
+
+    <div class="roles-page">
     <p class="muted">
       Роль — набор пермишенов (спека 08). Роли teacher/student системные: их наборы прав
       можно менять, сами роли удалить нельзя. Роль admin — неизменяемая.
@@ -98,7 +99,8 @@ async function resetRole(role: RoleDef) {
       @close="panelRole = undefined"
       @saved="onSaved"
     />
-  </div>
+    </div>
+  </PageShell>
 </template>
 
 <style scoped>

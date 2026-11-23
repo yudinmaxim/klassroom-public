@@ -77,15 +77,14 @@ function openPostChat(p: StreamFeedPost) {
 </script>
 
 <template>
-  <div>
-    <div class="row" style="margin-bottom: 16px; gap: 10px; align-items: center;">
-      <h1 style="margin: 0;">Лента</h1>
-      <div class="spacer" />
+  <PageShell>
+    <template #title>Лента</template>
+    <template #actions>
       <select v-model="filterCourse" aria-label="Фильтр по курсу">
         <option value="">Все курсы</option>
         <option v-for="c in courses" :key="c.slug" :value="c.slug">{{ c.title }}</option>
       </select>
-    </div>
+    </template>
 
     <div v-if="courses.length" class="card" style="margin-bottom: 14px;">
       <div class="row" style="gap: 8px; align-items: flex-end;">
@@ -133,7 +132,7 @@ function openPostChat(p: StreamFeedPost) {
       </div>
       <MdBody :html="p.html" />
     </div>
-  </div>
+  </PageShell>
 </template>
 
 <style scoped>

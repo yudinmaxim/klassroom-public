@@ -28,16 +28,15 @@ const showForm = ref(false)
 </script>
 
 <template>
-  <div v-if="user" class="dash">
-    <div class="dash-head">
-      <div>
-        <h1 class="dash-title">Добро пожаловать, {{ user.pseudonym }}</h1>
-        <p class="dash-sub">Ваши курсы и учебное пространство</p>
-      </div>
+  <PageShell v-if="user">
+    <template #title>Добро пожаловать, {{ user.pseudonym }}</template>
+    <template #actions>
       <button v-if="canCreate" class="primary" @click="showForm = true">
         Создать курс
       </button>
-    </div>
+    </template>
+
+    <p class="muted dash-sub">Ваши курсы и учебное пространство</p>
 
     <div class="stats-grid">
       <div class="stat-card">
@@ -91,20 +90,11 @@ const showForm = ref(false)
       @close="showForm = false"
       @saved="(slug) => navigateTo(`/courses/${slug}`)"
     />
-  </div>
+  </PageShell>
 </template>
 
 <style scoped>
-.dash { padding-bottom: 32px; }
-.dash-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-.dash-title { margin: 0; font-size: 24px; }
-.dash-sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.dash-sub { margin: -6px 0 18px; font-size: 14px; }
 
 .stats-grid {
   display: grid;

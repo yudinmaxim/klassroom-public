@@ -96,14 +96,13 @@ async function copySecret() {
 </script>
 
 <template>
-  <div>
-    <div class="row" style="margin-bottom: 16px;">
-      <h1 style="margin: 0;">Пользователи</h1>
-      <div class="spacer" />
+  <PageShell>
+    <template #title>Пользователи</template>
+    <template #actions>
       <button class="icon-btn" aria-label="Создать аккаунт" @click="panelUser = null">
         <Icon name="lucide:plus" />
       </button>
-    </div>
+    </template>
 
     <div v-if="revealedSecret" class="card">
       <h2>Пароль передан один раз — запишите его сейчас</h2>
@@ -217,5 +216,5 @@ async function copySecret() {
       @confirm="confirmResetPassword"
       @cancel="resetTarget = null"
     />
-  </div>
+  </PageShell>
 </template>
