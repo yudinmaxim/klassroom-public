@@ -213,10 +213,10 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 <template>
   <div v-if="material" class="course-page">
   <div class="course-content">
-    <header class="page-head topic-hero">
+    <header v-if="!editing" class="page-head topic-hero">
       <div class="topic-hero-text">
         <h1 class="page-title">{{ material.title }}</h1>
-        <p v-if="!editing" class="muted topic-meta">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
+        <p class="muted topic-meta">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
       </div>
       <div v-if="!editing && canEdit" class="page-actions">
         <span class="tip">
@@ -269,6 +269,10 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     <div v-if="editing" style="margin-top: 14px;">
       <div>
         <h2 style="margin: 0 0 10px;">Редактирование темы</h2>
+        <label>
+          Название
+          <input v-model="form.title">
+        </label>
         <div
           class="md-editor-wrap"
           style="margin-top: 10px;"
