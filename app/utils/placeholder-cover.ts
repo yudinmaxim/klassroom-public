@@ -9,7 +9,7 @@ function escapeXml(s: string): string {
 }
 
 const VB_W = 400
-const TEXT_MAX_W = VB_W - 48 // поля по бокам
+const TEXT_MAX_W = VB_W - 24 // поля по бокам
 const FONT_SIZE = 34
 /** Примерная ширина символа кириллицы/латиницы в долях em. */
 const CHAR_W = 0.66
