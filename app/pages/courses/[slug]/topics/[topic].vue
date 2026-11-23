@@ -229,14 +229,12 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 </template>
 
 <style scoped>
-/* «Герой»-полоса темы: заголовок + мета на подложке, отделяет шапку от контента */
+/* Шапка темы: заголовок + мета, отделённые от контента нижним бордером */
 .topic-hero {
   align-items: center;
-  background: var(--bg-soft, #f6f6f6);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 18px;
-  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 12px;
+  margin-bottom: 20px;
 }
 .topic-hero-text { flex: 1; min-width: 0; }
 .topic-hero .page-title { margin: 0; }
