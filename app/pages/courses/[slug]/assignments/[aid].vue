@@ -5,6 +5,7 @@ import { useCourseContext } from '~/composables/useCourseContext'
 import { onNotification } from '~/composables/useNotifications'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
+import type { MdEditorExpose } from '~/composables/useEditorFileDrop'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -132,6 +133,10 @@ const studentStatusTitle = computed(() => {
 const answer = ref('')
 const submitBusy = ref(false)
 const submitError = ref('')
+
+// drag-and-drop чипов вложений сдачи в редактор ответа → markdown-ссылка на файл
+const answerEditor = ref<MdEditorExpose | null>(null)
+const answerDrop = useEditorFileDrop(answerEditor, () => mySubmission.value?.attachments ?? [])
 
 // --- редактор ответа + вложения сдачи ---
 const attachBusy = ref(false)
@@ -398,8 +403,15 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </div>
           <template v-if="assignment.canResubmit">
             <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
-            <div class="md-editor-wrap sm">
+            <div
+              class="md-editor-wrap sm"
+              :class="{ 'drop-target': answerDrop.dragOver }"
+              @dragover="answerDrop.onDragover"
+              @dragleave="answerDrop.onDragleave"
+              @drop="answerDrop.onDrop"
+            >
               <MdEditor
+                ref="answerEditor"
                 v-model="answer"
                 language="en-US"
                 :toolbars="MD_TOOLBARS"
@@ -410,10 +422,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                 :items="mySubmission?.attachments ?? []"
                 :busy="attachBusy"
                 :link-for="(n: string) => attachmentUrl(myUsername, n)"
+                draggable
                 @upload="uploadAttachment"
                 @remove="removeAttachment"
               />
-              <span class="muted" style="font-size: 12px;">до 10 МБ</span>
+              <span class="muted" style="font-size: 12px;">до 10 МБ · чипы можно перетащить в текст</span>
             </div>
           </template>
           <p v-else class="muted" style="margin-top: 10px;">
@@ -422,8 +435,15 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         </template>
         <template v-else>
           <h3 style="margin: 14px 0 8px;">Ответ на задание</h3>
-          <div class="md-editor-wrap sm">
+          <div
+            class="md-editor-wrap sm"
+            :class="{ 'drop-target': answerDrop.dragOver }"
+            @dragover="answerDrop.onDragover"
+            @dragleave="answerDrop.onDragleave"
+            @drop="answerDrop.onDrop"
+          >
             <MdEditor
+              ref="answerEditor"
               v-model="answer"
               language="en-US"
               :toolbars="MD_TOOLBARS"

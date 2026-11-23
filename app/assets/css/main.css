@@ -779,6 +779,9 @@ tbody tr:hover td { background: var(--bg-soft); }
 .md-editor-wrap .w-md-editor-text-input,
 .md-editor-wrap .w-md-editor-text-pre { font-family: ui-monospace, monospace; font-size: 13px; }
 
+/* Подсветка редактора при перетаскивании чипа вложения */
+.md-editor-wrap.drop-target { outline: 2px dashed var(--accent); outline-offset: 3px; border-radius: 10px; }
+
 .spacer { flex: 1; }
 .muted { color: var(--muted); font-size: 13px; }
 .row { display: flex; align-items: center; gap: 10px; }

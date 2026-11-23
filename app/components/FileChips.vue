@@ -2,11 +2,15 @@
 /** Чипы-ссылки на файлы: первые 3 видны, остальные — за выпадашкой «… ещё N».
  *  Клик открывает модалку предпросмотра; href сохраняется для контекстного меню.
  *  Опциональный removeFile добавляет крестик удаления на чипы. */
-const props = defineProps<{
+import { FILE_DRAG_MIME } from '~/utils/file-ref'
+
+const props = withDefaults(defineProps<{
   files: string[]
   hrefFor?: (name: string) => string
   removeFile?: (name: string) => void
-}>()
+  /** Чипы можно перетащить в md-редактор — вставится ссылка на файл. */
+  draggable?: boolean
+}>(), { hrefFor: undefined, removeFile: undefined, draggable: false })
 
 const VISIBLE = 3
 const visible = computed(() => props.files.slice(0, VISIBLE))
@@ -45,6 +49,14 @@ function onChipClick(name: string, e: MouseEvent) {
   e.preventDefault()
   openPreview(name)
 }
+
+function onDragStart(name: string, e: DragEvent) {
+  const dt = e.dataTransfer
+  if (!dt) return
+  dt.setData(FILE_DRAG_MIME, name)
+  dt.setData('text/plain', name)
+  dt.effectAllowed = 'copy'
+}
 </script>
 
 <template>
@@ -54,7 +66,9 @@ function onChipClick(name: string, e: MouseEvent) {
         :is="hrefFor ? 'a' : 'span'"
         class="file-chip"
         :href="hrefFor?.(n)"
+        :draggable="draggable"
         @click="onChipClick(n, $event)"
+        @dragstart="onDragStart(n, $event)"
       >
         <Icon name="lucide:paperclip" />{{ n }}
       </component>
@@ -72,7 +86,9 @@ function onChipClick(name: string, e: MouseEvent) {
           <component
             :is="hrefFor ? 'a' : 'span'"
             :href="hrefFor?.(n)"
+            :draggable="draggable"
             @click="onChipClick(n, $event)"
+            @dragstart="onDragStart(n, $event)"
           >{{ n }}</component>
           <button
             v-if="removeFile"

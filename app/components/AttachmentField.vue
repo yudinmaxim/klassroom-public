@@ -12,7 +12,9 @@ const props = withDefaults(defineProps<{
   linkFor?: (name: string) => string
   /** false — только список без кнопки загрузки (просмотр чужой сдачи) */
   uploadable?: boolean
-}>(), { uploadable: true, linkFor: undefined, busy: false, disabled: false })
+  /** Чипы можно перетащить в md-редактор — вставится ссылка на файл. */
+  draggable?: boolean
+}>(), { uploadable: true, linkFor: undefined, busy: false, disabled: false, draggable: false })
 
 const emit = defineEmits<{
   upload: [file: File]
@@ -43,6 +45,7 @@ function onChange(e: Event) {
       :files="items"
       :href-for="linkFor"
       :remove-file="uploadable ? (n: string) => emit('remove', n) : undefined"
+      :draggable="draggable"
     />
   </div>
 </template>

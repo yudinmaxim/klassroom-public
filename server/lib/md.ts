@@ -83,6 +83,8 @@ interface RenderCtx {
   linkTitles?: Record<string, string>
   /** Вложения материала (переопределяем только известные файлы). */
   attachments: string[]
+  /** Свой резолвер URL вложений (по умолчанию — выдача вложений темы). */
+  attachmentUrlFor?: (name: string) => string
 }
 
 /** Заменить [[slug]] на markdown-ссылки (по материалам курса). */
@@ -100,8 +102,9 @@ function rewriteAttachments(source: string, ctx: RenderCtx): string {
   return source.replace(/(\]\()(?![a-z]+:\/\/|\/|#)([^)\s]+)(\))/g, (full, open, target, close) => {
     const name = decodeURIComponent(target)
     if (!known.has(name)) return full
-    const encoded = encodeURIComponent(name)
-    return `${open}/api/courses/${ctx.courseSlug}/topics/${ctx.materialSlug}/attachments/${encoded}${close}`
+    const url = ctx.attachmentUrlFor?.(name)
+      ?? `/api/courses/${ctx.courseSlug}/topics/${ctx.materialSlug}/attachments/${encodeURIComponent(name)}`
+    return `${open}${url}${close}`
   })
 }
 

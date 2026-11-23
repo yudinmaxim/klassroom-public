@@ -525,7 +525,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
           courseSlug,
           materialSlug: 'answers',
           linkTitles: {},
-          attachments: [],
+          attachments: meta.attachments ?? [],
+          attachmentUrlFor: (name) =>
+            `/api/courses/${courseSlug}/assignments/${aid}/submissions/${username}/history/${file}/attachments/${encodeURIComponent(name)}`,
         }).html,
         attachments: meta.attachments ?? [],
       })
@@ -618,6 +620,19 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       return []
     }
   }
+  /** Все имена вложений сдачи: текущие + заархивированные в history/ (для ссылок в тексте ответа). */
+  async function listAllSubmissionAttachmentNames(courseSlug: string, aid: string, username: string): Promise<string[]> {
+    const names = new Set(await listSubmissionAttachmentNames(courseSlug, aid, username))
+    try {
+      const hdir = submissionHistoryDir(courseSlug, aid, username)
+      for (const d of await readdir(hdir, { withFileTypes: true })) {
+        if (d.isDirectory()) {
+          for (const n of await listAttachments(resolveDataPath(hdir, d.name))) names.add(n)
+        }
+      }
+    } catch { /* истории нет */ }
+    return [...names]
+  }
   /**
    * Доступ к треду сдачи: проверяющий (canGrade/view.all) — любому ученику,
    * ученик — только к своей сдаче и только если может сдавать (выдано).
@@ -667,6 +682,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   async function submissionView(courseSlug: string, aid: string, username: string, sub: SubmissionFile): Promise<Submission> {
     const answer = (await readString(submissionAnswerPath(courseSlug, aid, username))) ?? ''
     const attachments = await listSubmissionAttachmentNames(courseSlug, aid, username)
+    const answerAttachments = await listAllSubmissionAttachmentNames(courseSlug, aid, username)
     return {
       username, status: sub.status, grade: sub.grade, feedback: sub.feedback,
       answer,
@@ -674,7 +690,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         courseSlug,
         materialSlug: 'answers',
         linkTitles: {},
-        attachments: [],
+        attachments: answerAttachments,
+        attachmentUrlFor: (name) =>
+          `/api/courses/${courseSlug}/assignments/${aid}/submissions/${username}/attachments/${encodeURIComponent(name)}`,
       }).html,
       submittedAt: sub.submittedAt, updatedAt: sub.updatedAt, attachments,
     }
@@ -1398,7 +1416,22 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const norm = normalizeSlug(courseSlug)
       const { f } = await loadSubmissionAccess(actor, norm, assignmentSlug, username)
       const clean = validateAttachmentName(name)
-      const data = await readBytes(resolveDataPath(submissionAttachmentsDir(norm, f.id, username), clean))
+      let data = await readBytes(resolveDataPath(submissionAttachmentsDir(norm, f.id, username), clean))
+      if (!data) {
+        // файл мог уехать в историю при пересдаче — ищем по версиям (новые → старые)
+        try {
+          const hdir = submissionHistoryDir(norm, f.id, username)
+          const versions = (await readdir(hdir, { withFileTypes: true }))
+            .filter(d => d.isDirectory())
+            .map(d => d.name)
+            .sort()
+            .reverse()
+          for (const v of versions) {
+            data = await readBytes(resolveDataPath(hdir, v, ATTACHMENTS_DIR, clean))
+            if (data) break
+          }
+        } catch { /* истории нет */ }
+      }
       return data ? { data, mime: mimeFor(clean) } : null
     },
 

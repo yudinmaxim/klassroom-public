@@ -4,6 +4,7 @@ import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
+import type { MdEditorExpose } from '~/composables/useEditorFileDrop'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -43,6 +44,10 @@ watchEffect(() => {
 // --- режим редактирования ---
 const editing = ref(false)
 const form = reactive({ title: '', content: '' })
+
+// drag-and-drop чипов вложений в редактор → markdown-ссылка на файл
+const topicEditor = ref<MdEditorExpose | null>(null)
+const topicDrop = useEditorFileDrop(topicEditor, () => docPayload.value?.attachments ?? [])
 
 function startEdit() {
   form.title = material.value?.title ?? ''
@@ -187,9 +192,17 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           Название
           <input v-model="form.title">
         </label>
-        <div class="md-editor-wrap" style="margin-top: 10px;">
+        <div
+          class="md-editor-wrap"
+          :class="{ 'drop-target': topicDrop.dragOver }"
+          style="margin-top: 10px;"
+          @dragover="topicDrop.onDragover"
+          @dragleave="topicDrop.onDragleave"
+          @drop="topicDrop.onDrop"
+        >
           <MdEditor
             id="klassroom-material-editor"
+            ref="topicEditor"
             v-model="form.content"
             language="en-US"
             :toolbars="MD_TOOLBARS"
@@ -204,6 +217,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
             :items="docPayload?.attachments ?? []"
             :busy="uploadBusy"
             :link-for="attachmentUrl"
+            draggable
             @upload="uploadAttachment"
             @remove="removeAttachment"
           />
