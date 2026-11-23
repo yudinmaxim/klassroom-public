@@ -160,7 +160,7 @@ defineExpose({ validLinks })
     </div>
     <p v-if="blockIndex === i" class="error links-field-error">{{ blockError }}</p>
     </div>
-    <button class="small" @click="add">+ Добавить ссылку</button>
+    <button class="small links-field-add" @click="add">+ Добавить ссылку</button>
   </div>
 </template>
 
@@ -207,4 +207,5 @@ defineExpose({ validLinks })
   font-size: 12px;
 }
 .links-field-hint { margin: 0 0 2px; font-size: 12px; line-height: 1.45; }
+.links-field-add { margin: 0 40px 0 26px; align-self: stretch; }
 </style>
