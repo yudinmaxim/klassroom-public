@@ -1,7 +1,7 @@
-import type { AssignmentSummary, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { AssignmentSummary, ExternalLink, LinkStat, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 import { renderDocMarkdown } from '../lib/md'
 import { readdir, rename, rm, type Dirent } from 'node:fs/promises'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { slugify } from '../lib/slug'
 import { httpError } from '../lib/errors'
 import { getMaterialPlugin } from '../material-plugins'
@@ -328,6 +328,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
   function toMaterial(f: MaterialFile, payload: unknown, html: string, toc: Material['toc']): Material {
     return {
+      id: f.id,
       slug: f.slug,
       title: f.title,
       type: f.type,
@@ -383,6 +384,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     allowResubmit?: boolean
     /** username → boolean: индивидуальное переопределение пересдачи. */
     resubmitOverrides?: Record<string, boolean>
+    /** Блок внешних ссылок. */
+    links?: ExternalLink[]
   }
   interface SubmissionFile {
     status: 'submitted' | 'returned'
@@ -528,6 +531,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
           attachments: meta.attachments ?? [],
           attachmentUrlFor: (name) =>
             `/api/courses/${courseSlug}/assignments/${aid}/submissions/${username}/history/${file}/attachments/${encodeURIComponent(name)}`,
+          trackEntity: `sub:${aid}:${username}`,
         }).html,
         attachments: meta.attachments ?? [],
       })
@@ -633,6 +637,47 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     } catch { /* истории нет */ }
     return [...names]
   }
+  // --- трекинг внешних ссылок: link-clicks/<kind>/<id>/<hash>.yml ---
+  function linkClicksDir(courseSlug: string, entity: string): string {
+    // entity: 'topic:<id>' | 'assign:<id>' | 'sub:<aid>:<user>' → topic/<id> и т.д.
+    return resolveDataPath(courseDir(baseDir, courseSlug), 'link-clicks', ...entity.split(':'))
+  }
+  function linkHash(url: string): string {
+    return createHash('sha1').update(url).digest('hex').slice(0, 16)
+  }
+  interface LinkClickFile {
+    url: string
+    users: Record<string, { count: number, firstAt: string, lastAt: string }>
+  }
+  /** Сущность из entity-ключа существует и доступна actor (мягкая проверка для записи). */
+  async function linkEntityExists(actor: UserPublic, norm: string, entity: string): Promise<boolean> {
+    const course = await readCourse(baseDir, norm)
+    if (!course) return false
+    const role = await roleOf(actor)
+    const roster = await readRoster(baseDir, norm)
+    if (!canSee(actor, role, course, roster)) return false
+    const [kind, a] = entity.split(':')
+    if (kind === 'topic' && a) return !!(await readMaterial(norm, a))
+    if ((kind === 'assign' || kind === 'sub') && a) return !!(await readAssignmentFile(norm, a))
+    return false
+  }
+  /** Право смотреть статистику: тема — materials.edit, задание/сдача — управления заданиями. */
+  async function canSeeLinkStats(actor: UserPublic, norm: string, entity: string): Promise<boolean> {
+    const course = await readCourse(baseDir, norm)
+    if (!course) return false
+    const role = await roleOf(actor)
+    const [kind, a] = entity.split(':')
+    if (kind === 'topic' && a) {
+      const f = await readMaterial(norm, a)
+      return !!f && canWriteMaterial(actor, role, course, 'materials.edit')
+    }
+    if ((kind === 'assign' || kind === 'sub') && a) {
+      const f = await readAssignmentFile(norm, a)
+      return !!f && canManageAssignment(actor, role, course)
+    }
+    return false
+  }
+
   /**
    * Доступ к треду сдачи: проверяющий (canGrade/view.all) — любому ученику,
    * ученик — только к своей сдаче и только если может сдавать (выдано).
@@ -693,6 +738,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         attachments: answerAttachments,
         attachmentUrlFor: (name) =>
           `/api/courses/${courseSlug}/assignments/${aid}/submissions/${username}/attachments/${encodeURIComponent(name)}`,
+        trackEntity: `sub:${aid}:${username}`,
       }).html,
       submittedAt: sub.submittedAt, updatedAt: sub.updatedAt, attachments,
     }
@@ -920,7 +966,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
       const dir = resolveDataPath(materialDir(norm, f.id), 'content')
       const payload = await plugin.io.read(dir)
-      const rendered = plugin.render(payload, { courseSlug: norm, materialSlug: f.slug })
+      const rendered = plugin.render(payload, { courseSlug: norm, materialSlug: f.slug, trackEntity: `topic:${f.id}` })
       return toMaterial(f, payload, rendered.html, rendered.toc)
     },
 
@@ -949,7 +995,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       }
       await ensureDir(resolveDataPath(materialDir(norm, dirId), 'content'))
       await writeMaterial(norm, f)
-      await plugin.io.write(resolveDataPath(materialDir(norm, dirId), 'content'), { content: input.content })
+      await plugin.io.write(resolveDataPath(materialDir(norm, dirId), 'content'), { content: input.content, links: input.links ?? [] })
       await refreshIndex(norm)
 
       journal.record(actor.pseudonym, `создал материал ${mslug} в ${norm}`)
@@ -983,9 +1029,16 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
           changes.push('переименовал')
         }
       }
-      if (patch.content !== undefined) {
-        await plugin.io.write(resolveDataPath(materialDir(norm, f.id), 'content'), { content: patch.content })
-        changes.push('обновил содержимое')
+      if (patch.content !== undefined || patch.links !== undefined) {
+        const contentDir = resolveDataPath(materialDir(norm, f.id), 'content')
+        if (patch.links !== undefined && patch.content === undefined) {
+          // links-only: io.write пишет лишь переданные поля — doc.md не трогаем
+          await plugin.io.write(contentDir, { links: patch.links })
+        } else {
+          await plugin.io.write(contentDir, { content: patch.content ?? '', links: patch.links })
+        }
+        if (patch.content !== undefined) changes.push('обновил содержимое')
+        if (patch.links !== undefined) changes.push('обновил ссылки')
       }
       if (changes.length) {
         f.updatedAt = new Date().toISOString()
@@ -996,7 +1049,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
       const dir = resolveDataPath(materialDir(norm, f.id), 'content')
       const payload = await plugin.io.read(dir)
-      const rendered = plugin.render(payload, { courseSlug: norm, materialSlug: f.slug })
+      const rendered = plugin.render(payload, { courseSlug: norm, materialSlug: f.slug, trackEntity: `topic:${f.id}` })
       return toMaterial(f, payload, rendered.html, rendered.toc)
     },
 
@@ -1102,9 +1155,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         materialSlug: f.slug,
         linkTitles,
         attachments: [],
+        trackEntity: `assign:${f.id}`,
       })
       const canManage = canManageAssignment(actor, role, course)
       return {
+        id: f.id,
         slug: f.slug, title: f.title, type: f.type, audience: f.audience,
         status: f.status, due: f.due, maxPoints: f.maxPoints,
         createdAt: f.createdAt, updatedAt: f.updatedAt,
@@ -1112,6 +1167,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         allowResubmit: f.allowResubmit ?? true,
         resubmitOverrides: canManage ? (f.resubmitOverrides ?? {}) : {},
         canResubmit: resubmitAllowedFor(f, actor.username),
+        links: f.links ?? [],
       }
     },
 
@@ -1144,6 +1200,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         updatedAt: now,
         allowResubmit: input.allowResubmit ?? true,
         resubmitOverrides: {},
+        links: input.links ?? [],
       }
 
       await ensureDir(assignmentDir(norm, dirId))
@@ -1195,6 +1252,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       if (patch.allowResubmit !== undefined && patch.allowResubmit !== (f.allowResubmit ?? true)) {
         f.allowResubmit = patch.allowResubmit
         changes.push(patch.allowResubmit ? 'разрешил пересдачу' : 'запретил пересдачу')
+      }
+      if (patch.links !== undefined) {
+        f.links = patch.links
+        changes.push('обновил ссылки')
       }
       if (patch.status !== undefined && patch.status !== f.status) {
         f.status = patch.status
@@ -1545,6 +1606,48 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
       journal.record(actor.pseudonym, `прокомментировал пост ${postId} в ленте ${norm}`)
       return comment
+    },
+
+    // --- трекинг внешних ссылок ---
+
+    async recordLinkClick(actor, courseSlug, entity, url) {
+      const norm = normalizeSlug(courseSlug)
+      if (!entity || entity.length > 200 || !url || url.length > 2000) return
+      if (!(await linkEntityExists(actor, norm, entity))) return
+      const now = new Date().toISOString()
+      const dir = linkClicksDir(norm, entity)
+      const path = resolveDataPath(dir, `${linkHash(url)}.yml`)
+      const rec = (await readYaml<LinkClickFile>(path)) ?? { url, users: {} }
+      const u = rec.users[actor.username] ?? { count: 0, firstAt: now, lastAt: '' }
+      // антиспам: один и тот же пользователь — не чаще раза в минуту на ссылку
+      if (u.lastAt && Date.now() - Date.parse(u.lastAt) < 60_000) return
+      u.count += 1
+      u.lastAt = now
+      rec.users[actor.username] = u
+      await ensureDir(dir)
+      await writeYaml(path, rec)
+    },
+
+    async getLinkStats(actor, courseSlug, entity) {
+      const norm = normalizeSlug(courseSlug)
+      if (!(await canSeeLinkStats(actor, norm, entity))) httpError(403, 'Недостаточно прав')
+      const dir = linkClicksDir(norm, entity)
+      let files: string[]
+      try {
+        files = (await readdir(dir)).filter(f => f.endsWith('.yml'))
+      } catch {
+        return []
+      }
+      const stats: LinkStat[] = []
+      for (const file of files) {
+        const rec = await readYaml<LinkClickFile>(resolveDataPath(dir, file))
+        if (!rec?.url) continue
+        const users = Object.entries(rec.users)
+          .map(([username, u]) => ({ username, pseudonym: username, count: u.count, lastAt: u.lastAt }))
+          .sort((a, b) => b.lastAt.localeCompare(a.lastAt))
+        if (users.length) stats.push({ url: rec.url, users })
+      }
+      return stats.sort((a, b) => a.url.localeCompare(b.url))
     },
 
     // --- журнал оценок ---

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
+import type { ExternalLink } from '#shared/types'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
@@ -28,6 +29,7 @@ const form = reactive({
   maxPoints: null as number | null,
   description: '',
   allowResubmit: true,
+  links: [] as ExternalLink[],
 })
 
 const saveError = ref('')
@@ -48,6 +50,7 @@ async function save() {
           maxPoints: form.maxPoints,
           description: form.description,
           allowResubmit: form.allowResubmit,
+          links: form.links.filter(l => l.title.trim() && l.url.trim()),
         },
       },
     )
@@ -95,6 +98,10 @@ async function save() {
           language="en-US"
           :toolbars="MD_TOOLBARS"
         />
+      </div>
+      <div style="margin-top: 14px;">
+        <h3 style="margin-bottom: 6px;">Ссылки</h3>
+        <LinksField v-model="form.links" />
       </div>
     </div>
 

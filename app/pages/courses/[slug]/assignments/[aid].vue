@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Assignment, Submission, SubmissionVersion } from '#shared/types'
+import type { Assignment, ExternalLink, Submission, SubmissionVersion } from '#shared/types'
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { onNotification } from '~/composables/useNotifications'
@@ -47,6 +47,7 @@ const form = reactive({
   maxPoints: null as number | null,
   description: '',
   allowResubmit: true,
+  links: [] as ExternalLink[],
 })
 
 function startEdit() {
@@ -57,6 +58,7 @@ function startEdit() {
   form.maxPoints = a.maxPoints
   form.description = a.description
   form.allowResubmit = a.allowResubmit
+  form.links = (a.links ?? []).map(l => ({ ...l }))
   editing.value = true
 }
 
@@ -81,6 +83,7 @@ async function save() {
         maxPoints: form.maxPoints,
         description: form.description,
         allowResubmit: form.allowResubmit,
+        links: form.links.filter(l => l.title.trim() && l.url.trim()),
       },
     })
     editing.value = false
@@ -391,6 +394,13 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
     <div v-if="!editing">
       <h2>Задание</h2>
       <MdBody :html="assignment.html" />
+      <LinkList
+        v-if="assignment.links.length"
+        :links="assignment.links"
+        :course="slug"
+        :entity="`assign:${assignment.id}`"
+        :show-stats="canEdit"
+      />
 
       <!-- Сдача ученика -->
       <div v-if="!canEdit && assignment.status === 'published'" style="margin-top: 22px; border-top: 1px solid var(--line); padding-top: 16px;">
@@ -647,6 +657,10 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             language="en-US"
             :toolbars="MD_TOOLBARS"
           />
+        </div>
+        <div style="margin-top: 14px;">
+          <h3 style="margin-bottom: 6px;">Ссылки</h3>
+          <LinksField v-model="form.links" />
         </div>
       </div>
     </div>

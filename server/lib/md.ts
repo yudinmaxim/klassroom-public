@@ -56,7 +56,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     'figure', 'figcaption',
   ],
   allowedAttributes: {
-    a: ['href', 'title'],
+    a: ['href', 'title', 'target', 'rel'],
     img: ['src', 'alt', 'title', 'width', 'height'],
     code: ['class'],
     span: ['class'],
@@ -85,6 +85,12 @@ interface RenderCtx {
   attachments: string[]
   /** Свой резолвер URL вложений (по умолчанию — выдача вложений темы). */
   attachmentUrlFor?: (name: string) => string
+  /**
+   * Ключ сущности для трекинга внешних ссылок (topic:<id>, assign:<id>,
+   * sub:<aid>:<user>): внешние <a href="http…"> переписываются на
+   * /api/courses/<slug>/go — эндпоинт запишет клик и сделает 302.
+   */
+  trackEntity?: string
 }
 
 /** Заменить [[slug]] на markdown-ссылки (по материалам курса). */
@@ -105,6 +111,21 @@ function rewriteAttachments(source: string, ctx: RenderCtx): string {
     const url = ctx.attachmentUrlFor?.(name)
       ?? `/api/courses/${ctx.courseSlug}/topics/${ctx.materialSlug}/attachments/${encodeURIComponent(name)}`
     return `${open}${url}${close}`
+  })
+}
+
+/**
+ * Внешние ссылки → /api/courses/<slug>/go?to=…&e=… (запись клика + 302).
+ * Картинки (<img>) не трогаем — их src грузится сам по себе.
+ */
+function rewriteExternalLinks(html: string, ctx: RenderCtx): string {
+  if (!ctx.trackEntity) return html
+  const base = `/api/courses/${ctx.courseSlug}/go`
+  const entity = encodeURIComponent(ctx.trackEntity)
+  return html.replace(/<a href="(https?:\/\/[^"]*)"/g, (_m, raw: string) => {
+    const url = raw.replace(/&amp;/g, '&')
+    const to = `${base}?to=${encodeURIComponent(url)}&e=${entity}`
+    return `<a href="${to}" target="_blank" rel="noopener noreferrer"`
   })
 }
 
@@ -140,7 +161,7 @@ export function renderDocMarkdown(source: string, ctx: RenderCtx): RenderedMater
     }
   }
 
-  const raw = md.renderer.render(tokens, md.options, {})
+  const raw = rewriteExternalLinks(md.renderer.render(tokens, md.options, {}), ctx)
   const html = sanitizeHtml(raw, SANITIZE_OPTIONS)
   return { html, toc }
 }

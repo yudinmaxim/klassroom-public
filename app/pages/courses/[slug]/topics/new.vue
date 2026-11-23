@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
+import type { ExternalLink } from '#shared/types'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
@@ -22,7 +23,9 @@ watchEffect(() => {
   ]
 })
 
-const form = reactive({ title: '', content: '' })
+const form = reactive({ title: '', content: '', links: [] as ExternalLink[] })
+
+const validLinks = () => form.links.filter(l => l.title.trim() && l.url.trim())
 
 const saveError = ref('')
 const saving = ref(false)
@@ -33,7 +36,7 @@ async function ensureCreated(): Promise<string> {
   if (createdSlug.value) return createdSlug.value
   const created = await $fetch<{ material: { slug: string } }>(
     `/api/courses/${slug.value}/topics`,
-    { method: 'POST', body: { title: form.title, type: 'doc', content: form.content } },
+    { method: 'POST', body: { title: form.title, type: 'doc', content: form.content, links: validLinks() } },
   )
   createdSlug.value = created.material.slug
   return createdSlug.value
@@ -49,7 +52,7 @@ async function save() {
       // тема создана лениво при вложении — досохраняем последние правки
       await $fetch(`/api/courses/${slug.value}/topics/${target}`, {
         method: 'PATCH',
-        body: { title: form.title, content: form.content },
+        body: { title: form.title, content: form.content, links: validLinks() },
       })
     }
     await navigateTo(`/courses/${slug.value}/topics/${target}`)
@@ -110,6 +113,10 @@ async function attachFile(file: File) {
           language="en-US"
           :toolbars="MD_TOOLBARS"
         />
+      </div>
+      <div style="margin-top: 14px;">
+        <h3 style="margin-bottom: 6px;">Ссылки</h3>
+        <LinksField v-model="form.links" />
       </div>
       <div style="margin-top: 12px;" :style="canAttach ? '' : 'opacity: .55'">
         <h3 style="margin-bottom: 6px;">Вложения</h3>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TocItem, DocPayload } from '#shared/types'
+import type { TocItem, DocPayload, ExternalLink } from '#shared/types'
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
@@ -43,7 +43,7 @@ watchEffect(() => {
 
 // --- режим редактирования ---
 const editing = ref(false)
-const form = reactive({ title: '', content: '' })
+const form = reactive({ title: '', content: '', links: [] as ExternalLink[] })
 
 // drag-and-drop чипов вложений в редактор → markdown-ссылка на файл
 const topicEditor = ref<MdEditorExpose | null>(null)
@@ -52,6 +52,7 @@ const topicDrop = useEditorFileDrop(topicEditor, () => docPayload.value?.attachm
 function startEdit() {
   form.title = material.value?.title ?? ''
   form.content = docPayload.value?.content ?? ''
+  form.links = (docPayload.value?.links ?? []).map(l => ({ ...l }))
   editing.value = true
 }
 
@@ -71,7 +72,7 @@ async function save() {
   try {
     await $fetch(`/api/courses/${slug.value}/topics/${materialSlug.value}`, {
       method: 'PATCH',
-      body: { title: form.title, content: form.content },
+      body: { title: form.title, content: form.content, links: form.links.filter(l => l.title.trim() && l.url.trim()) },
     })
     editing.value = false
     await refresh()
@@ -182,6 +183,14 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
       <div>
         <MdBody :html="material.html" :files="topicFiles" />
 
+        <LinkList
+          v-if="docPayload.links.length"
+          :links="docPayload.links"
+          :course="slug"
+          :entity="`topic:${material.id}`"
+          :show-stats="canEdit"
+        />
+
         <div v-if="docPayload.attachments.length" style="margin-top: 26px; border-top: 1px solid var(--line); padding-top: 14px;">
           <h2>Вложения</h2>
           <FileChips :files="docPayload.attachments" :href-for="attachmentUrl" />
@@ -211,6 +220,10 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
             language="en-US"
             :toolbars="MD_TOOLBARS"
           />
+        </div>
+        <div style="margin-top: 14px;">
+          <h3 style="margin-bottom: 6px;">Ссылки</h3>
+          <LinksField v-model="form.links" />
         </div>
         <div v-if="canEdit" style="margin-top: 10px;">
           <h3 style="margin-bottom: 6px;">Вложения</h3>

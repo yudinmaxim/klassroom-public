@@ -29,7 +29,7 @@ export interface MaterialPlugin {
     write(dir: string, input: unknown): Promise<void>
     read(dir: string): Promise<unknown>
   }
-  render(payload: unknown, ctx: { courseSlug: string, materialSlug: string }): RenderedMaterial
+  render(payload: unknown, ctx: { courseSlug: string, materialSlug: string, trackEntity?: string }): RenderedMaterial
 }
 
 const REGISTRY = new Map<string, MaterialPlugin>()

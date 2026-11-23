@@ -1,4 +1,4 @@
-import type { Assignment, AssignmentSummary, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamComment, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { Assignment, AssignmentSummary, Course, CourseSummary, ExternalLink, Gradebook, GradebookSection, GradingScale, LinkStat, Material, MaterialSummary, StreamComment, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -49,15 +49,15 @@ export interface ContentStore {
   createMaterial(
     actor: UserPublic,
     courseSlug: string,
-    input: { title: string, type: string, content: string },
+    input: { title: string, type: string, content: string, links?: ExternalLink[] },
   ): Promise<MaterialSummary>
 
-  /** Обновить название и/или содержимое материала (materials.edit). */
+  /** Обновить название, содержимое и/или блок ссылок материала (materials.edit). */
   updateMaterial(
     actor: UserPublic,
     courseSlug: string,
     materialSlug: string,
-    patch: { title?: string, content?: string },
+    patch: { title?: string, content?: string, links?: ExternalLink[] },
   ): Promise<Material>
 
   /** Удалить материал вместе с содержимым (materials.edit). */
@@ -107,6 +107,7 @@ export interface ContentStore {
       maxPoints?: number | null
       description?: string
       allowResubmit?: boolean
+      links?: ExternalLink[]
     },
   ): Promise<AssignmentSummary>
 
@@ -124,6 +125,7 @@ export interface ContentStore {
       description?: string
       status?: 'draft' | 'published'
       allowResubmit?: boolean
+      links?: ExternalLink[]
     },
   ): Promise<Assignment>
 
@@ -253,4 +255,25 @@ export interface ContentStore {
 
   /** Журнал оценок: матрица ученик × задание. Ученику — только своя строка. */
   getGradebook(actor: UserPublic, courseSlug: string): Promise<Gradebook>
+
+  // --- Трекинг внешних ссылок ---
+
+  /**
+   * Записать переход по внешней ссылке.
+   * entity: 'topic:<materialId>' | 'assign:<assignmentId>' | 'sub:<aidId>:<username>'.
+   * Проверяет доступ actor к сущности (или молча пропускает запись).
+   */
+  recordLinkClick(
+    actor: UserPublic,
+    courseSlug: string,
+    entity: string,
+    url: string,
+  ): Promise<void>
+
+  /** Статистика переходов по сущности — только проверяющим (учитель/admin). */
+  getLinkStats(
+    actor: UserPublic,
+    courseSlug: string,
+    entity: string,
+  ): Promise<LinkStat[]>
 }

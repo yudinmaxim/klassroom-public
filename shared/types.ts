@@ -84,6 +84,8 @@ export interface MaterialSummary {
  * DocPayload). `html`/`toc` — отрендеренный и санитизированный контент.
  */
 export interface Material {
+  /** Иммутабельный id = имя директории (slug меняется при переименовании). */
+  id: string
   slug: string
   title: string
   type: string
@@ -94,10 +96,23 @@ export interface Material {
   toc: TocItem[]
 }
 
-/** Payload плагина doc: markdown + список вложений. */
+/** Внешняя ссылка-блок (тема/задание): отображается отдельным списком. */
+export interface ExternalLink {
+  title: string
+  url: string
+}
+
+/** Payload плагина doc: markdown + вложения + внешние ссылки. */
 export interface DocPayload {
   content: string
   attachments: string[]
+  links: ExternalLink[]
+}
+
+/** Статистика переходов по одной ссылке (для учителя). */
+export interface LinkStat {
+  url: string
+  users: { username: string, pseudonym: string, count: number, lastAt: string }[]
 }
 
 // --- Домашние задания (шаг 4, specs/02-data-model.md) ---
@@ -128,6 +143,8 @@ export interface AssignmentSummary {
 
 /** Задание целиком: метаданные + отрендеренное описание. */
 export interface Assignment {
+  /** Иммутабельный id = имя директории. */
+  id: string
   slug: string
   title: string
   type: AssignmentType
@@ -148,6 +165,8 @@ export interface Assignment {
   resubmitOverrides: Record<string, boolean>
   /** Эффективное правило для текущего пользователя. */
   canResubmit: boolean
+  /** Блок внешних ссылок (источники, материалы). */
+  links: ExternalLink[]
 }
 
 /** Сдача ученика. */
