@@ -34,20 +34,17 @@ function normalize(i: number) {
 
 const fetching = ref<number | null>(null)
 
-async function fetchTitle(i: number) {
+async function fetchTitle(i: number, force = false) {
   const l = props.modelValue[i]
-  if (!l || l.title.trim() || fetching.value !== null) return
+  if (!l || (!force && l.title.trim()) || fetching.value !== null) return
   const url = normalizeExternalUrl(l.url)
   if (url !== l.url) set(i, { url })
   if (!isHttpUrl(url)) return
   fetching.value = i
   try {
     const r = await $fetch<{ title: string }>('/api/link-title', { query: { url } })
-    const cur = props.modelValue[i]
-    if (r.title && cur && !cur.title.trim()) {
-      set(i, { title: r.title.slice(0, 120) })
-    }
-  } catch { /* страница недоступна — оставляем название пустым */ }
+    if (r.title) set(i, { title: r.title.slice(0, 120) })
+  } catch { /* страница недоступна — оставляем название как есть */ }
   finally { fetching.value = null }
 }
 
@@ -75,12 +72,24 @@ defineExpose({ validLinks })
       class="links-field-row"
       :class="{ 'is-fetching': fetching === i }"
     >
-      <input
-        :value="l.title"
-        placeholder="Название (например, видеоурок)"
-        maxlength="120"
-        @input="set(i, { title: ($event.target as HTMLInputElement).value })"
-      >
+      <div class="links-field-title">
+        <input
+          :value="l.title"
+          placeholder="Название (например, видеоурок)"
+          maxlength="120"
+          @input="set(i, { title: ($event.target as HTMLInputElement).value })"
+        >
+        <button
+          class="links-field-refresh"
+          :class="{ 'is-loading': fetching === i }"
+          :disabled="fetching !== null || !isHttpUrl(normalizeExternalUrl(l.url))"
+          aria-label="Подтянуть название страницы"
+          title="Подтянуть название страницы"
+          @click="fetchTitle(i, true)"
+        >
+          <Icon name="lucide:refresh-cw" />
+        </button>
+      </div>
       <input
         :value="l.url"
         placeholder="example.com или https://…"
@@ -97,9 +106,6 @@ defineExpose({ validLinks })
         <Icon name="lucide:trash-2" />
       </button>
     </div>
-    <div class="links-field-hint muted">
-      Enter в поле адреса подставит название страницы, если оно пустое
-    </div>
     <button class="small" @click="add">+ Добавить ссылку</button>
   </div>
 </template>
@@ -107,8 +113,27 @@ defineExpose({ validLinks })
 <style scoped>
 .links-field { display: flex; flex-direction: column; gap: 8px; }
 .links-field-row { display: flex; gap: 8px; align-items: center; }
-.links-field-row input { flex: 1; min-width: 0; }
-.links-field-row input:first-child { flex: 0 0 220px; }
-.links-field-row.is-fetching input { opacity: 0.6; }
-.links-field-hint { font-size: 12px; }
+.links-field-row > input { flex: 1; min-width: 0; }
+.links-field-title { position: relative; flex: 0 0 220px; display: flex; }
+.links-field-title input { width: 100%; padding-right: 30px; }
+.links-field-refresh {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px; height: 24px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.links-field-refresh:hover:not(:disabled) { color: var(--accent); background: var(--bg-soft); }
+.links-field-refresh:disabled { opacity: 0.35; cursor: default; }
+.links-field-refresh svg { width: 14px; height: 14px; }
+.links-field-refresh.is-loading svg { animation: links-spin 0.8s linear infinite; }
+@keyframes links-spin { to { transform: rotate(360deg); } }
+.links-field-row.is-fetching > input { opacity: 0.6; }
 </style>

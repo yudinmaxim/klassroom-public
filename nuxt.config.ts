@@ -29,6 +29,7 @@ export default defineNuxtConfig({
         'lucide:paperclip',
         'lucide:download',
         'lucide:external-link',
+        'lucide:refresh-cw',
         'lucide:chevron-left',
         'lucide:chevron-right',
       ],
