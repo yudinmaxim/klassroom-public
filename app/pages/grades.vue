@@ -119,8 +119,11 @@ function avgClass(avg: number | null) {
               <tr v-for="row in s.book.rows" :key="row.student">
                 <td class="gb-student">
                   <span class="gb-who">
-                    <span class="avatar avatar-xs" aria-hidden="true">{{ row.student.slice(0, 1).toUpperCase() }}</span>
-                    {{ row.student }}
+                    <span class="avatar avatar-xs" aria-hidden="true">{{ (row.name ?? row.student).slice(0, 1).toUpperCase() }}</span>
+                    <span class="gb-who-text">
+                      <span class="gb-who-name">{{ row.name ?? row.student }}</span>
+                      <span class="gb-who-login muted">{{ row.student }}</span>
+                    </span>
                   </span>
                 </td>
                 <td
@@ -247,6 +250,9 @@ function avgClass(avg: number | null) {
   gap: 8px;
   font-weight: 500;
 }
+.gb-who-text { display: flex; flex-direction: column; line-height: 1.25; }
+.gb-who-name { font-size: 13px; }
+.gb-who-login { font-size: 11px; }
 .avatar-xs {
   width: 22px;
   height: 22px;

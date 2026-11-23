@@ -244,6 +244,8 @@ export interface GradebookCell {
 /** Строка журнала — один ученик. */
 export interface GradebookRow {
   student: string
+  /** Псевдоним ученика (имя для отображения). */
+  name?: string
   /** true — строка принадлежит текущему пользователю (подсветка). */
   mine?: boolean
   cells: GradebookCell[]
