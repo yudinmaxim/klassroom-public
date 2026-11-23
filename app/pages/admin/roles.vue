@@ -38,7 +38,7 @@ async function resetRole(role: RoleDef) {
 </script>
 
 <template>
-  <div>
+  <div class="roles-page">
     <div class="row" style="margin-bottom: 16px;">
       <h1 style="margin: 0;">Роли</h1>
       <div class="spacer" />
@@ -100,3 +100,7 @@ async function resetRole(role: RoleDef) {
     />
   </div>
 </template>
+
+<style scoped>
+.roles-page { max-width: 880px; }
+</style>
