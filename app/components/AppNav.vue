@@ -30,8 +30,7 @@ const roleLabel = computed(() => ({
   <div class="shell">
     <aside class="sidebar">
       <NuxtLink to="/" class="brand">
-        <span class="brand-logo" aria-hidden="true">КК</span>
-        Классная комната
+        <img src="/logo.jpg" alt="Классная комната" class="brand-img">
       </NuxtLink>
       <nav v-if="user" class="side-nav">
         <NuxtLink to="/stream" class="nav-link" :class="{ active: isActive('/stream') }">Лента</NuxtLink>

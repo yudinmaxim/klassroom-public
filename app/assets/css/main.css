@@ -483,28 +483,17 @@ tbody tr:hover td { background: var(--bg-soft); }
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
   height: 38px;
   margin-bottom: 10px;
-  font-weight: 600;
-  font-size: 13px;
-  white-space: nowrap;
   text-decoration: none;
-  color: var(--ink);
   padding: 0 10px;
 }
 
-.brand-logo {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex: none;
+.brand-img {
+  height: 30px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .side-nav {
