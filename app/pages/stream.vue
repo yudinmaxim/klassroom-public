@@ -131,8 +131,7 @@ function openPostChat(p: StreamFeedPost) {
           />
         </button>
       </div>
-      <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-      <div class="md-body" v-html="p.html" />
+      <MdBody :html="p.html" />
     </div>
   </div>
 </template>

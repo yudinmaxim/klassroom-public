@@ -88,8 +88,7 @@ async function send() {
           <p class="muted" style="margin: 0 0 4px; font-size: 12px;">
             {{ c.author }} · {{ new Date(c.createdAt).toLocaleString('ru') }}
           </p>
-          <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-          <div class="md-body" style="font-size: 14px;" v-html="c.html" />
+          <MdBody :html="c.html" style="font-size: 14px;" />
         </div>
       </div>
 

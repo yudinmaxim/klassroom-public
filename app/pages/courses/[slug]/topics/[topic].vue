@@ -134,6 +134,11 @@ async function removeAttachment(name: string) {
 const attachmentUrl = (name: string) =>
   `/api/courses/${slug.value}/topics/${materialSlug.value}/attachments/${encodeURIComponent(name)}`
 
+/** Соседние файлы темы для навигации в модалке предпросмотра. */
+const topicFiles = computed(() =>
+  (docPayload.value?.attachments ?? []).map(n => ({ name: n, url: attachmentUrl(n) })),
+)
+
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
 </script>
 
@@ -175,8 +180,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         </ul>
       </details>
       <div>
-        <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере (sanitize-html, server/lib/md.ts) -->
-        <div class="md-body" v-html="material.html" />
+        <MdBody :html="material.html" :files="topicFiles" />
 
         <div v-if="docPayload.attachments.length" style="margin-top: 26px; border-top: 1px solid var(--line); padding-top: 14px;">
           <h2>Вложения</h2>

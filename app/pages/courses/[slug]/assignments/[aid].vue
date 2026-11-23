@@ -152,6 +152,14 @@ function historyAttachmentUrl(username: string, file: string, name: string): str
 function attachmentsApi(username: string): string {
   return `/api/courses/${slug.value}/assignments/${aid.value}/submissions/${username}/attachments`
 }
+
+/** Списки файлов для навигации в модалке предпросмотра. */
+function subFiles(username: string, names?: string[]) {
+  return (names ?? []).map(n => ({ name: n, url: attachmentUrl(username, n) }))
+}
+function historyFiles(username: string, file: string, names: string[]) {
+  return names.map(n => ({ name: n, url: historyAttachmentUrl(username, file, n) }))
+}
 async function uploadAttachment(file: File) {
   if (!myUsername.value) return
   attachBusy.value = true
@@ -382,8 +390,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
     <!-- Просмотр -->
     <div v-if="!editing">
       <h2>Задание</h2>
-      <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-      <div class="md-body" v-html="assignment.html" />
+      <MdBody :html="assignment.html" />
 
       <!-- Сдача ученика -->
       <div v-if="!canEdit && assignment.status === 'published'" style="margin-top: 22px; border-top: 1px solid var(--line); padding-top: 16px;">
@@ -394,8 +401,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
           </p>
           <div class="card" style="margin: 10px 0;">
             <strong>Ваш ответ:</strong>
-            <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-            <div class="md-body" style="margin: 6px 0 0; font-size: 14px;" v-html="mySubmission.html" />
+            <MdBody
+              :html="mySubmission.html"
+              :files="subFiles(myUsername, mySubmission.attachments)"
+              style="margin: 6px 0 0; font-size: 14px;"
+            />
             <div v-if="mySubmission.feedback" class="card card-nested">
               <strong>Комментарий учителя:</strong>
               <p style="white-space: pre-wrap; margin: 6px 0 0;">{{ mySubmission.feedback }}</p>
@@ -504,8 +514,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                   <template v-if="datesLabel(s.submittedAt, s.updatedAt)">{{ datesLabel(s.submittedAt, s.updatedAt) }} · </template>{{ subStatusLabel(s.status) }}<template v-if="s.grade !== null"> · оценка: <strong>{{ s.grade }}</strong></template>
                 </span>
               </div>
-              <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-              <div class="md-body sub-body" v-html="s.html" />
+              <MdBody
+                class="sub-body"
+                :html="s.html"
+                :files="subFiles(s.username, s.attachments)"
+              />
               <FileChips
                 v-if="s.attachments?.length"
                 :files="s.attachments"
@@ -539,8 +552,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                       <template v-if="fmtDate(v.submittedAt)">{{ fmtDate(v.submittedAt) }} · </template><template v-if="v.grade !== null">оценка: <strong>{{ v.grade }}</strong></template>
                     </span>
                   </div>
-                  <!-- eslint-disable-next-line vue/no-v-html -- html санитизирован на сервере -->
-                  <div class="md-body sub-body" v-html="v.html" />
+                  <MdBody
+                    class="sub-body"
+                    :html="v.html"
+                    :files="historyFiles(s.username, v.file, v.attachments)"
+                  />
                   <FileChips
                     v-if="v.attachments.length"
                     :files="v.attachments"
