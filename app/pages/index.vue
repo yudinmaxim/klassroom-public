@@ -150,7 +150,6 @@ const showForm = ref(false)
 }
 .course-card-body { padding: 12px 18px 16px; }
 .course-card:hover {
-  border-color: var(--accent);
   box-shadow: 0 4px 14px rgba(0, 144, 192, 0.14);
   transform: translateY(-1px);
 }
