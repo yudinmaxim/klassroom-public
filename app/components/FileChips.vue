@@ -21,12 +21,24 @@ function onDocClick(e: MouseEvent) {
 onMounted(() => document.addEventListener('click', onDocClick))
 onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
-// предпросмотр файла в модалке
-const preview = ref<{ name: string, url: string } | null>(null)
+// предпросмотр файла в модалке (с циклической навигацией по всему набору)
+const previewIdx = ref(-1)
+const previewFiles = computed(() => {
+  const hf = props.hrefFor
+  return hf ? props.files.map(n => ({ name: n, url: hf(n) })) : []
+})
+const previewFile = computed(() =>
+  previewIdx.value >= 0 ? previewFiles.value[previewIdx.value] ?? null : null,
+)
 function openPreview(name: string) {
   if (!props.hrefFor) return
   rootEl.value?.querySelector('details[open]')?.removeAttribute('open')
-  preview.value = { name, url: props.hrefFor(name) }
+  previewIdx.value = props.files.indexOf(name)
+}
+function navPreview(dir: number) {
+  const len = previewFiles.value.length
+  if (!len) return
+  previewIdx.value = ((previewIdx.value + dir) % len + len) % len
 }
 function onChipClick(name: string, e: MouseEvent) {
   if (!props.hrefFor) return
@@ -71,7 +83,12 @@ function onChipClick(name: string, e: MouseEvent) {
         </div>
       </div>
     </details>
-    <FilePreviewModal :file="preview" @close="preview = null" />
+    <FilePreviewModal
+      :file="previewFile"
+      :files="previewFiles"
+      @close="previewIdx = -1"
+      @nav="navPreview"
+    />
   </div>
 </template>
 

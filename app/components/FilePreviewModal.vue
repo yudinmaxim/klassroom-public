@@ -5,10 +5,16 @@ import 'md-editor-v3/lib/style.css'
 import '@speed-highlight/core/themes/github-light.css'
 
 /** Модалка предпросмотра файла: рендер по расширению (img/pdf/media/md/csv/text/other). */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   file: { name: string, url: string } | null
-}>()
-const emit = defineEmits<{ close: [] }>()
+  /** Все файлы набора — для циклической навигации стрелками */
+  files?: { name: string, url: string }[]
+}>(), { files: () => [] })
+const emit = defineEmits<{ close: [], nav: [dir: number] }>()
+
+const fileIndex = computed(() =>
+  props.files.findIndex(f => f.url === props.file?.url),
+)
 
 const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif'])
 const AUDIO_EXT = new Set(['mp3', 'wav', 'ogg', 'm4a', 'flac'])
@@ -106,13 +112,21 @@ const csvRows = computed(() => {
   return rows
 })
 
-// Esc закрывает модалку
+// Esc закрывает, ←/→ листают файлы по кругу
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') emit('close')
+  else if (e.key === 'ArrowLeft' && props.files.length > 1) emit('nav', -1)
+  else if (e.key === 'ArrowRight' && props.files.length > 1) emit('nav', 1)
 }
+let keyBound = false
 watch(() => props.file, (f) => {
-  if (f) document.addEventListener('keydown', onKeydown)
-  else document.removeEventListener('keydown', onKeydown)
+  if (f && !keyBound) {
+    document.addEventListener('keydown', onKeydown)
+    keyBound = true
+  } else if (!f && keyBound) {
+    document.removeEventListener('keydown', onKeydown)
+    keyBound = false
+  }
 })
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 </script>
@@ -123,8 +137,24 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
       <div class="modal-head">
         <h2 class="preview-name">{{ file.name }}</h2>
         <div class="row" style="gap: 8px;">
-          <a class="small" :href="file.url" download>Скачать</a>
-          <button class="small" aria-label="Закрыть" @click="emit('close')">×</button>
+          <template v-if="files.length > 1">
+            <button class="icon-btn" aria-label="Предыдущий файл" @click="emit('nav', -1)">
+              <Icon name="lucide:chevron-left" />
+            </button>
+            <span class="muted preview-count">{{ fileIndex + 1 }}/{{ files.length }}</span>
+            <button class="icon-btn" aria-label="Следующий файл" @click="emit('nav', 1)">
+              <Icon name="lucide:chevron-right" />
+            </button>
+          </template>
+          <span class="tip">
+            <a class="icon-btn dl" :href="file.url" download aria-label="Скачать файл">
+              <Icon name="lucide:download" />
+            </a>
+            <span class="tip-body">Скачать</span>
+          </span>
+          <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
+            <Icon name="lucide:x" />
+          </button>
         </div>
       </div>
 
@@ -169,6 +199,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
   width: min(960px, calc(100vw - 32px));
   height: min(82vh, 900px);
 }
+.preview-count { font-size: 12px; white-space: nowrap; }
+.dl {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+}
+.dl:hover { border-color: var(--accent); color: var(--accent); }
 .preview-name {
   overflow: hidden;
   text-overflow: ellipsis;
