@@ -46,7 +46,6 @@ async function resetRole(role: RoleDef) {
       </button>
     </template>
 
-    <div class="roles-page">
     <p class="muted">
       Роль — набор пермишенов (спека 08). Роли teacher/student системные: их наборы прав
       можно менять, сами роли удалить нельзя. Роль admin — неизменяемая.
@@ -99,10 +98,5 @@ async function resetRole(role: RoleDef) {
       @close="panelRole = undefined"
       @saved="onSaved"
     />
-    </div>
   </PageShell>
 </template>
-
-<style scoped>
-.roles-page { max-width: 880px; }
-</style>
