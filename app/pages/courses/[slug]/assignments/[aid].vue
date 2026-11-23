@@ -150,6 +150,14 @@ const answerDrop = useEditorFileDrop(answerEditor, () => mySubmission.value?.att
 const descEditor = ref<MdEditorExpose | null>(null)
 const descDrop = useEditorFileDrop(descEditor, () => [])
 
+/** Выделить место в редакторе описания (для подсветки ссылки при блокировке удаления). */
+function highlightDescRef(index: number, length: number) {
+  const view = descEditor.value?.getEditorView?.()
+  if (!view) return
+  view.dispatch({ selection: { anchor: index, head: index + length }, scrollIntoView: true })
+  view.focus()
+}
+
 /** Ссылки из описания → в блок «Ссылки» (дедуп по url). */
 function syncLinksFromContent() {
   for (const l of extractExternalLinks(form.description)) {
@@ -721,7 +729,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         </div>
         <div style="margin-top: 14px;">
           <h3 style="margin-bottom: 6px;">Ссылки</h3>
-          <LinksField v-model="form.links" />
+          <LinksField v-model="form.links" :content="form.description" :highlight="highlightDescRef" />
         </div>
       </div>
     </div>

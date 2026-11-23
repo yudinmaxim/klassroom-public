@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ExternalLink } from '#shared/types'
 import { normalizeExternalUrl, isHttpUrl } from '#shared/url'
-import { LINK_DRAG_MIME } from '~/utils/file-ref'
+import { LINK_DRAG_MIME, externalLinkRefMatches } from '~/utils/file-ref'
 
 /**
  * Редактор блока «Ссылки»: строки «название + URL», добавление/удаление.
@@ -10,18 +10,37 @@ import { LINK_DRAG_MIME } from '~/utils/file-ref'
  * Enter в поле URL при пустом названии — подтягивает <title>/og:title
  * страницы через /api/link-title.
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: ExternalLink[]
-}>()
+  /** Markdown-текст статьи — для блокировки удаления используемых ссылок. */
+  content?: string
+  /** Выделить место в редакторе при блокировке удаления (index, length). */
+  highlight?: (index: number, length: number) => void
+}>(), { content: undefined, highlight: undefined })
 const emit = defineEmits<{ 'update:modelValue': [links: ExternalLink[]] }>()
 
+const blockError = ref('')
+
 function add() {
+  blockError.value = ''
   emit('update:modelValue', [...props.modelValue, { title: '', url: '' }])
 }
 function remove(i: number) {
+  const l = props.modelValue[i]
+  // ссылка используется в тексте — не даём удалить «молча», показываем место
+  if (l?.url && props.content) {
+    const refs = externalLinkRefMatches(props.content, l.url)
+    if (refs.length) {
+      blockError.value = `Ссылка «${l.title || l.url}» используется в тексте (${refs.length} раз). Сначала уберите её из текста.`
+      props.highlight?.(refs[0].index, refs[0].length)
+      return
+    }
+  }
+  blockError.value = ''
   emit('update:modelValue', props.modelValue.filter((_, idx) => idx !== i))
 }
 function set(i: number, patch: Partial<ExternalLink>) {
+  blockError.value = ''
   emit('update:modelValue', props.modelValue.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
 }
 
@@ -125,10 +144,12 @@ defineExpose({ validLinks })
         <Icon name="lucide:trash-2" />
       </button>
     </div>
+    <p v-if="blockError" class="error" style="margin: 0;">{{ blockError }}</p>
     <div class="links-field-hint muted">
       Внешние источники: видео, статьи, тренажёры. Enter в поле адреса подтянет
       название страницы, а за ручку ссылку можно перетащить в текст — вставится
       markdown-ссылка. Ссылки из текста попадают сюда автоматически при сохранении.
+      Ссылку, которая есть в тексте, удалить нельзя — сначала уберите её оттуда.
     </div>
     <button class="small" @click="add">+ Добавить ссылку</button>
   </div>

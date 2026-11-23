@@ -5,6 +5,8 @@
  * оборачивает payload в markdown и вставляет через MdEditor.insert
  * (в позицию курсора).
  */
+import { normalizeExternalUrl } from '#shared/url'
+
 export const FILE_DRAG_MIME = 'application/x-klassroom-file'
 export const LINK_DRAG_MIME = 'application/x-klassroom-link'
 
@@ -65,5 +67,24 @@ export function attachmentRefMatches(content: string, name: string): TextMatch[]
   const out: TextMatch[] = []
   let m: RegExpExecArray | null
   while ((m = re.exec(content))) out.push({ index: m.index, length: m[0].length })
+  return out
+}
+
+/**
+ * Вхождения markdown-ссылки на внешний `url` в тексте — для блокировки
+ * удаления ссылки, которая используется в статье. Сравнение по
+ * нормализованному URL (scheme не важен), регистр пути учитывается.
+ */
+export function externalLinkRefMatches(content: string, url: string): TextMatch[] {
+  const target = normalizeExternalUrl(url.trim())
+  if (!target) return []
+  const re = /!?\[[^\]]*\]\(\s*(https?:\/\/[^\s)]+)[^)]*\)/gi
+  const out: TextMatch[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(content))) {
+    if (normalizeExternalUrl(m[1]) === target) {
+      out.push({ index: m.index, length: m[0].length })
+    }
+  }
   return out
 }

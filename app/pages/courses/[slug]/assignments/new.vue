@@ -43,6 +43,14 @@ const canSave = computed(() => form.title.trim().length >= 3)
 const descEditor = ref<MdEditorExpose | null>(null)
 const descDrop = useEditorFileDrop(descEditor, () => [])
 
+/** Выделить место в редакторе (для подсветки ссылки при блокировке удаления). */
+function highlightInEditor(index: number, length: number) {
+  const view = descEditor.value?.getEditorView?.()
+  if (!view) return
+  view.dispatch({ selection: { anchor: index, head: index + length }, scrollIntoView: true })
+  view.focus()
+}
+
 /** Ссылки из текста → в блок «Ссылки» (дедуп по url). */
 function syncLinksFromContent() {
   for (const l of extractExternalLinks(form.description)) {
@@ -132,7 +140,7 @@ async function save() {
       </div>
       <div style="margin-top: 14px;">
         <h3 style="margin-bottom: 6px;">Ссылки</h3>
-        <LinksField v-model="form.links" />
+        <LinksField v-model="form.links" :content="form.description" :highlight="highlightInEditor" />
       </div>
     </div>
 

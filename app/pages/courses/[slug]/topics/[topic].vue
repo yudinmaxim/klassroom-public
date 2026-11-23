@@ -287,7 +287,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         </div>
         <div style="margin-top: 14px;">
           <h3 style="margin-bottom: 6px;">Ссылки</h3>
-          <LinksField v-model="form.links" />
+          <LinksField v-model="form.links" :content="form.content" :highlight="highlightInEditor" />
         </div>
       </div>
 

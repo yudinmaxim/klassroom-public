@@ -45,6 +45,14 @@ function syncLinksFromContent() {
 const topicEditor = ref<MdEditorExpose | null>(null)
 const topicDrop = useEditorFileDrop(topicEditor, () => [], { onOsFiles: uploadOsFiles })
 
+/** Выделить место в редакторе (для подсветки ссылки при блокировке удаления). */
+function highlightInEditor(index: number, length: number) {
+  const view = topicEditor.value?.getEditorView?.()
+  if (!view) return
+  view.dispatch({ selection: { anchor: index, head: index + length }, scrollIntoView: true })
+  view.focus()
+}
+
 const saveError = ref('')
 const saving = ref(false)
 const createdSlug = ref('')
@@ -193,7 +201,7 @@ async function uploadOsFiles(files: File[]): Promise<string[]> {
       </div>
       <div style="margin-top: 14px;">
         <h3 style="margin-bottom: 6px;">Ссылки</h3>
-        <LinksField v-model="form.links" />
+        <LinksField v-model="form.links" :content="form.content" :highlight="highlightInEditor" />
       </div>
     </div>
 
