@@ -338,7 +338,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
   max-height: 260px;
   object-fit: cover;
   border-radius: 12px;
-  margin: 14px 0;
+  margin: 14px 0 28px;
 }
 .course-info-body { min-width: 0; }
 .course-info-head {
