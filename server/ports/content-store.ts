@@ -1,4 +1,4 @@
-import type { Assignment, AssignmentSummary, Course, CourseSummary, ExternalLink, Gradebook, GradebookSection, GradingScale, LinkStat, Material, MaterialSummary, StreamComment, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { Assignment, AssignmentSummary, Course, CourseGroup, CourseSummary, ExternalLink, Gradebook, GradebookSection, GradingScale, LinkStat, Material, MaterialSummary, StreamComment, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -62,7 +62,7 @@ export interface ContentStore {
   createMaterial(
     actor: UserPublic,
     courseSlug: string,
-    input: { title: string, type: string, content: string, links?: ExternalLink[] },
+    input: { title: string, type: string, content: string, links?: ExternalLink[], groups?: string[] },
   ): Promise<MaterialSummary>
 
   /** Обновить название, содержимое и/или блок ссылок материала (materials.edit). */
@@ -70,7 +70,7 @@ export interface ContentStore {
     actor: UserPublic,
     courseSlug: string,
     materialSlug: string,
-    patch: { title?: string, content?: string, links?: ExternalLink[] },
+    patch: { title?: string, content?: string, links?: ExternalLink[], groups?: string[] },
   ): Promise<Material>
 
   /** Удалить материал вместе с содержимым (materials.edit). */
@@ -121,6 +121,7 @@ export interface ContentStore {
       description?: string
       allowResubmit?: boolean
       links?: ExternalLink[]
+      groups?: string[]
     },
   ): Promise<AssignmentSummary>
 
@@ -139,6 +140,7 @@ export interface ContentStore {
       status?: 'draft' | 'published'
       allowResubmit?: boolean
       links?: ExternalLink[]
+      groups?: string[]
     },
   ): Promise<Assignment>
 
@@ -248,8 +250,22 @@ export interface ContentStore {
   /** Журналы оценок по всем доступным курсам. */
   listGradebooks(actor: UserPublic): Promise<GradebookSection[]>
 
-  /** Новый пост в ленте (участник курса). */
-  addStreamPost(actor: UserPublic, courseSlug: string, text: string): Promise<StreamPost>
+  /** Новый пост в ленте (участник курса). groups — целевые группы (default [public]). */
+  addStreamPost(actor: UserPublic, courseSlug: string, text: string, groups?: string[]): Promise<StreamPost>
+
+  // --- Группы учащихся курса ---
+
+  /** Группы курса (участникам — для фильтров/селекторов). */
+  listGroups(actor: UserPublic, courseSlug: string): Promise<CourseGroup[]>
+
+  /** Создать группу (courses.roster.manage). members ⊆ roster. */
+  createGroup(actor: UserPublic, courseSlug: string, input: { title: string, members?: string[] }): Promise<CourseGroup>
+
+  /** Переименовать группу и/или заменить состав. */
+  updateGroup(actor: UserPublic, courseSlug: string, groupId: string, patch: { title?: string, members?: string[] }): Promise<CourseGroup>
+
+  /** Удалить группу: контент отвязывается (groups → безгрупповой), не удаляется. */
+  deleteGroup(actor: UserPublic, courseSlug: string, groupId: string): Promise<void>
 
   /** Тред комментариев поста ленты (участник курса). */
   listStreamComments(

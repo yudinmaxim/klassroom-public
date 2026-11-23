@@ -34,6 +34,24 @@ export interface RoleDef {
   builtin: boolean
 }
 
+/**
+ * Техническая группа «для всех»: автоматически назначается новым
+ * материалам/заданиям/постам, удалить нельзя — фактически «общий доступ».
+ */
+export const PUBLIC_GROUP = 'public'
+
+/**
+ * Группа учащихся внутри курса. Ученик может состоять в нескольких
+ * группах; контент с groups=[public] виден всем.
+ */
+export interface CourseGroup {
+  id: string
+  title: string
+  /** username'ы участников (подмножество roster курса). */
+  members: string[]
+  createdAt: string
+}
+
 /** Шкала оценивания курса (настраивается учителем, specs/05). */
 export type GradingScale =
   | { type: 'grade5' }
@@ -81,6 +99,8 @@ export interface MaterialSummary {
   title: string
   type: string
   updatedAt: string
+  /** Группы видимости; содержит PUBLIC_GROUP = всем. Пусто = «без группы» (ученикам скрыто). */
+  groups: string[]
 }
 
 /**
@@ -98,6 +118,8 @@ export interface Material {
   payload: unknown
   html: string
   toc: TocItem[]
+  /** Группы видимости (нормализовано: legacy без поля = [public]). */
+  groups: string[]
 }
 
 /** Внешняя ссылка-блок (тема/задание): отображается отдельным списком. */
@@ -143,6 +165,8 @@ export interface AssignmentSummary {
   /** Время последнего комментария в своём треде сдачи (ISO). */
   myLastCommentAt?: string | null
   updatedAt: string
+  /** Группы видимости; пусто = «без группы» (ученикам скрыто). */
+  groups: string[]
 }
 
 /** Задание целиком: метаданные + отрендеренное описание. */
@@ -171,6 +195,8 @@ export interface Assignment {
   canResubmit: boolean
   /** Блок внешних ссылок (источники, материалы). */
   links: ExternalLink[]
+  /** Группы видимости; пусто = «без группы» (ученикам скрыто). */
+  groups: string[]
 }
 
 /** Сдача ученика. */
@@ -201,6 +227,8 @@ export interface StreamPost {
   createdAt: string
   /** Время последнего комментария (для индикации непрочитанных). */
   lastCommentAt?: string | null
+  /** Группы видимости поста; пусто = «без группы». */
+  groups: string[]
 }
 
 /** Комментарий к посту ленты (courses/<slug>/stream/<pid>/comments/<cid>.yml). */

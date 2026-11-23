@@ -1,4 +1,5 @@
-import type { AssignmentSummary, ExternalLink, LinkStat, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { AssignmentSummary, CourseGroup, ExternalLink, LinkStat, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import { PUBLIC_GROUP } from '#shared/types'
 import { renderDocMarkdown } from '../lib/md'
 import { readdir, rename, rm, type Dirent } from 'node:fs/promises'
 import { createHash, randomBytes } from 'node:crypto'
@@ -56,6 +57,8 @@ interface MaterialFile {
   type: string
   createdAt: string
   updatedAt: string
+  /** Группы видимости; отсутствие = legacy → [public], [] = «без группы». */
+  groups?: string[]
 }
 
 const DEFAULT_SCALE: GradingScale = { type: 'grade5' }
@@ -122,11 +125,86 @@ function toCourse(f: CourseFile, students: string[]): Course {
   }
 }
 
+// --- группы учащихся курса: courses/<slug>/groups/<gid>.yml ---
+
+interface GroupFile {
+  id: string
+  title: string
+  members: string[]
+  createdAt: string
+}
+
+/** groups в файле: undefined = legacy → [public]; [] = «без группы». */
+function normalizeGroups(g: string[] | undefined): string[] {
+  return g === undefined ? [PUBLIC_GROUP] : [...new Set(g)]
+}
+
+/** Контент с groups виден viewer'у: public или пересечение с его группами. */
+function contentVisibleToGroups(contentGroups: string[] | undefined, viewerGroups: ReadonlySet<string>): boolean {
+  const g = contentGroups === undefined ? [PUBLIC_GROUP] : contentGroups
+  return g.includes(PUBLIC_GROUP) || g.some(x => viewerGroups.has(x))
+}
+
+function groupsRoot(baseDir: string, courseSlug: string): string {
+  return resolveDataPath(courseDir(baseDir, courseSlug), 'groups')
+}
+function groupFilePath(baseDir: string, courseSlug: string, gid: string): string {
+  return resolveDataPath(groupsRoot(baseDir, courseSlug), `${gid}.yml`)
+}
+async function readGroupFile(baseDir: string, courseSlug: string, gid: string): Promise<GroupFile | null> {
+  return readYaml<GroupFile>(groupFilePath(baseDir, courseSlug, gid))
+}
+async function listGroupFiles(baseDir: string, courseSlug: string): Promise<GroupFile[]> {
+  let files: string[]
+  try {
+    files = (await readdir(groupsRoot(baseDir, courseSlug))).filter(f => f.endsWith('.yml'))
+  } catch {
+    return []
+  }
+  const out: GroupFile[] = []
+  for (const f of files) {
+    const g = await readYaml<GroupFile>(resolveDataPath(groupsRoot(baseDir, courseSlug), f))
+    if (g?.id) out.push(g)
+  }
+  return out.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+}
+function toCourseGroup(g: GroupFile): CourseGroup {
+  return { id: g.id, title: g.title, members: g.members, createdAt: g.createdAt }
+}
+
 export function createFilesContentStore(baseDir: string, journal: GitJournal, roles: RoleStore): ContentStore {
   async function roleOf(actor: UserPublic): Promise<RoleDef> {
     const def = await roles.getRole(actor.role)
     if (!def) httpError(403, 'Роль аккаунта не найдена')
     return def
+  }
+
+  /** id групп, в которых состоит username (без технической public). */
+  async function viewerGroupIds(courseSlug: string, username: string): Promise<Set<string>> {
+    const groups = await listGroupFiles(baseDir, normalizeSlug(courseSlug))
+    return new Set(groups.filter(g => g.members.includes(username)).map(g => g.id))
+  }
+
+  /** Группы, которые actor может указать в контенте: public + свои (для ученика) / все (для управляющего). */
+  async function allowedGroupIds(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], norm: string): Promise<Set<string>> {
+    const ids = new Set<string>([PUBLIC_GROUP])
+    if (role.name === 'admin' || role.scope === 'owner') {
+      for (const g of await listGroupFiles(baseDir, norm)) ids.add(g.id)
+      return ids
+    }
+    if (role.scope === 'member' && roster.includes(actor.username)) {
+      for (const id of await viewerGroupIds(norm, actor.username)) ids.add(id)
+    }
+    return ids
+  }
+
+  /** Валидация списка групп для записи: только существующие + public; [] разрешён («без группы»). */
+  async function assertGroupIds(norm: string, groups: string[] | undefined, allowed?: Set<string>): Promise<string[] | undefined> {
+    if (groups === undefined) return undefined
+    const known = allowed ?? new Set([PUBLIC_GROUP, ...(await listGroupFiles(baseDir, norm)).map(g => g.id)])
+    const bad = groups.filter(g => !known.has(g))
+    if (bad.length) httpError(400, `Неизвестные группы: ${bad.join(', ')}`)
+    return [...new Set(groups)]
   }
 
   async function loadCourseFor(actor: UserPublic, slug: string): Promise<Course | null> {
@@ -299,6 +377,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     if (!dirId) httpError(404, 'Материал не найден')
     const f = await readMaterial(courseSlug, dirId)
     if (!f) httpError(404, 'Материал не найден')
+    if (role.scope === 'member' && !contentVisibleToGroups(f.groups, await viewerGroupIds(courseSlug, actor.username))) {
+      httpError(404, 'Материал не найден')
+    }
     return f
   }
 
@@ -345,6 +426,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       payload,
       html,
       toc,
+      groups: normalizeGroups(f.groups),
     }
   }
 
@@ -394,6 +476,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     resubmitOverrides?: Record<string, boolean>
     /** Блок внешних ссылок. */
     links?: ExternalLink[]
+    /** Группы видимости; отсутствие = legacy → [public], [] = «без группы». */
+    groups?: string[]
   }
   interface SubmissionFile {
     status: 'submitted' | 'returned'
@@ -438,19 +522,20 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     return false
   }
 
-  /** Ученик видит задание: выдано + (общее или он в audience). */
-  function canSeeAssignment(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], f: AssignmentFile): boolean {
+  /** Ученик видит задание: выдано + (общее или он в audience) + группы видимости. */
+  function canSeeAssignment(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], f: AssignmentFile, viewerGroups: ReadonlySet<string>): boolean {
     if (role.name === 'admin') return true
     if (role.scope === 'owner') return course.teacher === actor.username
     if (!role.permissions.includes('assignments.view')) return false
     if (role.scope !== 'member' || !roster.includes(actor.username)) return false
     if (f.status !== 'published') return false
-    return f.type === 'general' || f.audience.includes(actor.username)
+    if (!(f.type === 'general' || f.audience.includes(actor.username))) return false
+    return contentVisibleToGroups(f.groups, viewerGroups)
   }
 
   /** Ученику можно сдавать: то же, что видеть + submissions.create. */
-  function canSubmit(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], f: AssignmentFile): boolean {
-    return canSeeAssignment(actor, role, course, roster, f)
+  function canSubmit(actor: UserPublic, role: RoleDef, course: CourseFile, roster: string[], f: AssignmentFile, viewerGroups: ReadonlySet<string>): boolean {
+    return canSeeAssignment(actor, role, course, roster, f, viewerGroups)
       && role.permissions.includes('submissions.create')
   }
 
@@ -607,15 +692,16 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     if (!dirId) httpError(404, 'Задание не найдено')
     const f = await readAssignmentFile(norm, dirId)
     if (!f) httpError(404, 'Задание не найдено')
+    const viewerGroups = role.scope === 'member' ? await viewerGroupIds(norm, actor.username) : new Set<string>()
     const ok = need === 'submit'
-      ? canSubmit(actor, role, course, roster, f)
-      : canSeeAssignment(actor, role, course, roster, f) || canManageAssignment(actor, role, course)
+      ? canSubmit(actor, role, course, roster, f, viewerGroups)
+      : canSeeAssignment(actor, role, course, roster, f, viewerGroups) || canManageAssignment(actor, role, course)
     if (!ok) httpError(404, 'Задание не найдено')
     return { course, f, role, roster }
   }
 
   function toAssignmentSummary(f: AssignmentFile, submissionCount: number, myStatus?: AssignmentSummary['myStatus']): AssignmentSummary {
-    return { slug: f.slug, title: f.title, type: f.type, status: f.status, due: f.due, submissionCount, myStatus, updatedAt: f.updatedAt }
+    return { slug: f.slug, title: f.title, type: f.type, status: f.status, due: f.due, submissionCount, myStatus, updatedAt: f.updatedAt, groups: normalizeGroups(f.groups) }
   }
 
   // --- тред комментариев и вложения сдачи: submissions/<user>/{comments,attachments} ---
@@ -782,6 +868,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     // полный журнал — учитель/админ (canGrade); ученику — только своя строка
     const canSeeAll = canGrade(actor, role, courseFile)
     const students = canSeeAll ? roster : roster.filter(u => u === actor.username)
+    const viewerGroups = role.scope === 'member' ? await viewerGroupIds(norm, actor.username) : new Set<string>()
 
     // колонки: только опубликованные задания, по createdAt
     let dirs: Dirent[]
@@ -804,7 +891,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       for (const col of cols) {
         // ученик видит в журнале только задания, доступные ему
         const visible = canSeeAll
-          || (role.scope === 'member' && canSeeAssignment(actor, role, courseFile, roster, col.file))
+          || (role.scope === 'member' && canSeeAssignment(actor, role, courseFile, roster, col.file, viewerGroups))
         if (!visible) {
           cells.push({ assignmentSlug: col.slug, assignmentId: col.id, status: 'none', grade: null, maxPoints: col.file.maxPoints, submittedAt: null, updatedAt: null })
           continue
@@ -987,6 +1074,115 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       return toCourse(f, next)
     },
 
+    // --- группы учащихся ---
+
+    async listGroups(actor, courseSlug) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await loadCourseFor(actor, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const roster = await readRoster(baseDir, norm)
+      if (!canSee(actor, await roleOf(actor), await readCourse(baseDir, norm) ?? httpError(404, 'Курс не найден'), roster)) {
+        httpError(404, 'Курс не найден')
+      }
+      return (await listGroupFiles(baseDir, norm)).map(toCourseGroup)
+    },
+
+    async createGroup(actor, courseSlug, input) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const role = await roleOf(actor)
+      if (!canManage(actor, role, course)) httpError(403, 'Недостаточно прав')
+      const roster = await readRoster(baseDir, norm)
+      const members = [...new Set(input.members ?? [])]
+      const unknown = members.filter(u => !roster.includes(u))
+      if (unknown.length) httpError(400, `Не в составе курса: ${unknown.join(', ')}`)
+
+      const g: GroupFile = {
+        id: newEntityId(),
+        title: input.title.trim(),
+        members,
+        createdAt: new Date().toISOString(),
+      }
+      await ensureDir(groupsRoot(baseDir, norm))
+      await writeYaml(groupFilePath(baseDir, norm, g.id), g)
+      journal.record(actor.pseudonym, `создал группу «${g.title}» в ${norm}`)
+      return toCourseGroup(g)
+    },
+
+    async updateGroup(actor, courseSlug, groupId, patch) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const role = await roleOf(actor)
+      if (!canManage(actor, role, course)) httpError(403, 'Недостаточно прав')
+      const g = await readGroupFile(baseDir, norm, groupId)
+      if (!g) httpError(404, 'Группа не найдена')
+      const roster = await readRoster(baseDir, norm)
+      if (patch.members !== undefined) {
+        const members = [...new Set(patch.members)]
+        const unknown = members.filter(u => !roster.includes(u))
+        if (unknown.length) httpError(400, `Не в составе курса: ${unknown.join(', ')}`)
+        g.members = members
+      }
+      if (patch.title !== undefined && patch.title.trim() !== g.title) g.title = patch.title.trim()
+      await writeYaml(groupFilePath(baseDir, norm, g.id), g)
+      journal.record(actor.pseudonym, `обновил группу «${g.title}» в ${norm}`)
+      return toCourseGroup(g)
+    },
+
+    async deleteGroup(actor, courseSlug, groupId) {
+      const norm = normalizeSlug(courseSlug)
+      const course = await readCourse(baseDir, norm)
+      if (!course) httpError(404, 'Курс не найден')
+      const role = await roleOf(actor)
+      if (!canManage(actor, role, course)) httpError(403, 'Недостаточно прав')
+      const g = await readGroupFile(baseDir, norm, groupId)
+      if (!g) httpError(404, 'Группа не найдена')
+
+      // контент не удаляется: gid вычёркивается из groups; опустевший
+      // список = «без группы» — ученикам скрыто до переназначения
+      const strip = (groups: string[] | undefined): string[] | undefined => {
+        if (groups === undefined) return undefined
+        return groups.filter(x => x !== groupId)
+      }
+      // материалы
+      try {
+        for (const d of await readdir(materialsRoot(norm), { withFileTypes: true })) {
+          if (!d.isDirectory()) continue
+          const f = await readMaterial(norm, d.name)
+          if (f?.groups?.includes(groupId)) {
+            f.groups = strip(f.groups)
+            await writeMaterial(norm, f)
+          }
+        }
+      } catch { /* нет материалов */ }
+      // задания
+      try {
+        for (const d of await readdir(assignmentsRoot(norm), { withFileTypes: true })) {
+          if (!d.isDirectory()) continue
+          const f = await readAssignmentFile(norm, d.name)
+          if (f?.groups?.includes(groupId)) {
+            f.groups = strip(f.groups)
+            await writeAssignmentFile(norm, f)
+          }
+        }
+      } catch { /* нет заданий */ }
+      // посты ленты
+      try {
+        for (const file of (await readdir(streamDir(norm))).filter(x => x.endsWith('.yml'))) {
+          const p = await readYaml<StreamPost>(resolveDataPath(streamDir(norm), file))
+          if (p?.groups?.includes(groupId)) {
+            p.groups = strip(p.groups) ?? []
+            await writeYaml(resolveDataPath(streamDir(norm), file), p)
+          }
+        }
+      } catch { /* нет ленты */ }
+
+      await atomicDelete(groupFilePath(baseDir, norm, groupId))
+      journal.record(actor.pseudonym, `удалил группу «${g.title}» из ${norm}`)
+    },
+
     // --- материалы ---
 
     async listMaterials(actor, courseSlug) {
@@ -994,9 +1190,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const course = await readCourse(baseDir, norm)
       if (!course) httpError(404, 'Курс не найден')
       const roster = await readRoster(baseDir, norm)
-      if (!canReadMaterial(actor, await roleOf(actor), course, roster)) {
+      const role = await roleOf(actor)
+      if (!canReadMaterial(actor, role, course, roster)) {
         httpError(404, 'Курс не найден')
       }
+      const viewerGroups = role.scope === 'member' ? await viewerGroupIds(norm, actor.username) : null
 
       let dirs: Dirent[]
       try {
@@ -1009,7 +1207,9 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const result: MaterialSummary[] = []
       for (const d of dirs.filter(d => d.isDirectory())) {
         const f = await readMaterial(norm, d.name)
-        if (f) result.push({ slug: f.slug, title: f.title, type: f.type, updatedAt: f.updatedAt })
+        if (!f) continue
+        if (viewerGroups && !contentVisibleToGroups(f.groups, viewerGroups)) continue
+        result.push({ slug: f.slug, title: f.title, type: f.type, updatedAt: f.updatedAt, groups: normalizeGroups(f.groups) })
       }
       return result.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
     },
@@ -1048,6 +1248,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         type: plugin.type,
         createdAt: now,
         updatedAt: now,
+        groups: (await assertGroupIds(norm, input.groups)) ?? [PUBLIC_GROUP],
       }
       await ensureDir(resolveDataPath(materialDir(norm, dirId), 'content'))
       await writeMaterial(norm, f)
@@ -1084,6 +1285,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         } else {
           changes.push('переименовал')
         }
+      }
+      if (patch.groups !== undefined) {
+        f.groups = (await assertGroupIds(norm, patch.groups)) ?? []
+        changes.push('обновил группы')
       }
       if (patch.content !== undefined || patch.links !== undefined) {
         const contentDir = resolveDataPath(materialDir(norm, f.id), 'content')
@@ -1158,6 +1363,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const roster = await readRoster(baseDir, norm)
       const role = await roleOf(actor)
       const manager = canManageAssignment(actor, role, course)
+      const viewerGroups = role.scope === 'member' ? await viewerGroupIds(norm, actor.username) : new Set<string>()
 
       let dirs: Dirent[]
       try {
@@ -1171,7 +1377,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       for (const d of dirs.filter(d => d.isDirectory())) {
         const f = await readAssignmentFile(norm, d.name)
         if (!f) continue
-        if (!manager && !canSeeAssignment(actor, role, course, roster, f)) continue
+        if (!manager && !canSeeAssignment(actor, role, course, roster, f, viewerGroups)) continue
         const users = await listSubmissionUsers(norm, f.id)
         let myStatus: AssignmentSummary['myStatus']
         let mine: SubmissionFile | null = null
@@ -1224,6 +1430,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         resubmitOverrides: canManage ? (f.resubmitOverrides ?? {}) : {},
         canResubmit: resubmitAllowedFor(f, actor.username),
         links: f.links ?? [],
+        groups: normalizeGroups(f.groups),
       }
     },
 
@@ -1240,6 +1447,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         const unknown = input.audience.filter(u => !roster.includes(u))
         if (unknown.length) httpError(400, `Не в составе курса: ${unknown.join(', ')}`)
       }
+      const groups = await assertGroupIds(norm, input.groups)
 
       const dirId = newEntityId()
       const now = new Date().toISOString()
@@ -1257,6 +1465,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         allowResubmit: input.allowResubmit ?? true,
         resubmitOverrides: {},
         links: input.links ?? [],
+        groups: groups === undefined ? [PUBLIC_GROUP] : groups,
       }
 
       await ensureDir(assignmentDir(norm, dirId))
@@ -1312,6 +1521,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       if (patch.links !== undefined) {
         f.links = patch.links
         changes.push('обновил ссылки')
+      }
+      if (patch.groups !== undefined) {
+        // управляющий может назначать любые существующие группы
+        f.groups = (await assertGroupIds(norm, patch.groups)) ?? []
+        changes.push('обновил группы')
       }
       if (patch.status !== undefined && patch.status !== f.status) {
         f.status = patch.status
@@ -1566,6 +1780,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     async listStreamPosts(actor, courseSlug) {
       const norm = normalizeSlug(courseSlug)
       await requireCourseMember(actor, norm)
+      const role = await roleOf(actor)
       const dir = streamDir(norm)
       let files: string[]
       try {
@@ -1574,9 +1789,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         return []
       }
       const result: StreamPost[] = []
+      const viewerGroups = role.scope === 'member' ? await viewerGroupIds(norm, actor.username) : null
       for (const file of files) {
         const p = await readYaml<StreamPost>(resolveDataPath(dir, file))
         if (p?.id && p.html !== undefined) {
+          if (viewerGroups && !contentVisibleToGroups(p.groups, viewerGroups)) continue
           // время последнего комментария
           const commentsDir = streamCommentsDir(norm, p.id)
           let latest: string | null = null
@@ -1587,15 +1804,20 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
               if (c?.createdAt && (!latest || c.createdAt > latest)) latest = c.createdAt
             }
           } catch { /* каталога нет — нет комментариев */ }
-          result.push({ ...p, lastCommentAt: latest })
+          result.push({ ...p, groups: normalizeGroups(p.groups), lastCommentAt: latest })
         }
       }
       return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     },
 
-    async addStreamPost(actor, courseSlug, text) {
+    async addStreamPost(actor, courseSlug, text, groups) {
       const norm = normalizeSlug(courseSlug)
-      await requireCourseMember(actor, norm)
+      const course = await requireCourseMember(actor, norm)
+      const role = await roleOf(actor)
+      const roster = await readRoster(baseDir, norm)
+      // член курса может постить только в public + свои группы
+      const allowed = await allowedGroupIds(actor, role, course, roster, norm)
+      const target = await assertGroupIds(norm, groups, allowed) ?? [PUBLIC_GROUP]
       const post: StreamPost = {
         id: `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`,
         author: actor.username,
@@ -1607,6 +1829,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
           attachments: [],
         }).html,
         createdAt: new Date().toISOString(),
+        groups: target,
       }
       const dir = streamDir(norm)
       await ensureDir(dir)
@@ -1714,8 +1937,11 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
     async listStreamFeed(actor) {
       const courses = await visibleCourses(actor)
+      const role = await roleOf(actor)
+      const memberView = role.scope === 'member'
       const feed: StreamFeedPost[] = []
       for (const c of courses) {
+        const viewerGroups = memberView ? await viewerGroupIds(c.slug, actor.username) : null
         const dir = streamDir(c.slug)
         let files: string[]
         try {
@@ -1726,6 +1952,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         for (const file of files) {
           const p = await readYaml<StreamPost>(resolveDataPath(dir, file))
           if (p?.id && p.html !== undefined) {
+            if (viewerGroups && !contentVisibleToGroups(p.groups, viewerGroups)) continue
             // время последнего комментария
             const commentsDir = streamCommentsDir(c.slug, p.id)
             let latest: string | null = null
@@ -1736,7 +1963,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
                 if (cc?.createdAt && (!latest || cc.createdAt > latest)) latest = cc.createdAt
               }
             } catch { /* каталога нет — нет комментариев */ }
-            feed.push({ ...p, course: c.slug, courseTitle: c.title, lastCommentAt: latest })
+            feed.push({ ...p, groups: normalizeGroups(p.groups), course: c.slug, courseTitle: c.title, lastCommentAt: latest })
           }
         }
       }

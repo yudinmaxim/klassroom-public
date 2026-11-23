@@ -1,4 +1,4 @@
-import { requireUser, parseJson, commentBodySchema, courseSlugSchema } from '../../../../lib/validation'
+import { requireUser, parseJson, streamPostBodySchema, courseSlugSchema } from '../../../../lib/validation'
 import { emitToCourse } from '../../../../lib/events'
 
 /**
@@ -9,9 +9,9 @@ import { emitToCourse } from '../../../../lib/events'
 export default defineEventHandler(async (event) => {
   const actor = await requireUser(event)
   const slug = courseSlugSchema.parse(getRouterParam(event, 'slug'))
-  const body = await parseJson(event, commentBodySchema)
+  const body = await parseJson(event, streamPostBodySchema)
 
-  const post = await useContentStore().addStreamPost(actor, slug, body.text)
+  const post = await useContentStore().addStreamPost(actor, slug, body.text, body.groups)
 
   const course = await useContentStore().getCourse(actor, slug)
   emitToCourse(actor, slug, {

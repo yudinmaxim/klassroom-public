@@ -133,17 +133,22 @@ export const externalLinkSchema = z.object({
 })
 export const externalLinksSchema = z.array(externalLinkSchema).max(50, 'Слишком много ссылок')
 
+/** Список групп видимости контента (id групп курса + 'public'). */
+export const groupsFieldSchema = z.array(z.string().min(1).max(64)).max(50).optional()
+
 export const createMaterialBodySchema = z.object({
   title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120),
   type: materialTypeSchema.default('doc'),
   content: z.string().max(MAX_MD_CHARS, 'Текст материала слишком длинный').default(''),
   links: externalLinksSchema.optional(),
+  groups: groupsFieldSchema,
 })
 
 export const updateMaterialBodySchema = z.object({
   title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120).optional(),
   content: z.string().max(MAX_MD_CHARS, 'Текст материала слишком длинный').optional(),
   links: externalLinksSchema.optional(),
+  groups: groupsFieldSchema,
 })
 
 export const renderMarkdownBodySchema = z.object({
@@ -199,6 +204,7 @@ export const createAssignmentBodySchema = z.object({
   description: z.string().max(MAX_MD_CHARS, 'Описание слишком длинное').default(''),
   allowResubmit: z.boolean().optional(),
   links: externalLinksSchema.optional(),
+  groups: groupsFieldSchema,
 })
 
 export const updateAssignmentBodySchema = createAssignmentBodySchema
@@ -208,6 +214,21 @@ export const updateAssignmentBodySchema = createAssignmentBodySchema
 /** Комментарий в треде сдачи. */
 export const commentBodySchema = z.object({
   text: z.string().trim().min(1, 'Пустой комментарий').max(8000, 'Комментарий слишком длинный'),
+})
+
+/** Пост ленты: текст + опциональные целевые группы. */
+export const streamPostBodySchema = commentBodySchema.extend({
+  groups: groupsFieldSchema,
+})
+
+/** Группа учащихся: название + состав (username'ы). */
+export const groupBodySchema = z.object({
+  title: z.string().trim().min(1, 'Название группы').max(120),
+  members: z.array(usernameSchema).max(500).optional(),
+})
+export const updateGroupBodySchema = z.object({
+  title: z.string().trim().min(1, 'Название группы').max(120).optional(),
+  members: z.array(usernameSchema).max(500).optional(),
 })
 
 export const submitAssignmentBodySchema = z.object({

@@ -9,8 +9,8 @@ export default defineEventHandler(async (event) => {
   const materialSlug = materialSlugSchema.parse(getRouterParam(event, 'topic'))
   const body = await parseJson(event, updateMaterialBodySchema)
 
-  if (body.title === undefined && body.content === undefined) {
-    httpError(400, 'Нечего обновлять: передайте title и/или content')
+  if (body.title === undefined && body.content === undefined && body.groups === undefined && body.links === undefined) {
+    httpError(400, 'Нечего обновлять: передайте title, content, links и/или groups')
   }
 
   const material = await useContentStore().updateMaterial(actor, slug, materialSlug, body)
