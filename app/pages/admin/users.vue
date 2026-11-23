@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { UserPublic } from '#shared/types'
 import { errText } from '#shared/errors'
+import { copyText } from '~/utils/clipboard'
 import QRCode from 'qrcode'
 
 const { data, refresh } = await useFetch('/api/users')
@@ -16,6 +17,20 @@ const error = ref('')
 
 // пароль показывается один раз, сразу после создания/сброса
 const revealedSecret = ref('')
+
+// индикация «скопировано» на кнопках копирования
+const copiedSecret = ref(false)
+const copiedQr = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | undefined
+function flashCopied(which: 'secret' | 'qr') {
+  if (which === 'secret') copiedSecret.value = true
+  else copiedQr.value = true
+  clearTimeout(copiedTimer)
+  copiedTimer = setTimeout(() => {
+    copiedSecret.value = false
+    copiedQr.value = false
+  }, 1500)
+}
 
 // undefined — панель закрыта, null — создание, объект — редактирование
 const panelUser = ref<UserPublic | null | undefined>(undefined)
@@ -59,11 +74,7 @@ const qrError = ref('')
 const qrBusy = ref(false)
 
 async function copyQrUrl() {
-  try {
-    await navigator.clipboard.writeText(qrUrl.value)
-  } catch {
-    // буфер обмена недоступен (например, без https) — ссылка и так видна на экране
-  }
+  if (await copyText(qrUrl.value)) flashCopied('qr')
 }
 
 function closeQr() {
@@ -91,7 +102,7 @@ async function generateQr() {
 }
 
 async function copySecret() {
-  await navigator.clipboard.writeText(revealedSecret.value)
+  if (await copyText(revealedSecret.value)) flashCopied('secret')
 }
 </script>
 
@@ -108,7 +119,9 @@ async function copySecret() {
       <h2>Пароль передан один раз — запишите его сейчас</h2>
       <div class="secret">{{ revealedSecret }}</div>
       <p class="row" style="margin-top: 10px;">
-        <button class="small" @click="copySecret">Скопировать</button>
+        <button class="small" @click="copySecret">
+          {{ copiedSecret ? 'Скопировано ✓' : 'Скопировать' }}
+        </button>
         <button class="small" @click="revealedSecret = ''">Скрыть</button>
       </p>
     </div>
@@ -123,7 +136,7 @@ async function copySecret() {
         Одноразовая ссылка для входа без пароля. Ученик сканирует QR камерой телефона —
         и сразу попадает в свой аккаунт. Новая генерация отменяет прежнюю ссылку.
       </p>
-      <div class="row" style="gap: 12px; flex-wrap: wrap;">
+      <div class="row" style="gap: 12px; flex-wrap: wrap; align-items: flex-end;">
         <label style="min-width: 220px;">
           Срок действия
           <select v-model="qrTtl" @change="qrImage = ''">
@@ -139,7 +152,7 @@ async function copySecret() {
         <p class="muted" style="margin: 8px 0 0;">Действует до {{ qrExpires }} · одноразовый</p>
         <p class="muted" style="word-break: break-all; margin: 4px 0 0;">{{ qrUrl }}</p>
         <button class="small" @click="copyQrUrl">
-          Скопировать ссылку
+          {{ copiedQr ? 'Скопировано ✓' : 'Скопировать ссылку' }}
         </button>
       </div>
     </div>
@@ -176,7 +189,7 @@ async function copySecret() {
                   class="icon-btn"
                   aria-label="Сбросить пароль"
                   :disabled="resetting === u.username"
-                  @click="resetTarget = u"
+                  @click="resetTarget = u; qrUser = null"
                 >
                   <Icon name="lucide:key-round" />
                 </button>
@@ -186,7 +199,7 @@ async function copySecret() {
                 <button
                   class="icon-btn"
                   aria-label="QR-вход"
-                  @click="qrUser = u; qrImage = ''; qrUrl = ''"
+                  @click="qrUser = u; resetTarget = null; qrImage = ''; qrUrl = ''"
                 >
                   <Icon name="lucide:qr-code" />
                 </button>
