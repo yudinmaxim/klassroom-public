@@ -33,6 +33,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css', 'highlight.js/styles/github.css'],
 
+  app: {
+    head: {
+      link: [{ rel: 'icon', type: 'image/png', href: '/icon.png' }],
+    },
+  },
+
   nitro: {
     storage: {
       // файловые сессии (см. specs/02-data-model.md); переживают рестарт
