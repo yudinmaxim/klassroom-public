@@ -269,9 +269,11 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         </div>
         <div v-if="canEdit" style="margin-top: 14px;">
           <h3 style="margin-bottom: 6px;">Вложения</h3>
-          <p class="muted" style="margin: 0 0 6px;">
-            В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
-            Файл можно перетащить прямо в текст.
+          <p class="muted" style="margin: 0 0 6px; line-height: 1.5;">
+            Файл можно перетащить прямо в текст — вставится markdown-ссылка.
+            В тексте: <code>![подпись](имя-файла.png)</code> — встроенная картинка,
+            <code>[имя-файла.pdf](имя-файла.pdf)</code> — ссылка на файл (клик открывает предпросмотр).
+            Удалить файл, который упоминается в тексте, нельзя — сначала уберите ссылки на него.
           </p>
           <AttachmentField
             :items="docPayload?.attachments ?? []"

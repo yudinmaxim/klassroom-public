@@ -125,6 +125,11 @@ defineExpose({ validLinks })
         <Icon name="lucide:trash-2" />
       </button>
     </div>
+    <div class="links-field-hint muted">
+      Внешние источники: видео, статьи, тренажёры. Enter в поле адреса подтянет
+      название страницы, а за ручку ссылку можно перетащить в текст — вставится
+      markdown-ссылка. Ссылки из текста попадают сюда автоматически при сохранении.
+    </div>
     <button class="small" @click="add">+ Добавить ссылку</button>
   </div>
 </template>
@@ -166,4 +171,5 @@ defineExpose({ validLinks })
 .links-field-refresh.is-loading svg { animation: links-spin 0.8s linear infinite; }
 @keyframes links-spin { to { transform: rotate(360deg); } }
 .links-field-row.is-fetching > input { opacity: 0.6; }
+.links-field-hint { font-size: 12px; line-height: 1.45; }
 </style>

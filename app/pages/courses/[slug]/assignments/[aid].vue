@@ -497,7 +497,11 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
                 @upload="uploadAttachment"
                 @remove="removeAttachment"
               />
-              <span class="muted" style="font-size: 12px;">до 10 МБ · чипы можно перетащить в текст</span>
+              <span class="muted" style="font-size: 12px; line-height: 1.5;">
+                до 10 МБ · файл можно перетащить прямо в текст или из чипа — в текст.
+                В тексте: <code>![подпись](имя.png)</code> — картинка, <code>[имя.pdf](имя.pdf)</code> — ссылка.
+                Удалить файл, который упоминается в ответе, нельзя.
+              </span>
             </div>
           </template>
           <p v-else class="muted" style="margin-top: 10px;">

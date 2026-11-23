@@ -177,8 +177,10 @@ async function uploadOsFiles(files: File[]): Promise<string[]> {
         <p v-if="!canAttach" class="muted" style="margin: 0 0 6px;">
           Для прикрепления файла назовите тему.
         </p>
-        <p v-else class="muted" style="margin: 0 0 6px;">
-          В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
+        <p v-else class="muted" style="margin: 0 0 6px; line-height: 1.5;">
+          Файл можно перетащить прямо в текст — вставится markdown-ссылка.
+          В тексте: <code>![подпись](имя-файла.png)</code> — встроенная картинка,
+          <code>[имя-файла.pdf](имя-файла.pdf)</code> — ссылка на файл (клик открывает предпросмотр).
           Тема создастся при загрузке.
         </p>
         <AttachmentField
