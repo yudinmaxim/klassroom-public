@@ -2,6 +2,7 @@
 import type { GradingScale } from '#shared/types'
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { placeholderCover } from '~/utils/placeholder-cover'
 
 const route = useRoute()
 const { data: coursePageData, refresh } = useCourseContext()
@@ -33,6 +34,10 @@ const coverBusy = ref(false)
 const coverError = ref('')
 const coverUrl = computed(() =>
   coverName.value ? `/api/courses/${slug.value}/cover?v=${coverV.value}` : '',
+)
+// без загруженной обложки показываем сгенерированную заглушку (как на карточках)
+const coverDisplayUrl = computed(() =>
+  coverUrl.value || (course.value ? placeholderCover(course.value.title) : ''),
 )
 watchEffect(() => {
   coverName.value = course.value?.cover ?? ''
@@ -217,7 +222,7 @@ const scaleLabel: Record<GradingScale['type'], string> = {
             </span>
           </div>
         </div>
-        <img v-if="coverUrl" class="course-cover" :src="coverUrl" alt="Обложка курса">
+        <img v-if="coverDisplayUrl" class="course-cover" :src="coverDisplayUrl" alt="Обложка курса">
         <p v-if="course?.description" class="course-desc">{{ course.description }}</p>
         <p v-else class="muted">Описание не задано.</p>
         <p class="muted course-meta">
@@ -233,8 +238,8 @@ const scaleLabel: Record<GradingScale['type'], string> = {
       <form id="course-settings" class="form" @submit.prevent="saveSettings">
         <div class="cover-field">
           <span class="cover-label">Обложка курса</span>
-          <div v-if="coverUrl" class="cover-preview">
-            <img :src="coverUrl" alt="Обложка курса">
+          <div v-if="coverDisplayUrl" class="cover-preview">
+            <img :src="coverDisplayUrl" alt="Обложка курса">
           </div>
           <div class="cover-actions">
             <label class="cover-upload">
