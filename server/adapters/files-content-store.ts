@@ -1256,7 +1256,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       await refreshIndex(norm)
 
       journal.record(actor.pseudonym, `создал материал ${mslug} в ${norm}`)
-      return { slug: f.slug, title: f.title, type: f.type, updatedAt: f.updatedAt }
+      return { slug: f.slug, title: f.title, type: f.type, updatedAt: f.updatedAt, groups: normalizeGroups(f.groups) }
     },
 
     async updateMaterial(actor, courseSlug, materialSlug, patch) {
