@@ -91,7 +91,16 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
 
+const cancelConfirmOpen = ref(false)
 function cancelEdit() {
+  if (!dirty.value) {
+    editing.value = false
+    return
+  }
+  cancelConfirmOpen.value = true
+}
+function confirmCancelEdit() {
+  cancelConfirmOpen.value = false
   editing.value = false
 }
 
@@ -354,6 +363,15 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     danger
     @confirm="answerLeave(true)"
     @cancel="answerLeave(false)"
+  />
+  <ConfirmModal
+    v-if="cancelConfirmOpen"
+    title="Несохранённые изменения"
+    message="Изменения в теме не сохранены. Выйти из редактирования без сохранения?"
+    confirm-label="Выйти без сохранения"
+    danger
+    @confirm="confirmCancelEdit"
+    @cancel="cancelConfirmOpen = false"
   />
   </div>
 </template>
