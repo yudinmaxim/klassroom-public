@@ -462,6 +462,29 @@ tbody tr:hover td { background: var(--bg-soft); }
 /* Воздух снизу для страниц без PageShell (у .page его даёт .page-body) */
 .container > :last-child:not(.page) { margin-bottom: 48px; }
 
+/* Auth-экраны (вход/первый запуск/QR) — без каркаса, контент по центру */
+.auth-main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px 16px;
+}
+.auth-logo {
+  width: min(320px, 70vw);
+  height: auto;
+  border-radius: 14px;
+}
+.auth-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
 /* Каркас: левый сайдбар + правая колонка (шапка с крошками + контент) */
 .shell {
   display: grid;

@@ -26,30 +26,33 @@ async function submit() {
 </script>
 
 <template>
-  <div class="card" style="max-width: 480px; margin: 0 auto;">
-    <h1>Первый запуск</h1>
-    <template v-if="setupAvailable">
-      <p class="muted">Создайте администратора — он заведёт учителей и учеников.</p>
-      <form class="form" @submit.prevent="submit">
-        <label>
-          Логин
-          <input v-model="form.username" autocomplete="username" required>
-        </label>
-        <label>
-          Псевдоним
-          <input v-model="form.pseudonym" required>
-        </label>
-        <label>
-          Пароль (минимум 8 символов)
-          <input v-model="form.password" type="password" autocomplete="new-password" required>
-        </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button class="primary" :disabled="busy">Создать администратора</button>
-      </form>
-    </template>
-    <template v-else>
-      <p>Администратор уже создан.</p>
-      <NuxtLink to="/login">Перейти ко входу →</NuxtLink>
-    </template>
+  <div class="auth-block">
+    <img src="/login-logo.jpeg" alt="Классная комната" class="auth-logo">
+    <div class="card" style="max-width: 480px; width: 100%; margin: 0 auto;">
+      <h1 style="text-align: center;">Первый запуск</h1>
+      <template v-if="setupAvailable">
+        <p class="muted">Создайте администратора — он заведёт учителей и учеников.</p>
+        <form class="form" @submit.prevent="submit">
+          <label>
+            Логин
+            <input v-model="form.username" autocomplete="username" required>
+          </label>
+          <label>
+            Псевдоним
+            <input v-model="form.pseudonym" required>
+          </label>
+          <label>
+            Пароль (минимум 8 символов)
+            <input v-model="form.password" type="password" autocomplete="new-password" required>
+          </label>
+          <p v-if="error" class="error">{{ error }}</p>
+          <button class="primary" :disabled="busy">Создать администратора</button>
+        </form>
+      </template>
+      <template v-else>
+        <p>Администратор уже создан.</p>
+        <NuxtLink to="/login">Перейти ко входу →</NuxtLink>
+      </template>
+    </div>
   </div>
 </template>

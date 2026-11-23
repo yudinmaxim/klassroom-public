@@ -15,6 +15,11 @@ async function logout() {
 const isActive = (path: string) =>
   path === '/' ? route.path === '/' || route.path.startsWith('/courses/') : route.path.startsWith(path)
 
+// auth-страницы (вход, первый запуск, QR) — без сайдбара и топбара
+const bare = computed(() =>
+  ['/login', '/setup'].some(p => route.path === p || route.path.startsWith(`${p}/`)),
+)
+
 const profileOpen = ref(false)
 const initials = computed(() =>
   (user.value?.pseudonym ?? '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase(),
@@ -27,7 +32,11 @@ const roleLabel = computed(() => ({
 </script>
 
 <template>
-  <div class="shell">
+  <main v-if="bare" class="auth-main">
+    <slot />
+    <NotificationToasts />
+  </main>
+  <div v-else class="shell">
     <aside class="sidebar">
       <NuxtLink to="/" class="brand">
         <img src="/logo.png" alt="Классная комната" class="brand-img">
