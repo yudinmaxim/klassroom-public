@@ -194,8 +194,12 @@ const scaleLabel: Record<GradingScale['type'], string> = {
   <div class="course-page">
   <div class="course-content">
     <!-- Просмотр -->
-    <div v-if="!editing" class="card course-info">
-      <img v-if="coverUrl" class="course-cover" :src="coverUrl" alt="Обложка курса">
+    <div
+      v-if="!editing"
+      class="card course-info"
+      :class="{ covered: !!coverUrl }"
+      :style="coverUrl ? { '--cover-img': `url(${coverUrl})` } : undefined"
+    >
       <div class="course-info-body">
         <div class="course-info-head">
           <SectionHead>О курсе</SectionHead>
@@ -331,14 +335,18 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 </template>
 
 <style scoped>
-.course-info { position: relative; padding: 0; overflow: hidden; }
-.course-cover {
-  display: block;
-  width: 100%;
-  max-height: 220px;
-  object-fit: cover;
+/* обложка — фоном карточки с подложкой цвета карточки, текст читается */
+.course-info.covered {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--card) 78%, transparent),
+      color-mix(in srgb, var(--card) 78%, transparent)
+    ),
+    var(--cover-img);
+  background-size: cover;
+  background-position: center;
 }
-.course-info-body { padding: 18px 20px 16px; }
+.course-info-body { min-width: 0; }
 .course-info-head {
   display: flex;
   align-items: center;
