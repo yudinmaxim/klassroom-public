@@ -335,16 +335,9 @@ const scaleLabel: Record<GradingScale['type'], string> = {
 </template>
 
 <style scoped>
-/* обложка — фоном карточки с подложкой цвета карточки, текст читается */
+/* обложка — фоном карточки без подложки */
 .course-info.covered {
-  background-image:
-    linear-gradient(
-      color-mix(in srgb, var(--card) 78%, transparent),
-      color-mix(in srgb, var(--card) 78%, transparent)
-    ),
-    var(--cover-img);
-  background-size: cover;
-  background-position: center;
+  background: var(--cover-img) center / cover no-repeat;
 }
 .course-info-body { min-width: 0; }
 .course-info-head {
