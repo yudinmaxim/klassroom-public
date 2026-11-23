@@ -115,15 +115,15 @@ defineExpose({ validLinks })
 .links-field-row { display: flex; gap: 8px; align-items: center; }
 .links-field-row > input { flex: 1; min-width: 0; }
 .links-field-title { position: relative; flex: 0 0 220px; display: flex; }
-.links-field-title input { width: 100%; padding-right: 30px; }
+.links-field-title input { width: 100%; padding-right: 32px; }
 .links-field-refresh {
   position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 6px;
+  top: 8px;
   width: 24px; height: 24px;
   display: grid;
   place-items: center;
+  padding: 0;
   border: none;
   border-radius: 6px;
   background: transparent;
