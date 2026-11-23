@@ -42,7 +42,6 @@ const roleLabel = computed(() => ({
         <img src="/logo.png" alt="Классная комната" class="brand-img">
       </NuxtLink>
       <nav v-if="user" class="side-nav">
-        <NuxtLink to="/stream" class="nav-link" :class="{ active: isActive('/stream') }">Лента</NuxtLink>
         <NuxtLink to="/grades" class="nav-link" :class="{ active: isActive('/grades') }">Оценки</NuxtLink>
         <NuxtLink to="/" class="nav-link" :class="{ active: isActive('/') }">Курсы</NuxtLink>
         <template v-if="user.role === 'admin'">

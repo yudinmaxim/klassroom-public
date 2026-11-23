@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     type: 'stream.comment.created',
     course: slug,
     title: course?.title ?? slug,
-    url: `/courses/${slug}/stream`,
+    url: `/courses/${slug}/stream?p=${pid}`,
     actor: actor.pseudonym,
     at: new Date().toISOString(),
   })
