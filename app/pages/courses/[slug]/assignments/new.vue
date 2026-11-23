@@ -4,6 +4,9 @@ import type { ExternalLink } from '#shared/types'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
+import { useEditorFileDrop, type MdEditorExpose } from '~/composables/useEditorFileDrop'
+import { normalizeExternalUrl, isHttpUrl, urlDomain } from '#shared/url'
+import { extractExternalLinks } from '~/utils/file-ref'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -36,10 +39,31 @@ const saveError = ref('')
 const saving = ref(false)
 const canSave = computed(() => form.title.trim().length >= 3)
 
+// drag-and-drop чипов ссылок в редактор описания → markdown-ссылка
+const descEditor = ref<MdEditorExpose | null>(null)
+const descDrop = useEditorFileDrop(descEditor, () => [])
+
+/** Ссылки из текста → в блок «Ссылки» (дедуп по url). */
+function syncLinksFromContent() {
+  for (const l of extractExternalLinks(form.description)) {
+    const url = normalizeExternalUrl(l.url)
+    if (!isHttpUrl(url)) continue
+    if (form.links.some(x => normalizeExternalUrl(x.url.trim()) === url)) continue
+    if (form.links.length >= 50) break
+    form.links.push({ title: (l.title || urlDomain(url)).slice(0, 120), url })
+  }
+}
+
+const validFormLinks = () =>
+  form.links
+    .map(l => ({ title: l.title.trim(), url: normalizeExternalUrl(l.url.trim()) }))
+    .filter(l => l.title && isHttpUrl(l.url))
+
 async function save() {
   saving.value = true
   saveError.value = ''
   try {
+    syncLinksFromContent()
     const res = await $fetch<{ assignment: { slug: string } }>(
       `/api/courses/${slug.value}/assignments`,
       {
@@ -50,7 +74,7 @@ async function save() {
           maxPoints: form.maxPoints,
           description: form.description,
           allowResubmit: form.allowResubmit,
-          links: form.links.filter(l => l.title.trim() && l.url.trim()),
+          links: validFormLinks(),
         },
       },
     )
@@ -91,9 +115,16 @@ async function save() {
           Разрешить пересдачу
         </label>
       </div>
-      <div class="md-editor-wrap" style="margin-top: 10px;">
+      <div
+        class="md-editor-wrap"
+        style="margin-top: 10px;"
+        @dragover="descDrop.onDragover"
+        @dragleave="descDrop.onDragleave"
+        @drop="descDrop.onDrop"
+      >
         <MdEditor
           id="klassroom-assignment-new-editor"
+          ref="descEditor"
           v-model="form.description"
           language="en-US"
           :toolbars="MD_TOOLBARS"

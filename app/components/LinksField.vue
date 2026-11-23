@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ExternalLink } from '#shared/types'
 import { normalizeExternalUrl, isHttpUrl } from '#shared/url'
+import { LINK_DRAG_MIME } from '~/utils/file-ref'
 
 /**
  * Редактор блока «Ссылки»: строки «название + URL», добавление/удаление.
@@ -55,6 +56,16 @@ function onUrlKeydown(i: number, e: KeyboardEvent) {
   }
 }
 
+/** Перетаскивание строки в md-редактор → вставка `[title](url)`. */
+function onDragStart(i: number, e: DragEvent) {
+  const l = props.modelValue[i]
+  if (!l?.url) { e.preventDefault(); return }
+  const url = normalizeExternalUrl(l.url)
+  e.dataTransfer?.setData(LINK_DRAG_MIME, JSON.stringify({ title: l.title, url }))
+  e.dataTransfer?.setData('text/plain', url)
+  e.dataTransfer?.setData('text/uri-list', url)
+}
+
 /** Валидные ссылки для сохранения: оба поля заполнены, url — http(s). */
 function validLinks(): ExternalLink[] {
   return props.modelValue
@@ -72,6 +83,14 @@ defineExpose({ validLinks })
       class="links-field-row"
       :class="{ 'is-fetching': fetching === i }"
     >
+      <span
+        class="links-field-grip"
+        draggable="true"
+        title="Перетащите в текст — вставится markdown-ссылка"
+        @dragstart="onDragStart(i, $event)"
+      >
+        <Icon name="lucide:grip-vertical" />
+      </span>
       <div class="links-field-title">
         <input
           :value="l.title"
@@ -113,6 +132,17 @@ defineExpose({ validLinks })
 <style scoped>
 .links-field { display: flex; flex-direction: column; gap: 8px; }
 .links-field-row { display: flex; gap: 8px; align-items: center; }
+.links-field-grip {
+  flex: none;
+  width: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  cursor: grab;
+}
+.links-field-grip:active { cursor: grabbing; }
+.links-field-grip svg { width: 14px; height: 14px; }
+.links-field-grip:hover { color: var(--accent); }
 .links-field-row > input { flex: 1; min-width: 0; }
 .links-field-title { position: relative; flex: 0 0 220px; display: flex; }
 .links-field-title input { width: 100%; padding-right: 32px; }

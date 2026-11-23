@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { TocItem, DocPayload, ExternalLink } from '#shared/types'
 import { errText } from '#shared/errors'
+import { normalizeExternalUrl, isHttpUrl, urlDomain } from '#shared/url'
+import { extractExternalLinks, attachmentRefMatches } from '~/utils/file-ref'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
@@ -45,9 +47,11 @@ watchEffect(() => {
 const editing = ref(false)
 const form = reactive({ title: '', content: '', links: [] as ExternalLink[] })
 
-// drag-and-drop чипов вложений в редактор → markdown-ссылка на файл
+// drag-and-drop чипов вложений/ссылок и файлов ОС в редактор → markdown
 const topicEditor = ref<MdEditorExpose | null>(null)
-const topicDrop = useEditorFileDrop(topicEditor, () => docPayload.value?.attachments ?? [])
+const topicDrop = useEditorFileDrop(topicEditor, () => docPayload.value?.attachments ?? [], {
+  onOsFiles: uploadOsFiles,
+})
 
 function startEdit() {
   form.title = material.value?.title ?? ''
@@ -66,13 +70,30 @@ if (route.query.edit === '1' && canEdit.value) startEdit()
 const saveError = ref('')
 const saving = ref(false)
 
+/** Ссылка из текста → в блок «Ссылки» (дедуп по url, title = текст или домен). */
+function syncLinksFromContent() {
+  for (const l of extractExternalLinks(form.content)) {
+    const url = normalizeExternalUrl(l.url)
+    if (!isHttpUrl(url)) continue
+    if (form.links.some(x => normalizeExternalUrl(x.url.trim()) === url)) continue
+    if (form.links.length >= 50) break
+    form.links.push({ title: (l.title || urlDomain(url)).slice(0, 120), url })
+  }
+}
+
+const validFormLinks = () =>
+  form.links
+    .map(l => ({ title: l.title.trim(), url: normalizeExternalUrl(l.url.trim()) }))
+    .filter(l => l.title && isHttpUrl(l.url))
+
 async function save() {
   saving.value = true
   saveError.value = ''
   try {
+    syncLinksFromContent()
     await $fetch(`/api/courses/${slug.value}/topics/${materialSlug.value}`, {
       method: 'PATCH',
-      body: { title: form.title, content: form.content, links: form.links.filter(l => l.title.trim() && l.url.trim()) },
+      body: { title: form.title, content: form.content, links: validFormLinks() },
     })
     editing.value = false
     await refresh()
@@ -101,7 +122,7 @@ async function removeMaterial() {
 const uploadError = ref('')
 const uploadBusy = ref(false)
 
-async function uploadAttachment(file: File) {
+async function uploadAttachment(file: File): Promise<boolean> {
   uploadError.value = ''
   uploadBusy.value = true
   try {
@@ -112,15 +133,41 @@ async function uploadAttachment(file: File) {
       body: fd,
     })
     await refresh()
+    return true
   } catch (e) {
     uploadError.value = errText(e, 'Не удалось загрузить файл')
+    return false
   } finally {
     uploadBusy.value = false
   }
 }
 
+/** Файлы, брошенные на редактор из ОС: грузим во вложения, вернём имена для вставки в текст. */
+async function uploadOsFiles(files: File[]): Promise<string[]> {
+  const names: string[] = []
+  for (const f of files) {
+    if (await uploadAttachment(f)) names.push(f.name)
+  }
+  return names
+}
+
+/** Выделить место в редакторе (для подсветки ссылки на файл). */
+function highlightInEditor(index: number, length: number) {
+  const view = topicEditor.value?.getEditorView?.()
+  if (!view) return
+  view.dispatch({ selection: { anchor: index, head: index + length }, scrollIntoView: true })
+  view.focus()
+}
+
 async function removeAttachment(name: string) {
   uploadError.value = ''
+  // файл упоминается в тексте — не даём удалить «молча», показываем место
+  const refs = attachmentRefMatches(form.content, name)
+  if (refs.length) {
+    uploadError.value = `Файл «${name}» используется в тексте (${refs.length} раз). Сначала уберите ссылки на него.`
+    highlightInEditor(refs[0].index, refs[0].length)
+    return
+  }
   try {
     await $fetch(
       `/api/courses/${slug.value}/topics/${materialSlug.value}/attachments/${encodeURIComponent(name)}`,
@@ -183,6 +230,11 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
       <div>
         <MdBody :html="material.html" :files="topicFiles" />
 
+        <div v-if="docPayload.attachments.length" style="margin-top: 26px; border-top: 1px solid var(--line); padding-top: 14px;">
+          <h2>Вложения</h2>
+          <FileChips :files="docPayload.attachments" :href-for="attachmentUrl" />
+        </div>
+
         <LinkList
           v-if="docPayload.links.length"
           :links="docPayload.links"
@@ -190,11 +242,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           :entity="`topic:${material.id}`"
           :show-stats="canEdit"
         />
-
-        <div v-if="docPayload.attachments.length" style="margin-top: 26px; border-top: 1px solid var(--line); padding-top: 14px;">
-          <h2>Вложения</h2>
-          <FileChips :files="docPayload.attachments" :href-for="attachmentUrl" />
-        </div>
       </div>
     </div>
 
@@ -220,14 +267,11 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
             :toolbars="MD_TOOLBARS"
           />
         </div>
-        <div style="margin-top: 14px;">
-          <h3 style="margin-bottom: 6px;">Ссылки</h3>
-          <LinksField v-model="form.links" />
-        </div>
-        <div v-if="canEdit" style="margin-top: 10px;">
+        <div v-if="canEdit" style="margin-top: 14px;">
           <h3 style="margin-bottom: 6px;">Вложения</h3>
           <p class="muted" style="margin: 0 0 6px;">
             В тексте: <code>![описание](имя-файла.png)</code> — картинка, <code>[файл](имя-файла.pdf)</code> — ссылка.
+            Файл можно перетащить прямо в текст.
           </p>
           <AttachmentField
             :items="docPayload?.attachments ?? []"
@@ -238,6 +282,10 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
             @remove="removeAttachment"
           />
           <p v-if="uploadError" class="error">{{ uploadError }}</p>
+        </div>
+        <div style="margin-top: 14px;">
+          <h3 style="margin-bottom: 6px;">Ссылки</h3>
+          <LinksField v-model="form.links" />
         </div>
       </div>
 

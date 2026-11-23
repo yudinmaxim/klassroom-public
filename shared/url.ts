@@ -14,3 +14,8 @@ export function normalizeExternalUrl(raw: string): string {
 export function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url)
 }
+
+/** Домен для отображения/подстановки в название ('www.' срезается). */
+export function urlDomain(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
+}

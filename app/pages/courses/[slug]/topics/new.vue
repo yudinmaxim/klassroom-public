@@ -4,6 +4,9 @@ import type { ExternalLink } from '#shared/types'
 import { useCourseContext } from '~/composables/useCourseContext'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
+import { useEditorFileDrop, type MdEditorExpose } from '~/composables/useEditorFileDrop'
+import { normalizeExternalUrl, isHttpUrl, urlDomain } from '#shared/url'
+import { extractExternalLinks } from '~/utils/file-ref'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -27,6 +30,21 @@ const form = reactive({ title: '', content: '', links: [] as ExternalLink[] })
 
 const validLinks = () => form.links.filter(l => l.title.trim() && l.url.trim())
 
+/** Ссылки из текста → в блок «Ссылки» (дедуп по url). */
+function syncLinksFromContent() {
+  for (const l of extractExternalLinks(form.content)) {
+    const url = normalizeExternalUrl(l.url)
+    if (!isHttpUrl(url)) continue
+    if (form.links.some(x => normalizeExternalUrl(x.url.trim()) === url)) continue
+    if (form.links.length >= 50) break
+    form.links.push({ title: (l.title || urlDomain(url)).slice(0, 120), url })
+  }
+}
+
+// drag-and-drop: чипы ссылок и файлы ОС → markdown в редактор
+const topicEditor = ref<MdEditorExpose | null>(null)
+const topicDrop = useEditorFileDrop(topicEditor, () => [], { onOsFiles: uploadOsFiles })
+
 const saveError = ref('')
 const saving = ref(false)
 const createdSlug = ref('')
@@ -46,6 +64,7 @@ async function save() {
   saving.value = true
   saveError.value = ''
   try {
+    syncLinksFromContent()
     const existed = !!createdSlug.value
     const target = await ensureCreated()
     if (existed) {
@@ -90,6 +109,38 @@ async function attachFile(file: File) {
     uploadBusy.value = false
   }
 }
+
+/** Файлы, брошенные на редактор: грузим (тема создаётся лениво), остаёмся на странице. */
+async function uploadOsFiles(files: File[]): Promise<string[]> {
+  uploadError.value = ''
+  if (form.title.trim().length < 3) {
+    uploadError.value = 'Укажите название темы, чтобы прикрепить файл'
+    return []
+  }
+  uploadBusy.value = true
+  const names: string[] = []
+  try {
+    const target = await ensureCreated()
+    for (const f of files) {
+      const fd = new FormData()
+      fd.append('file', f)
+      try {
+        await $fetch(`/api/courses/${slug.value}/topics/${target}/attachments`, {
+          method: 'POST',
+          body: fd,
+        })
+        names.push(f.name)
+      } catch (e) {
+        uploadError.value = errText(e, 'Не удалось прикрепить файл')
+      }
+    }
+  } catch (e) {
+    uploadError.value = errText(e, 'Не удалось создать тему')
+  } finally {
+    uploadBusy.value = false
+  }
+  return names
+}
 </script>
 
 <template>
@@ -106,19 +157,22 @@ async function attachFile(file: File) {
         Название
         <input v-model="form.title">
       </label>
-      <div class="md-editor-wrap" style="margin-top: 10px;">
+      <div
+        class="md-editor-wrap"
+        style="margin-top: 10px;"
+        @dragover="topicDrop.onDragover"
+        @dragleave="topicDrop.onDragleave"
+        @drop="topicDrop.onDrop"
+      >
         <MdEditor
           id="klassroom-topic-new-editor"
+          ref="topicEditor"
           v-model="form.content"
           language="en-US"
           :toolbars="MD_TOOLBARS"
         />
       </div>
       <div style="margin-top: 14px;">
-        <h3 style="margin-bottom: 6px;">Ссылки</h3>
-        <LinksField v-model="form.links" />
-      </div>
-      <div style="margin-top: 12px;" :style="canAttach ? '' : 'opacity: .55'">
         <h3 style="margin-bottom: 6px;">Вложения</h3>
         <p v-if="!canAttach" class="muted" style="margin: 0 0 6px;">
           Для прикрепления файла назовите тему.
@@ -134,6 +188,10 @@ async function attachFile(file: File) {
           @upload="attachFile"
         />
         <p v-if="uploadError" class="error">{{ uploadError }}</p>
+      </div>
+      <div style="margin-top: 14px;">
+        <h3 style="margin-bottom: 6px;">Ссылки</h3>
+        <LinksField v-model="form.links" />
       </div>
     </div>
 

@@ -6,6 +6,9 @@ import { onNotification } from '~/composables/useNotifications'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import type { MdEditorExpose } from '~/composables/useEditorFileDrop'
+import { useEditorFileDrop } from '~/composables/useEditorFileDrop'
+import { normalizeExternalUrl, isHttpUrl, urlDomain } from '#shared/url'
+import { extractExternalLinks, attachmentRefMatches } from '~/utils/file-ref'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -75,6 +78,7 @@ async function save() {
   saving.value = true
   saveError.value = ''
   try {
+    syncLinksFromContent()
     await $fetch(`/api/courses/${slug.value}/assignments/${aid.value}`, {
       method: 'PATCH',
       body: {
@@ -83,7 +87,7 @@ async function save() {
         maxPoints: form.maxPoints,
         description: form.description,
         allowResubmit: form.allowResubmit,
-        links: form.links.filter(l => l.title.trim() && l.url.trim()),
+        links: validFormLinks(),
       },
     })
     editing.value = false
@@ -139,7 +143,28 @@ const submitError = ref('')
 
 // drag-and-drop чипов вложений сдачи в редактор ответа → markdown-ссылка на файл
 const answerEditor = ref<MdEditorExpose | null>(null)
-const answerDrop = useEditorFileDrop(answerEditor, () => mySubmission.value?.attachments ?? [])
+const answerDrop = useEditorFileDrop(answerEditor, () => mySubmission.value?.attachments ?? [], {
+  onOsFiles: uploadOsAnswerFiles,
+})
+// drag-and-drop чипов ссылок в редактор описания задания
+const descEditor = ref<MdEditorExpose | null>(null)
+const descDrop = useEditorFileDrop(descEditor, () => [])
+
+/** Ссылки из описания → в блок «Ссылки» (дедуп по url). */
+function syncLinksFromContent() {
+  for (const l of extractExternalLinks(form.description)) {
+    const url = normalizeExternalUrl(l.url)
+    if (!isHttpUrl(url)) continue
+    if (form.links.some(x => normalizeExternalUrl(x.url.trim()) === url)) continue
+    if (form.links.length >= 50) break
+    form.links.push({ title: (l.title || urlDomain(url)).slice(0, 120), url })
+  }
+}
+
+const validFormLinks = () =>
+  form.links
+    .map(l => ({ title: l.title.trim(), url: normalizeExternalUrl(l.url.trim()) }))
+    .filter(l => l.title && isHttpUrl(l.url))
 
 // --- редактор ответа + вложения сдачи ---
 const attachBusy = ref(false)
@@ -163,8 +188,8 @@ function subFiles(username: string, names?: string[]) {
 function historyFiles(username: string, file: string, names: string[]) {
   return names.map(n => ({ name: n, url: historyAttachmentUrl(username, file, n) }))
 }
-async function uploadAttachment(file: File) {
-  if (!myUsername.value) return
+async function uploadAttachment(file: File): Promise<boolean> {
+  if (!myUsername.value) return false
   attachBusy.value = true
   submitError.value = ''
   try {
@@ -172,13 +197,40 @@ async function uploadAttachment(file: File) {
     fd.append('file', file)
     await $fetch(attachmentsApi(myUsername.value), { method: 'POST', body: fd })
     await loadOwnSubmission()
+    return true
   } catch (err) {
     submitError.value = errText(err, 'Не удалось загрузить файл')
+    return false
   } finally {
     attachBusy.value = false
   }
 }
+
+/** Файлы, брошенные на редактор ответа из ОС: грузим во вложения сдачи. */
+async function uploadOsAnswerFiles(files: File[]): Promise<string[]> {
+  const names: string[] = []
+  for (const f of files) {
+    if (await uploadAttachment(f)) names.push(f.name)
+  }
+  return names
+}
+
+/** Выделить место в редакторе ответа (для подсветки ссылки на файл). */
+function highlightAnswerRef(index: number, length: number) {
+  const view = answerEditor.value?.getEditorView?.()
+  if (!view) return
+  view.dispatch({ selection: { anchor: index, head: index + length }, scrollIntoView: true })
+  view.focus()
+}
+
 async function removeAttachment(name: string) {
+  // файл упоминается в ответе — не даём удалить «молча», показываем место
+  const refs = attachmentRefMatches(answer.value, name)
+  if (refs.length) {
+    submitError.value = `Файл «${name}» используется в ответе (${refs.length} раз). Сначала уберите ссылки на него.`
+    highlightAnswerRef(refs[0].index, refs[0].length)
+    return
+  }
   try {
     await $fetch(`${attachmentsApi(myUsername.value)}/${encodeURIComponent(name)}`, { method: 'DELETE' })
     await loadOwnSubmission()
@@ -648,9 +700,16 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
             Разрешить пересдачу
           </label>
         </div>
-        <div class="md-editor-wrap" style="margin-top: 10px;">
+        <div
+          class="md-editor-wrap"
+          style="margin-top: 10px;"
+          @dragover="descDrop.onDragover"
+          @dragleave="descDrop.onDragleave"
+          @drop="descDrop.onDrop"
+        >
           <MdEditor
             id="klassroom-assignment-editor"
+            ref="descEditor"
             v-model="form.description"
             language="en-US"
             :toolbars="MD_TOOLBARS"

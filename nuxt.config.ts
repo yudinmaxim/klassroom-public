@@ -30,6 +30,7 @@ export default defineNuxtConfig({
         'lucide:download',
         'lucide:external-link',
         'lucide:refresh-cw',
+        'lucide:grip-vertical',
         'lucide:chevron-left',
         'lucide:chevron-right',
       ],
