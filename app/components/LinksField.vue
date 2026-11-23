@@ -34,7 +34,8 @@ async function add() {
   const items = rootEl.value?.querySelectorAll<HTMLElement>('.links-field-item')
   const last = items?.[items.length - 1]
   const input = last?.querySelector<HTMLInputElement>('.links-field-title input')
-  input?.scrollIntoView({ block: 'nearest' })
+  // block: 'center' — прокручиваем даже если строка частично видна
+  input?.scrollIntoView({ block: 'center' })
   input?.focus({ preventScroll: true })
 }
 function remove(i: number) {
