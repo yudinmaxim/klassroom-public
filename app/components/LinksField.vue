@@ -202,6 +202,9 @@ defineExpose({ validLinks })
 @keyframes links-spin { to { transform: rotate(360deg); } }
 .links-field-row.is-fetching > input { opacity: 0.6; }
 .links-field-item { display: flex; flex-direction: column; gap: 4px; }
-.links-field-error { margin: 0; font-size: 12px; }
+.links-field-error {
+  margin: 0 40px 0 26px; /* от левого края поля названия до правого края поля URL */
+  font-size: 12px;
+}
 .links-field-hint { margin: 0 0 2px; font-size: 12px; line-height: 1.45; }
 </style>
