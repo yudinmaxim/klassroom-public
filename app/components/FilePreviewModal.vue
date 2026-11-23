@@ -15,6 +15,13 @@ const emit = defineEmits<{ close: [], nav: [dir: number] }>()
 const fileIndex = computed(() =>
   props.files.findIndex(f => f.url === props.file?.url),
 )
+const hasNav = computed(() => props.files.length > 1 && fileIndex.value >= 0)
+const prevFile = computed(() =>
+  hasNav.value ? props.files[(fileIndex.value - 1 + props.files.length) % props.files.length] : null,
+)
+const nextFile = computed(() =>
+  hasNav.value ? props.files[(fileIndex.value + 1) % props.files.length] : null,
+)
 
 const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif'])
 const AUDIO_EXT = new Set(['mp3', 'wav', 'ogg', 'm4a', 'flac'])
@@ -137,14 +144,20 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
       <div class="modal-head">
         <h2 class="preview-name">{{ file.name }}</h2>
         <div class="row" style="gap: 8px;">
-          <template v-if="files.length > 1">
-            <button class="icon-btn" aria-label="Предыдущий файл" @click="emit('nav', -1)">
-              <Icon name="lucide:chevron-left" />
-            </button>
+          <template v-if="hasNav">
+            <span class="tip">
+              <button class="icon-btn" :aria-label="`Предыдущий файл: ${prevFile?.name}`" @click="emit('nav', -1)">
+                <Icon name="lucide:chevron-left" />
+              </button>
+              <span class="tip-body tip-file">{{ prevFile?.name }}</span>
+            </span>
             <span class="muted preview-count">{{ fileIndex + 1 }}/{{ files.length }}</span>
-            <button class="icon-btn" aria-label="Следующий файл" @click="emit('nav', 1)">
-              <Icon name="lucide:chevron-right" />
-            </button>
+            <span class="tip">
+              <button class="icon-btn" :aria-label="`Следующий файл: ${nextFile?.name}`" @click="emit('nav', 1)">
+                <Icon name="lucide:chevron-right" />
+              </button>
+              <span class="tip-body tip-file">{{ nextFile?.name }}</span>
+            </span>
           </template>
           <span class="tip">
             <a class="icon-btn dl" :href="file.url" download aria-label="Скачать файл">
@@ -200,6 +213,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
   height: min(82vh, 900px);
 }
 .preview-count { font-size: 12px; white-space: nowrap; }
+.tip-file { overflow-wrap: anywhere; }
 .dl {
   border: 1px solid var(--line);
   background: #fff;
