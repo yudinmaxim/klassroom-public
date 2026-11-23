@@ -35,7 +35,7 @@ onMounted(async () => {
 <template>
   <div class="auth-block">
     <img src="/login-logo.jpeg" alt="Классная комната" class="auth-logo">
-    <div class="card" style="max-width: 420px; width: 100%; margin: 0 auto; text-align: center;">
+    <div class="card" style="text-align: center;">
       <template v-if="state === 'pending'">
         <h1>Проверяем ссылку…</h1>
         <p class="muted">Секундочку.</p>

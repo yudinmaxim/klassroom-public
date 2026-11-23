@@ -28,7 +28,7 @@ async function submit() {
 <template>
   <div class="auth-block">
     <img src="/login-logo.jpeg" alt="Классная комната" class="auth-logo">
-    <div class="card" style="max-width: 420px; width: 100%; margin: 0 auto;">
+    <div class="card">
       <h1 style="text-align: center;">Вход</h1>
       <form class="form" @submit.prevent="submit">
         <label>

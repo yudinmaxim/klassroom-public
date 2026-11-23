@@ -28,7 +28,7 @@ async function submit() {
 <template>
   <div class="auth-block">
     <img src="/login-logo.jpeg" alt="Классная комната" class="auth-logo">
-    <div class="card" style="max-width: 480px; width: 100%; margin: 0 auto;">
+    <div class="card">
       <h1 style="text-align: center;">Первый запуск</h1>
       <template v-if="setupAvailable">
         <p class="muted">Создайте администратора — он заведёт учителей и учеников.</p>

@@ -462,7 +462,8 @@ tbody tr:hover td { background: var(--bg-soft); }
 /* Воздух снизу для страниц без PageShell (у .page его даёт .page-body) */
 .container > :last-child:not(.page) { margin-bottom: 48px; }
 
-/* Auth-экраны (вход/первый запуск/QR) — без каркаса, контент по центру */
+/* Auth-экраны (вход/первый запуск/QR) — без каркаса, контент по центру.
+   Фон страницы и карточки = фон логотипа (#fefbf4). */
 .auth-main {
   min-height: 100vh;
   display: flex;
@@ -471,18 +472,25 @@ tbody tr:hover td { background: var(--bg-soft); }
   justify-content: center;
   gap: 20px;
   padding: 24px 16px;
-}
-.auth-logo {
-  width: min(320px, 70vw);
-  height: auto;
-  border-radius: 14px;
+  background: #fefbf4;
 }
 .auth-block {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 20px;
+  width: min(340px, 80vw);
+}
+.auth-logo {
   width: 100%;
+  height: auto;
+  border-radius: 12px;
+  display: block;
+}
+.auth-main .card {
+  width: 100%;
+  margin-bottom: 0;
+  background: #fefbf4;
 }
 
 /* Каркас: левый сайдбар + правая колонка (шапка с крошками + контент) */
