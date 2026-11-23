@@ -274,11 +274,13 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     <div v-if="!editing && docPayload" class="md-layout">
       <details v-if="material.toc.length" class="toc">
         <summary>Содержание</summary>
-        <ul>
-          <li v-for="t in material.toc as TocItem[]" :key="t.id" :class="`level-${t.level}`">
-            <a :href="`#${t.id}`">{{ t.text }}</a>
-          </li>
-        </ul>
+        <div class="toc-scroll">
+          <ul>
+            <li v-for="t in material.toc as TocItem[]" :key="t.id" :class="`level-${t.level}`">
+              <a :href="`#${t.id}`">{{ t.text }}</a>
+            </li>
+          </ul>
+        </div>
       </details>
       <div>
         <MdBody :html="material.html" :files="topicFiles" />
