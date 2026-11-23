@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { useCourseGroups } from '~/composables/useCourseGroups'
 import { onNotification } from '~/composables/useNotifications'
 
 const { data: coursePageData } = useCourseContext()
@@ -21,6 +22,14 @@ const { data: rosterData, refresh: refreshRoster } = await useFetch<{ roster: Ar
 )
 const roster = computed(() => rosterData.value?.roster ?? [])
 const rosterUsernames = computed(() => roster.value.map(s => s.username))
+
+// группы курса — для колонки «Группы»
+const { groups: courseGroups } = useCourseGroups(computed(() => course.value?.slug ?? ''))
+function groupsOf(username: string): string[] {
+  return (courseGroups.value ?? [])
+    .filter(g => g.members.includes(username))
+    .map(g => g.title)
+}
 
 // live-обновление состава по SSE-событиям
 onMounted(() => onNotification((n) => {
@@ -88,6 +97,7 @@ async function removeStudent(username: string) {
           <tr>
             <th>Псевдоним</th>
             <th>Логин</th>
+            <th>Группы</th>
             <th v-if="canManage" />
           </tr>
         </thead>
@@ -95,6 +105,16 @@ async function removeStudent(username: string) {
           <tr v-for="s in roster" :key="s.username">
             <td>{{ s.pseudonym }}</td>
             <td class="muted">{{ s.username }}</td>
+            <td>
+              <template v-if="groupsOf(s.username).length">
+                <span
+                  v-for="t in groupsOf(s.username)"
+                  :key="t"
+                  class="group-tag"
+                >{{ t }}</span>
+              </template>
+              <span v-else class="muted">—</span>
+            </td>
             <td v-if="canManage" class="row-actions">
               <span class="tip">
                 <button
@@ -130,3 +150,16 @@ async function removeStudent(username: string) {
   </div>
   </div>
 </template>
+
+<style scoped>
+.group-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--accent-soft, rgba(79, 70, 229, 0.1));
+  color: var(--accent, #4f46e5);
+  margin: 0 4px 2px 0;
+  white-space: nowrap;
+}
+</style>
