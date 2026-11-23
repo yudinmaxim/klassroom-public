@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { ExternalLink } from '#shared/types'
+import { normalizeExternalUrl, isHttpUrl } from '#shared/url'
 
 /**
  * Редактор блока «Ссылки»: строки «название + URL», добавление/удаление.
  * v-model — массив ExternalLink; пустые строки отфильтровывает родитель
  * при сохранении (или validate()).
+ * Enter в поле URL при пустом названии — подтягивает <title>/og:title
+ * страницы через /api/link-title.
  */
 const props = defineProps<{
   modelValue: ExternalLink[]
@@ -21,18 +24,57 @@ function set(i: number, patch: Partial<ExternalLink>) {
   emit('update:modelValue', props.modelValue.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
 }
 
+/** Подставляем https:// домену без схемы — на blur/Enter и при сохранении. */
+function normalize(i: number) {
+  const l = props.modelValue[i]
+  if (!l) return
+  const url = normalizeExternalUrl(l.url)
+  if (url !== l.url) set(i, { url })
+}
+
+const fetching = ref<number | null>(null)
+
+async function fetchTitle(i: number) {
+  const l = props.modelValue[i]
+  if (!l || l.title.trim() || fetching.value !== null) return
+  const url = normalizeExternalUrl(l.url)
+  if (url !== l.url) set(i, { url })
+  if (!isHttpUrl(url)) return
+  fetching.value = i
+  try {
+    const r = await $fetch<{ title: string }>('/api/link-title', { query: { url } })
+    const cur = props.modelValue[i]
+    if (r.title && cur && !cur.title.trim()) {
+      set(i, { title: r.title.slice(0, 120) })
+    }
+  } catch { /* страница недоступна — оставляем название пустым */ }
+  finally { fetching.value = null }
+}
+
+function onUrlKeydown(i: number, e: KeyboardEvent) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    void fetchTitle(i)
+  }
+}
+
 /** Валидные ссылки для сохранения: оба поля заполнены, url — http(s). */
 function validLinks(): ExternalLink[] {
   return props.modelValue
-    .map(l => ({ title: l.title.trim(), url: l.url.trim() }))
-    .filter(l => l.title && /^https?:\/\//i.test(l.url))
+    .map(l => ({ title: l.title.trim(), url: normalizeExternalUrl(l.url) }))
+    .filter(l => l.title && isHttpUrl(l.url))
 }
 defineExpose({ validLinks })
 </script>
 
 <template>
   <div class="links-field">
-    <div v-for="(l, i) in modelValue" :key="i" class="links-field-row">
+    <div
+      v-for="(l, i) in modelValue"
+      :key="i"
+      class="links-field-row"
+      :class="{ 'is-fetching': fetching === i }"
+    >
       <input
         :value="l.title"
         placeholder="Название (например, видеоурок)"
@@ -41,9 +83,11 @@ defineExpose({ validLinks })
       >
       <input
         :value="l.url"
-        placeholder="https://…"
+        placeholder="example.com или https://…"
         maxlength="2000"
         @input="set(i, { url: ($event.target as HTMLInputElement).value })"
+        @blur="normalize(i)"
+        @keydown="onUrlKeydown(i, $event)"
       >
       <button
         class="icon-btn danger"
@@ -52,6 +96,9 @@ defineExpose({ validLinks })
       >
         <Icon name="lucide:trash-2" />
       </button>
+    </div>
+    <div class="links-field-hint muted">
+      Enter в поле адреса подставит название страницы, если оно пустое
     </div>
     <button class="small" @click="add">+ Добавить ссылку</button>
   </div>
@@ -62,4 +109,6 @@ defineExpose({ validLinks })
 .links-field-row { display: flex; gap: 8px; align-items: center; }
 .links-field-row input { flex: 1; min-width: 0; }
 .links-field-row input:first-child { flex: 0 0 220px; }
+.links-field-row.is-fetching input { opacity: 0.6; }
+.links-field-hint { font-size: 12px; }
 </style>

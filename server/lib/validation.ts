@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import type { UserPublic } from '#shared/types'
 import { PERMISSION_CATALOG } from '#shared/permissions-catalog'
+import { normalizeExternalUrl, isHttpUrl } from '#shared/url'
 import { z } from 'zod'
 import { httpError } from './errors'
 import { readSessionUser } from './sessions'
@@ -123,8 +124,12 @@ export const materialTypeSchema = z
 /** Внешняя ссылка-блок (только http/https). */
 export const externalLinkSchema = z.object({
   title: z.string().trim().min(1, 'Название ссылки: минимум 1 символ').max(120),
-  url: z.string().trim().url('Некорректный URL').max(2000)
-    .refine(u => /^https?:\/\//i.test(u), 'Ссылка должна начинаться с http:// или https://'),
+  url: z.string().trim().max(2000)
+    .transform(normalizeExternalUrl)
+    .refine(u => {
+      try { new URL(u); return true } catch { return false }
+    }, 'Некорректный URL')
+    .refine(isHttpUrl, 'Ссылка должна начинаться с http:// или https://'),
 })
 export const externalLinksSchema = z.array(externalLinkSchema).max(50, 'Слишком много ссылок')
 
