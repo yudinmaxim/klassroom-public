@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { StreamPost } from '#shared/types'
+import { PUBLIC_GROUP } from '#shared/types'
 import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { useCourseGroups } from '~/composables/useCourseGroups'
 import { onNotification } from '~/composables/useNotifications'
 import { useStreamChat, streamHasUnread } from '~/composables/useStreamChat'
 
@@ -21,6 +23,28 @@ const posts = ref<StreamPost[]>([])
 const error = ref('')
 const text = ref('')
 const busy = ref(false)
+const postGroups = ref<string[]>([PUBLIC_GROUP])
+
+const canManage = computed(() => Boolean(coursePageData.value?.canManage))
+const { myGroupIds } = useCourseGroups(slug)
+
+// фильтр ленты: объединённая / общая / групповая
+type FeedFilter = 'all' | 'public' | 'group'
+const feedFilter = ref<FeedFilter>('all')
+const filteredPosts = computed(() => {
+  if (feedFilter.value === 'public') {
+    return posts.value.filter(p => (p.groups ?? []).includes(PUBLIC_GROUP))
+  }
+  if (feedFilter.value === 'group') {
+    return posts.value.filter((p) => {
+      const g = p.groups ?? []
+      if (g.some(id => myGroupIds.value.has(id))) return true
+      // менеджер видит все групповые посты, даже не состоя в группах
+      return canManage.value && g.some(id => id !== PUBLIC_GROUP)
+    })
+  }
+  return posts.value
+})
 
 const { openThread } = useStreamChat()
 
@@ -48,9 +72,10 @@ async function send() {
   try {
     await $fetch(`/api/courses/${slug.value}/stream`, {
       method: 'POST',
-      body: { text: text.value },
+      body: { text: text.value, groups: postGroups.value },
     })
     text.value = ''
+    postGroups.value = [PUBLIC_GROUP]
     await load()
   } catch (e) {
     error.value = errText(e)
@@ -83,13 +108,30 @@ function openPostChat(p: StreamPost) {
             {{ busy ? '…' : 'Отправить' }}
           </button>
         </div>
+        <div style="margin-top: 8px;">
+          <GroupField v-model="postGroups" :slug="slug" />
+        </div>
         <p v-if="error" class="error">{{ error }}</p>
       </div>
 
-      <p v-if="!posts.length" class="muted">Пока тихо — первый пост за вами.</p>
+      <div class="row" style="gap: 6px; margin: 12px 0;">
+        <button
+          v-for="f in ([['all', 'Объединённая'], ['public', 'Общая'], ['group', 'Групповая']] as const)"
+          :key="f[0]"
+          class="small"
+          :class="{ primary: feedFilter === f[0] }"
+          @click="feedFilter = f[0]"
+        >
+          {{ f[1] }}
+        </button>
+      </div>
+
+      <p v-if="!filteredPosts.length" class="muted">
+        {{ posts.length ? 'В этом фильтре пусто.' : 'Пока тихо — первый пост за вами.' }}
+      </p>
 
       <div
-        v-for="p in posts"
+        v-for="p in filteredPosts"
         :key="p.id"
         class="card"
         style="margin-bottom: 10px; padding: 12px 14px;"
@@ -97,6 +139,7 @@ function openPostChat(p: StreamPost) {
         <div class="row" style="align-items: center; justify-content: space-between;">
           <p class="muted" style="margin: 0 0 4px; font-size: 12px;">
             {{ p.author }} · {{ new Date(p.createdAt).toLocaleString('ru') }}
+            <GroupChips :slug="slug" :groups="p.groups" />
           </p>
           <button class="small" @click="openPostChat(p)">
             Обсуждение

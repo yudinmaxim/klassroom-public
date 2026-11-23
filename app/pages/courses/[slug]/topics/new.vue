@@ -7,6 +7,7 @@ import 'md-editor-v3/lib/style.css'
 import { useEditorFileDrop, type MdEditorExpose } from '~/composables/useEditorFileDrop'
 import { normalizeExternalUrl, isHttpUrl, urlDomain } from '#shared/url'
 import { extractExternalLinks } from '~/utils/file-ref'
+import { PUBLIC_GROUP } from '#shared/types'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -26,7 +27,7 @@ watchEffect(() => {
   ]
 })
 
-const form = reactive({ title: '', content: '', links: [] as ExternalLink[] })
+const form = reactive({ title: '', content: '', links: [] as ExternalLink[], groups: [PUBLIC_GROUP] as string[] })
 
 const validLinks = () => form.links.filter(l => l.title.trim() && l.url.trim())
 
@@ -62,7 +63,7 @@ async function ensureCreated(): Promise<string> {
   if (createdSlug.value) return createdSlug.value
   const created = await $fetch<{ material: { slug: string } }>(
     `/api/courses/${slug.value}/topics`,
-    { method: 'POST', body: { title: form.title, type: 'doc', content: form.content, links: validLinks() } },
+    { method: 'POST', body: { title: form.title, type: 'doc', content: form.content, links: validLinks(), groups: form.groups } },
   )
   createdSlug.value = created.material.slug
   return createdSlug.value
@@ -79,7 +80,7 @@ async function save() {
       // тема создана лениво при вложении — досохраняем последние правки
       await $fetch(`/api/courses/${slug.value}/topics/${target}`, {
         method: 'PATCH',
-        body: { title: form.title, content: form.content, links: validLinks() },
+        body: { title: form.title, content: form.content, links: validLinks(), groups: form.groups },
       })
     }
     await navigateTo(`/courses/${slug.value}/topics/${target}`)
@@ -202,6 +203,9 @@ async function uploadOsFiles(files: File[]): Promise<string[]> {
       <div style="margin-top: 14px;">
         <h3 style="margin-bottom: 6px;">Ссылки</h3>
         <LinksField v-model="form.links" :content="form.content" :highlight="highlightInEditor" />
+      </div>
+      <div style="margin-top: 14px;">
+        <GroupField v-model="form.groups" :slug="slug" />
       </div>
     </div>
 

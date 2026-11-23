@@ -4,6 +4,7 @@ import { errText } from '#shared/errors'
 import { normalizeExternalUrl, isHttpUrl, urlDomain } from '#shared/url'
 import { extractExternalLinks, attachmentRefMatches } from '~/utils/file-ref'
 import { useCourseContext } from '~/composables/useCourseContext'
+import { PUBLIC_GROUP } from '#shared/types'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import type { MdEditorExpose } from '~/composables/useEditorFileDrop'
@@ -45,7 +46,7 @@ watchEffect(() => {
 
 // --- режим редактирования ---
 const editing = ref(false)
-const form = reactive({ title: '', content: '', links: [] as ExternalLink[] })
+const form = reactive({ title: '', content: '', links: [] as ExternalLink[], groups: [PUBLIC_GROUP] as string[] })
 
 // drag-and-drop чипов вложений/ссылок и файлов ОС в редактор → markdown
 const topicEditor = ref<MdEditorExpose | null>(null)
@@ -57,6 +58,7 @@ function startEdit() {
   form.title = material.value?.title ?? ''
   form.content = docPayload.value?.content ?? ''
   form.links = (docPayload.value?.links ?? []).map(l => ({ ...l }))
+  form.groups = [...(material.value?.groups ?? [PUBLIC_GROUP])]
   editing.value = true
   savedSnapshot.value = editSnapshot()
 }
@@ -64,7 +66,7 @@ function startEdit() {
 // --- защита от ухода без сохранения ---
 const savedSnapshot = ref('')
 function editSnapshot() {
-  return JSON.stringify({ t: form.title, c: form.content, l: form.links })
+  return JSON.stringify({ t: form.title, c: form.content, l: form.links, g: form.groups })
 }
 const dirty = computed(() => editing.value && editSnapshot() !== savedSnapshot.value)
 
@@ -136,7 +138,7 @@ async function save() {
     syncLinksFromContent()
     await $fetch(`/api/courses/${slug.value}/topics/${materialSlug.value}`, {
       method: 'PATCH',
-      body: { title: form.title, content: form.content, links: validFormLinks() },
+      body: { title: form.title, content: form.content, links: validFormLinks(), groups: form.groups },
     })
     editing.value = false
     savedSnapshot.value = ''
@@ -249,7 +251,10 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     <header v-if="!editing" class="page-head topic-hero">
       <div class="topic-hero-text">
         <h1 class="page-title">{{ material.title }}</h1>
-        <p class="muted topic-meta">Конспект · обновлён {{ fmtDate(material.updatedAt) }}</p>
+        <p class="muted topic-meta">
+          Конспект · обновлён {{ fmtDate(material.updatedAt) }}
+          <GroupChips :slug="slug" :groups="material.groups" />
+        </p>
       </div>
       <div v-if="!editing && canEdit" class="page-actions">
         <span class="tip">
@@ -342,6 +347,9 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         <div style="margin-top: 14px;">
           <h3 style="margin-bottom: 6px;">Ссылки</h3>
           <LinksField v-model="form.links" :content="form.content" :highlight="highlightInEditor" />
+        </div>
+        <div style="margin-top: 14px;">
+          <GroupField v-model="form.groups" :slug="slug" />
         </div>
       </div>
 

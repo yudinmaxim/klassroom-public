@@ -51,6 +51,7 @@ const form = reactive({
   description: '',
   allowResubmit: true,
   links: [] as ExternalLink[],
+  groups: [] as string[],
 })
 
 function startEdit() {
@@ -62,6 +63,7 @@ function startEdit() {
   form.description = a.description
   form.allowResubmit = a.allowResubmit
   form.links = (a.links ?? []).map(l => ({ ...l }))
+  form.groups = [...(a.groups ?? [])]
   editing.value = true
 }
 
@@ -88,6 +90,7 @@ async function save() {
         description: form.description,
         allowResubmit: form.allowResubmit,
         links: validFormLinks(),
+        groups: form.groups,
       },
     })
     editing.value = false
@@ -447,6 +450,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
 
     <p v-if="!editing" class="muted">
       <template v-if="assignment.status === 'published'">{{ typeLabel(assignment.type) }} · </template>{{ statusLabel(assignment.status) }}
+      <GroupChips :slug="slug" :groups="assignment.groups" />
       <template v-if="assignment.due"> · до {{ assignment.due }}</template>
       <template v-if="assignment.maxPoints"> · {{ assignment.maxPoints }} балл.</template>
       <template v-if="fmtDate(assignment.updatedAt)"> · обновлено {{ fmtDate(assignment.updatedAt) }}</template>
@@ -731,6 +735,9 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
         <div style="margin-top: 14px;">
           <h3 style="margin-bottom: 6px;">Ссылки</h3>
           <LinksField v-model="form.links" :content="form.description" :highlight="highlightDescRef" />
+        </div>
+        <div style="margin-top: 14px;">
+          <GroupField v-model="form.groups" :slug="slug" />
         </div>
       </div>
     </div>

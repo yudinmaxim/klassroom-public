@@ -1,4 +1,4 @@
-import { requireUser, courseSlugSchema } from '../../../../../lib/validation'
+import { requireUser, courseSlugSchema } from '../../../../lib/validation'
 
 /** Удалить группу: контент отвязывается и становится «безгрупповым». */
 export default defineEventHandler(async (event) => {

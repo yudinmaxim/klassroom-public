@@ -146,6 +146,7 @@ async function unpublishAssignment(a: AssignmentRow) {
           >
             <td>
               <strong>{{ a.title }}</strong>
+              <GroupChips :slug="course?.slug ?? ''" :groups="a.groups" />
               <span
                 v-if="!canAssignments && chatHasUnread(course?.slug ?? '', a.slug, a.myLastCommentAt)"
                 class="unread-dot"

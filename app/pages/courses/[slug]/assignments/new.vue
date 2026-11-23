@@ -7,6 +7,7 @@ import 'md-editor-v3/lib/style.css'
 import { useEditorFileDrop, type MdEditorExpose } from '~/composables/useEditorFileDrop'
 import { normalizeExternalUrl, isHttpUrl, urlDomain } from '#shared/url'
 import { extractExternalLinks } from '~/utils/file-ref'
+import { PUBLIC_GROUP } from '#shared/types'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -33,6 +34,7 @@ const form = reactive({
   description: '',
   allowResubmit: true,
   links: [] as ExternalLink[],
+  groups: [PUBLIC_GROUP] as string[],
 })
 
 const saveError = ref('')
@@ -83,6 +85,7 @@ async function save() {
           description: form.description,
           allowResubmit: form.allowResubmit,
           links: validFormLinks(),
+          groups: form.groups,
         },
       },
     )
@@ -141,6 +144,9 @@ async function save() {
       <div style="margin-top: 14px;">
         <h3 style="margin-bottom: 6px;">Ссылки</h3>
         <LinksField v-model="form.links" :content="form.description" :highlight="highlightInEditor" />
+      </div>
+      <div style="margin-top: 14px;">
+        <GroupField v-model="form.groups" :slug="slug" />
       </div>
     </div>
 

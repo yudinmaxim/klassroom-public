@@ -1,4 +1,4 @@
-import { requireUser, parseJson, updateGroupBodySchema, courseSlugSchema } from '../../../../../lib/validation'
+import { requireUser, parseJson, updateGroupBodySchema, courseSlugSchema } from '../../../../lib/validation'
 
 /** Переименовать группу и/или заменить состав. */
 export default defineEventHandler(async (event) => {

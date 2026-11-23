@@ -15,7 +15,7 @@ watchEffect(() => {
     : [{ label: 'Курсы', to: '/' }]
 })
 
-interface MaterialRow { slug: string, title: string, type: string, updatedAt: string }
+interface MaterialRow { slug: string, title: string, type: string, updatedAt: string, groups?: string[] }
 const materials = ref<MaterialRow[]>([])
 const materialsError = ref('')
 
@@ -97,7 +97,10 @@ async function confirmDeleteMaterial() {
             @click="openMaterial(m)"
             @keydown.enter="openMaterial(m)"
           >
-            <td><strong>{{ m.title }}</strong></td>
+            <td>
+              <strong>{{ m.title }}</strong>
+              <GroupChips :slug="course?.slug ?? ''" :groups="m.groups" />
+            </td>
             <td class="muted">{{ m.type === 'doc' ? 'конспект' : m.type }}</td>
             <td v-if="canMaterials" class="row-actions">
               <span class="tip">

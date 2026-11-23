@@ -37,6 +37,7 @@ const tabs = computed<TabDef[]>(() => {
     { id: 'assignments', label: 'Задания', to: `${base}/assignments` },
     { id: 'stream', label: 'Лента', to: `${base}/stream` },
     ...(canViewRoster.value ? [{ id: 'students', label: 'Учащиеся', to: `${base}/students` }] : []),
+    ...(courseData.value?.canManage ? [{ id: 'groups', label: 'Группы', to: `${base}/groups` }] : []),
   ]
 })
 
