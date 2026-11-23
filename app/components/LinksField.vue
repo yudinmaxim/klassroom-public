@@ -22,10 +22,17 @@ const emit = defineEmits<{ 'update:modelValue': [links: ExternalLink[]] }>()
 const blockError = ref('')
 const blockIndex = ref<number | null>(null)
 
-function add() {
+const rootEl = ref<HTMLElement | null>(null)
+
+async function add() {
   blockError.value = ''
   blockIndex.value = null
   emit('update:modelValue', [...props.modelValue, { title: '', url: '' }])
+  await nextTick()
+  const items = rootEl.value?.querySelectorAll<HTMLElement>('.links-field-item')
+  const last = items?.[items.length - 1]
+  last?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  last?.querySelector<HTMLInputElement>('.links-field-title input')?.focus()
 }
 function remove(i: number) {
   const l = props.modelValue[i]
@@ -100,7 +107,7 @@ defineExpose({ validLinks })
 </script>
 
 <template>
-  <div class="links-field">
+  <div ref="rootEl" class="links-field">
     <p class="links-field-hint muted">
       Внешние источники: видео, статьи, тренажёры. Enter в поле адреса подтянет
       название страницы, а за ручку ссылку можно перетащить в текст — вставится
