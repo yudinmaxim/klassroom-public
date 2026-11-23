@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { placeholderCover } from '~/utils/placeholder-cover'
+
 const { data: me } = await useFetch('/api/auth/me', { key: 'me' })
 if (!me.value?.user) {
   // гостям на главной нечего смотреть — сразу на вход
@@ -59,17 +61,24 @@ const showForm = ref(false)
         :to="`/courses/${c.slug}`"
         class="course-card"
       >
-        <div class="course-card-head">
-          <strong class="course-title">{{ c.title }}</strong>
-          <span class="tip">
-            <span class="icon-btn course-open" aria-hidden="true">
-              <Icon name="lucide:arrow-right" />
+        <img
+          class="course-cover"
+          :src="c.cover ? `/api/courses/${c.slug}/cover` : placeholderCover(c.title)"
+          alt=""
+        >
+        <div class="course-card-body">
+          <div class="course-card-head">
+            <strong class="course-title">{{ c.title }}</strong>
+            <span class="tip">
+              <span class="icon-btn course-open" aria-hidden="true">
+                <Icon name="lucide:arrow-right" />
+              </span>
             </span>
-          </span>
-        </div>
-        <div class="course-meta">
-          <span class="muted">{{ c.teacher }}</span>
-          <span class="course-count">{{ c.studentCount }} уч.</span>
+          </div>
+          <div class="course-meta">
+            <span class="muted">{{ c.teacher }}</span>
+            <span class="course-count">{{ c.studentCount }} уч.</span>
+          </div>
         </div>
       </NuxtLink>
     </div>
@@ -125,12 +134,21 @@ const showForm = ref(false)
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 0;
+  overflow: hidden;
   text-decoration: none;
   color: var(--ink);
   box-shadow: 0 1px 3px rgba(35, 42, 53, 0.05);
   transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
+/* обложка: те же пропорции, что у баннера на странице курса (~4:1) */
+.course-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 1;
+  object-fit: cover;
+}
+.course-card-body { padding: 12px 18px 16px; }
 .course-card:hover {
   border-color: var(--accent);
   box-shadow: 0 4px 14px rgba(0, 144, 192, 0.14);

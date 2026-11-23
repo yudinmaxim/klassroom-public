@@ -60,6 +60,8 @@ export interface CourseSummary {
   title: string
   teacher: string
   studentCount: number
+  /** Файл обложки, если задан (cover.<ext>). */
+  cover?: string
 }
 
 // --- Материалы (шаг 3, specs/04-plugins.md) ---
