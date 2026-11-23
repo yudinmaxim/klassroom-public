@@ -40,6 +40,8 @@ interface CourseFile {
   teacher: string
   gradingScale: GradingScale
   createdAt: string
+  /** Имя файла обложки в каталоге курса (cover.<ext>). */
+  cover?: string
 }
 
 interface RosterFile {
@@ -115,6 +117,7 @@ function toCourse(f: CourseFile, students: string[]): Course {
     teacher: f.teacher,
     gradingScale: f.gradingScale,
     createdAt: f.createdAt,
+    cover: f.cover,
     students,
   }
 }
@@ -149,6 +152,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       teacher: f.teacher,
       gradingScale: f.gradingScale,
       createdAt: f.createdAt,
+      ...(f.cover ? { cover: f.cover } : {}),
     })
     await writeYaml(resolveDataPath(courseDir(baseDir, f.slug), 'roster.yml'), { students: roster })
   }
@@ -256,6 +260,10 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   }
   /** Скачивание (Content-Disposition: attachment), не отдаём исполняемое. */
   const BLOCKED_EXT = new Set(['svg', 'html', 'htm', 'xhtml', 'js', 'mjs', 'exe', 'bat', 'cmd'])
+
+  /** Обложка курса — только растровые форматы (svg исключён: может нести скрипты). */
+  const COVER_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp'])
+  const MAX_COVER_BYTES = 5 * 1024 * 1024
 
   function mimeFor(name: string): string {
     const ext = name.split('.').pop()?.toLowerCase() ?? ''
@@ -904,6 +912,48 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       const f = await loadForManage(actor, norm)
       await rm(courseDir(baseDir, norm), { recursive: true, force: true })
       journal.record(actor.pseudonym, `удалил курс ${norm} «${f.title}»`)
+    },
+
+    // --- обложка курса: один файл cover.<ext> в каталоге курса ---
+
+    async setCourseCover(actor, slug, file) {
+      const norm = normalizeSlug(slug)
+      const f = await loadForManage(actor, norm)
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+      if (!COVER_EXTS.has(ext)) {
+        httpError(400, 'Обложка: только png, jpg, gif, webp, avif или bmp')
+      }
+      if (!file.data.length) httpError(400, 'Файл пустой')
+      if (file.data.length > MAX_COVER_BYTES) httpError(400, 'Обложка больше 5 МБ')
+
+      if (f.cover) await atomicDelete(resolveDataPath(courseDir(baseDir, norm), f.cover))
+      const name = `cover.${ext}`
+      await atomicWriteBytes(resolveDataPath(courseDir(baseDir, norm), name), file.data)
+      f.cover = name
+
+      const roster = await readRoster(baseDir, norm)
+      await writeCourse(f, roster)
+      journal.record(actor.pseudonym, `обновил обложку курса ${norm}`)
+      return name
+    },
+
+    async removeCourseCover(actor, slug) {
+      const norm = normalizeSlug(slug)
+      const f = await loadForManage(actor, norm)
+      if (!f.cover) return
+      await atomicDelete(resolveDataPath(courseDir(baseDir, norm), f.cover))
+      delete f.cover
+      const roster = await readRoster(baseDir, norm)
+      await writeCourse(f, roster)
+      journal.record(actor.pseudonym, `убрал обложку курса ${norm}`)
+    },
+
+    async getCourseCover(actor, slug) {
+      const norm = normalizeSlug(slug)
+      const course = await loadCourseFor(actor, norm)
+      if (!course?.cover) return null
+      const data = await readBytes(resolveDataPath(courseDir(baseDir, norm), course.cover))
+      return data ? { data, mime: mimeFor(course.cover) } : null
     },
 
     async addStudent(actor, slug, username) {

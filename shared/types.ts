@@ -48,6 +48,8 @@ export interface Course {
   teacher: string
   gradingScale: GradingScale
   createdAt: string
+  /** Файл обложки в каталоге курса (cover.<ext>), если задан. */
+  cover?: string
   /** username'ы зачисленных учеников */
   students: string[]
 }

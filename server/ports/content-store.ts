@@ -31,6 +31,19 @@ export interface ContentStore {
   /** Удалить курс целиком (владелец или admin). */
   deleteCourse(actor: UserPublic, slug: string): Promise<void>
 
+  /** Установить обложку курса (courses.manage). Принимает только растровые изображения. */
+  setCourseCover(
+    actor: UserPublic,
+    slug: string,
+    file: { name: string, data: Buffer },
+  ): Promise<string>
+
+  /** Убрать обложку курса (courses.manage). */
+  removeCourseCover(actor: UserPublic, slug: string): Promise<void>
+
+  /** Отдать обложку курса (доступ на просмотр курса). */
+  getCourseCover(actor: UserPublic, slug: string): Promise<{ data: Buffer, mime: string } | null>
+
   /** Зачислить ученика (владелец или admin). */
   addStudent(actor: UserPublic, slug: string, username: string): Promise<Course>
 
