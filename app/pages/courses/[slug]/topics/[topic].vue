@@ -71,13 +71,16 @@ const dirty = computed(() => editing.value && editSnapshot() !== savedSnapshot.v
 const leaveConfirmOpen = ref(false)
 let leaveResolve: ((v: boolean) => void) | null = null
 
-onBeforeRouteLeave(() => {
+const leaveGuard = () => {
   if (!dirty.value) return true
   return new Promise<boolean>((resolve) => {
     leaveResolve = resolve
     leaveConfirmOpen.value = true
   })
-})
+}
+onBeforeRouteLeave(leaveGuard)
+// переход на другую тему — тот же компонент, leave не срабатывает
+onBeforeRouteUpdate(leaveGuard)
 function answerLeave(stay: boolean) {
   leaveConfirmOpen.value = false
   leaveResolve?.(stay)
@@ -144,6 +147,13 @@ async function save() {
     saving.value = false
   }
 }
+
+// после подтверждённого перехода на другую тему сбрасываем режим правки
+watch(materialSlug, () => {
+  editing.value = false
+  savedSnapshot.value = ''
+  saveError.value = ''
+})
 
 const deleting = ref(false)
 
