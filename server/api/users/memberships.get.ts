@@ -1,4 +1,4 @@
-import { requirePermission } from '../utils/can'
+import { requirePermission } from '../../utils/can'
 
 /**
  * Карта «пользователь → курсы и группы» для админ-панели.
