@@ -23,6 +23,39 @@ function groupTitles(username: string): string[] {
   return [...new Set(titles)]
 }
 
+// --- фильтры таблицы ---
+const filterQuery = ref('')
+const filterRole = ref('')
+const filterCourse = ref('')
+const filterGroup = ref('')
+
+const courseOptions = computed(() => {
+  const map = new Map<string, string>()
+  for (const list of Object.values(memberships.value)) {
+    for (const m of list) map.set(m.slug, m.title)
+  }
+  return [...map.entries()].map(([slug, title]) => ({ slug, title }))
+})
+const groupOptions = computed(() => {
+  const titles = new Set<string>()
+  for (const list of Object.values(memberships.value)) {
+    for (const m of list) for (const g of m.groups) titles.add(g)
+  }
+  return [...titles].sort((a, b) => a.localeCompare(b, 'ru'))
+})
+
+const filteredUsers = computed(() => {
+  const q = filterQuery.value.trim().toLowerCase()
+  return users.value.filter((u) => {
+    if (q && !u.username.toLowerCase().includes(q) && !u.pseudonym.toLowerCase().includes(q)) return false
+    if (filterRole.value && u.role !== filterRole.value) return false
+    const mem = memberships.value[u.username] ?? []
+    if (filterCourse.value && !mem.some(m => m.slug === filterCourse.value)) return false
+    if (filterGroup.value && !mem.some(m => m.groups.includes(filterGroup.value))) return false
+    return true
+  })
+})
+
 const error = ref('')
 
 // пароль показывается один раз, сразу после создания/сброса
@@ -202,6 +235,32 @@ async function copySecret() {
 
     <div class="card">
       <h2>Все аккаунты</h2>
+      <div class="row" style="gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+        <input
+          v-model="filterQuery"
+          placeholder="Логин или имя…"
+          style="max-width: 220px;"
+        >
+        <select v-model="filterRole" style="max-width: 160px;">
+          <option value="">Все роли</option>
+          <option v-for="r in roles" :key="r.name" :value="r.name">{{ r.title }}</option>
+        </select>
+        <select v-model="filterCourse" style="max-width: 220px;">
+          <option value="">Все курсы</option>
+          <option v-for="c in courseOptions" :key="c.slug" :value="c.slug">{{ c.title }}</option>
+        </select>
+        <select v-model="filterGroup" style="max-width: 180px;">
+          <option value="">Все группы</option>
+          <option v-for="g in groupOptions" :key="g" :value="g">{{ g }}</option>
+        </select>
+        <button
+          v-if="filterQuery || filterRole || filterCourse || filterGroup"
+          class="small"
+          @click="filterQuery = ''; filterRole = ''; filterCourse = ''; filterGroup = ''"
+        >
+          Сбросить
+        </button>
+      </div>
       <table class="data-table">
         <thead>
           <tr>
@@ -215,7 +274,7 @@ async function copySecret() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="u in users" :key="u.username">
+          <tr v-for="u in filteredUsers" :key="u.username">
             <td>{{ u.username }}</td>
             <td><strong>{{ u.pseudonym }}</strong></td>
             <td>{{ roleTitle(u.role) }}</td>
@@ -273,7 +332,9 @@ async function copySecret() {
           </tr>
         </tbody>
       </table>
-      <p v-if="!users.length" class="muted">Аккаунтов пока нет.</p>
+      <p v-if="!filteredUsers.length" class="muted">
+        {{ users.length ? 'Никого не найдено по фильтрам.' : 'Аккаунтов пока нет.' }}
+      </p>
     </div>
 
     <UserPanel
