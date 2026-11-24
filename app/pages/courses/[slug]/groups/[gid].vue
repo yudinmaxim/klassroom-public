@@ -46,10 +46,12 @@ watchEffect(() => {
     : [{ label: 'Курсы', to: '/' }]
 })
 
-// --- название ---
+// --- название (боковая модалка) ---
+const editOpen = ref(false)
 const titleDraft = ref('')
 const savingTitle = ref(false)
 watch(group, (g) => { if (g) titleDraft.value = g.title }, { immediate: true })
+watch(editOpen, (v) => { if (v && group.value) titleDraft.value = group.value.title })
 const titleDirty = computed(() => !!group.value && titleDraft.value.trim() !== '' && titleDraft.value.trim() !== group.value.title)
 async function saveTitle() {
   if (!group.value || !titleDirty.value || savingTitle.value) return
@@ -60,6 +62,7 @@ async function saveTitle() {
       method: 'PATCH',
       body: { title: titleDraft.value.trim() },
     })
+    editOpen.value = false
     await load()
   } catch (e) {
     error.value = errText(e, 'Не удалось переименовать группу')
@@ -134,6 +137,12 @@ async function remove() {
       <h1 class="page-title">{{ group.title }}</h1>
       <div v-if="canManage" class="page-actions">
         <span class="tip">
+          <button class="icon-btn" aria-label="Редактировать группу" @click="editOpen = true">
+            <Icon name="lucide:pencil" />
+          </button>
+          <span class="tip-body">Редактировать</span>
+        </span>
+        <span class="tip">
           <button class="icon-btn danger" aria-label="Удалить группу" @click="deleteOpen = true">
             <Icon name="lucide:trash-2" />
           </button>
@@ -143,24 +152,6 @@ async function remove() {
     </header>
 
     <p v-if="error" class="error">{{ error }}</p>
-
-    <div v-if="canManage" class="card" style="margin-bottom: 14px;">
-      <div class="row" style="gap: 8px; align-items: center;">
-        <input
-          v-model="titleDraft"
-          placeholder="Название группы"
-          style="max-width: 320px;"
-          @keyup.enter="saveTitle"
-        >
-        <button
-          class="small primary"
-          :disabled="savingTitle || !titleDirty"
-          @click="saveTitle"
-        >
-          {{ savingTitle ? '…' : 'Сохранить' }}
-        </button>
-      </div>
-    </div>
 
     <div class="card">
       <SectionHead>
@@ -227,6 +218,33 @@ async function remove() {
       <p v-else class="muted">В группе пока никого нет.</p>
     </div>
 
+    <!-- боковая модалка редактирования -->
+    <div v-if="editOpen" class="edit-backdrop" @click.self="editOpen = false">
+      <aside class="edit-drawer">
+        <div class="modal-head">
+          <h2>Редактировать группу</h2>
+          <button class="icon-btn" aria-label="Закрыть" @click="editOpen = false">
+            <Icon name="lucide:x" />
+          </button>
+        </div>
+        <label>
+          Название
+          <input v-model="titleDraft" @keyup.enter="saveTitle">
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <div class="modal-foot">
+          <button @click="editOpen = false">Отмена</button>
+          <button
+            class="primary"
+            :disabled="savingTitle || !titleDirty"
+            @click="saveTitle"
+          >
+            {{ savingTitle ? 'Сохраняю…' : 'Сохранить' }}
+          </button>
+        </div>
+      </aside>
+    </div>
+
     <ConfirmModal
       v-if="deleteOpen"
       title="Удалить группу?"
@@ -275,4 +293,23 @@ async function remove() {
   font-size: 13px;
 }
 .member-combo-item:hover { background: var(--accent-soft, rgba(79, 70, 229, 0.08)); }
+
+.edit-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+}
+.edit-drawer {
+  width: min(400px, 100vw);
+  height: 100%;
+  background: var(--card, #fff);
+  padding: 22px 24px;
+  overflow-y: auto;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
+}
+.edit-drawer label { display: block; }
+.edit-drawer .modal-foot { margin-top: 18px; }
 </style>
