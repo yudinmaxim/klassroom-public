@@ -4,57 +4,94 @@ import { errText } from '#shared/errors'
 import { copyText } from '~/utils/clipboard'
 import QRCode from 'qrcode'
 
-const { data, refresh } = await useFetch('/api/users')
 const { data: rolesData } = await useFetch('/api/roles')
-const { data: membershipsData, refresh: refreshMemberships } = await useFetch<{ memberships: Record<string, Array<{ slug: string, title: string, groups: string[] }>> }>(
-  '/api/users/memberships',
-)
 
 useBreadcrumbs().value = [{ label: 'Курсы', to: '/' }, { label: 'Пользователи' }]
 
-const users = computed(() => data.value?.users ?? [])
-const roles = computed(() => rolesData.value?.roles ?? [])
-const memberships = computed(() => membershipsData.value?.memberships ?? {})
-const roleTitle = (name: string) => roles.value.find(r => r.name === name)?.title ?? name
-
-/** Уникальные названия групп пользователя по всем курсам. */
-function groupTitles(username: string): string[] {
-  const titles = (memberships.value[username] ?? []).flatMap(m => m.groups)
-  return [...new Set(titles)]
+interface MembershipEntry { slug: string, title: string, groups: string[] }
+interface UsersResponse {
+  users: UserPublic[]
+  total: number
+  page: number
+  pageSize: number
+  memberships: Record<string, MembershipEntry[]>
+  options: { courses: Array<{ slug: string, title: string }>, groups: string[] }
 }
 
-// --- фильтры таблицы ---
+// --- список с серверными фильтрами и пагинацией ---
+const users = ref<UserPublic[]>([])
+const total = ref(0)
+const memberships = ref<Record<string, MembershipEntry[]>>({})
+const options = ref<UsersResponse['options']>({ courses: [], groups: [] })
+const page = ref(1)
+const pageSize = ref(20)
+const listLoading = ref(false)
+const listError = ref('')
+
 const filterQuery = ref('')
 const filterRole = ref('')
 const filterCourse = ref('')
 const filterGroup = ref('')
 
-const courseOptions = computed(() => {
-  const map = new Map<string, string>()
-  for (const list of Object.values(memberships.value)) {
-    for (const m of list) map.set(m.slug, m.title)
+async function loadUsers() {
+  listLoading.value = true
+  listError.value = ''
+  try {
+    const params = new URLSearchParams()
+    if (filterQuery.value.trim()) params.set('q', filterQuery.value.trim())
+    if (filterRole.value) params.set('role', filterRole.value)
+    if (filterCourse.value) params.set('course', filterCourse.value)
+    if (filterGroup.value) params.set('group', filterGroup.value)
+    params.set('page', String(page.value))
+    params.set('pageSize', String(pageSize.value))
+    const res = await $fetch<UsersResponse>(`/api/users?${params}`)
+    users.value = res.users
+    total.value = res.total
+    memberships.value = res.memberships
+    options.value = res.options
+  } catch (e) {
+    listError.value = errText(e, 'Не удалось загрузить пользователей')
+  } finally {
+    listLoading.value = false
   }
-  return [...map.entries()].map(([slug, title]) => ({ slug, title }))
-})
-const groupOptions = computed(() => {
-  const titles = new Set<string>()
-  for (const list of Object.values(memberships.value)) {
-    for (const m of list) for (const g of m.groups) titles.add(g)
-  }
-  return [...titles].sort((a, b) => a.localeCompare(b, 'ru'))
+}
+
+const hasFilters = computed(() =>
+  Boolean(filterQuery.value.trim() || filterRole.value || filterCourse.value || filterGroup.value),
+)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+
+// дебаунс на изменения фильтров → страница 1 + перезагрузка
+let filterTimer: ReturnType<typeof setTimeout> | undefined
+watch([filterQuery, filterRole, filterCourse, filterGroup], () => {
+  clearTimeout(filterTimer)
+  filterTimer = setTimeout(() => {
+    page.value = 1
+    void loadUsers()
+  }, 300)
 })
 
-const filteredUsers = computed(() => {
-  const q = filterQuery.value.trim().toLowerCase()
-  return users.value.filter((u) => {
-    if (q && !u.username.toLowerCase().includes(q) && !u.pseudonym.toLowerCase().includes(q)) return false
-    if (filterRole.value && u.role !== filterRole.value) return false
-    const mem = memberships.value[u.username] ?? []
-    if (filterCourse.value && !mem.some(m => m.slug === filterCourse.value)) return false
-    if (filterGroup.value && !mem.some(m => m.groups.includes(filterGroup.value))) return false
-    return true
-  })
-})
+function goToPage(p: number) {
+  if (p < 1 || p > totalPages.value || p === page.value) return
+  page.value = p
+  void loadUsers()
+}
+function setPageSize(n: number) {
+  pageSize.value = n
+  page.value = 1
+  void loadUsers()
+}
+
+onMounted(() => { void loadUsers() })
+
+const roles = computed(() => rolesData.value?.roles ?? [])
+const roleTitle = (name: string) => roles.value.find(r => r.name === name)?.title ?? name
+
+/** Уникальные названия групп пользователя по всем курсам (в пределах страницы). */
+function groupTitles(username: string): string[] {
+  const titles = (memberships.value[username] ?? []).flatMap(m => m.groups)
+  return [...new Set(titles)]
+}
 
 const error = ref('')
 
@@ -81,8 +118,7 @@ const panelUser = ref<UserPublic | null | undefined>(undefined)
 function onSaved(generatedPassword?: string) {
   if (generatedPassword) revealedSecret.value = generatedPassword
   panelUser.value = undefined
-  void refresh()
-  void refreshMemberships()
+  void loadUsers()
 }
 
 const resetting = ref<string | null>(null)
@@ -247,20 +283,22 @@ async function copySecret() {
         </select>
         <select v-model="filterCourse" style="max-width: 220px;">
           <option value="">Все курсы</option>
-          <option v-for="c in courseOptions" :key="c.slug" :value="c.slug">{{ c.title }}</option>
+          <option v-for="c in options.courses" :key="c.slug" :value="c.slug">{{ c.title }}</option>
         </select>
         <select v-model="filterGroup" style="max-width: 180px;">
           <option value="">Все группы</option>
-          <option v-for="g in groupOptions" :key="g" :value="g">{{ g }}</option>
+          <option v-for="g in options.groups" :key="g" :value="g">{{ g }}</option>
         </select>
         <button
-          v-if="filterQuery || filterRole || filterCourse || filterGroup"
+          v-if="hasFilters"
           class="small"
           @click="filterQuery = ''; filterRole = ''; filterCourse = ''; filterGroup = ''"
         >
           Сбросить
         </button>
       </div>
+      <p v-if="listLoading" class="muted">Загрузка…</p>
+      <p v-else-if="listError" class="error">{{ listError }}</p>
       <table class="data-table">
         <thead>
           <tr>
@@ -274,7 +312,7 @@ async function copySecret() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="u in filteredUsers" :key="u.username">
+          <tr v-for="u in users" :key="u.username">
             <td>{{ u.username }}</td>
             <td><strong>{{ u.pseudonym }}</strong></td>
             <td>{{ roleTitle(u.role) }}</td>
@@ -332,9 +370,23 @@ async function copySecret() {
           </tr>
         </tbody>
       </table>
-      <p v-if="!filteredUsers.length" class="muted">
-        {{ users.length ? 'Никого не найдено по фильтрам.' : 'Аккаунтов пока нет.' }}
+      <p v-if="!listLoading && !users.length" class="muted">
+        {{ hasFilters ? 'Никого не найдено по фильтрам.' : 'Аккаунтов пока нет.' }}
       </p>
+
+      <div v-if="total > 0" class="row" style="gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap;">
+        <span class="muted" style="font-size: 12px;">
+          {{ total }} акк. · стр. {{ page }} из {{ totalPages }}
+        </span>
+        <div class="spacer" />
+        <select :value="pageSize" style="width: auto;" @change="setPageSize(Number(($event.target as HTMLSelectElement).value))">
+          <option :value="10">10 / стр.</option>
+          <option :value="20">20 / стр.</option>
+          <option :value="50">50 / стр.</option>
+        </select>
+        <button class="small" :disabled="page <= 1 || listLoading" @click="goToPage(page - 1)">←</button>
+        <button class="small" :disabled="page >= totalPages || listLoading" @click="goToPage(page + 1)">→</button>
+      </div>
     </div>
 
     <UserPanel
