@@ -396,7 +396,12 @@ async function copySecret() {
           {{ total }} акк. · стр. {{ page }} из {{ totalPages }}
         </span>
         <div class="spacer" />
-        <select :value="pageSize" style="width: auto;" @change="setPageSize(Number(($event.target as HTMLSelectElement).value))">
+        <select
+          v-if="totalPages > 1"
+          :value="pageSize"
+          style="width: auto;"
+          @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
+        >
           <option :value="10">10 / стр.</option>
           <option :value="20">20 / стр.</option>
           <option :value="50">50 / стр.</option>
