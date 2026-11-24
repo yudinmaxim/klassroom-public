@@ -16,7 +16,7 @@ const activeGid = computed(() => {
 <template>
   <div class="course-page">
     <GroupsToc
-      v-if="slug"
+      v-if="slug && activeGid"
       :course-slug="slug"
       :active-gid="activeGid"
     />
