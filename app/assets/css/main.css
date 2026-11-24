@@ -288,15 +288,29 @@ tbody tr:hover td { background: var(--bg-soft); }
 .course-content { flex: 1 0 auto; padding-bottom: 32px; min-width: 0; }
 
 /* Модалка и боковая панель */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes panel-slide {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
 .modal-backdrop, .side-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   z-index: 60;
   display: flex;
+  animation: fade-in .18s ease-out;
 }
 .modal {
   margin: auto;
+  animation: modal-pop .18s ease-out;
   background: var(--card);
   border-radius: 12px;
   padding: 20px 22px;
@@ -359,6 +373,7 @@ tbody tr:hover td { background: var(--bg-soft); }
 }
 .side-panel {
   margin-left: auto;
+  animation: panel-slide .2s ease-out;
   background: var(--card);
   width: min(max(20vw, 420px), 100vw);
   height: 100%;
@@ -368,6 +383,10 @@ tbody tr:hover td { background: var(--bg-soft); }
 }
 .side-panel .form { margin-top: 14px; }
 .side-panel .form button { margin-top: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop, .side-backdrop, .modal, .side-panel { animation: none; }
+}
 
 /* Заголовок секции внутри карточки */
 .section-head {
