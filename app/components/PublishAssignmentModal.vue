@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { errText } from '#shared/errors'
+import { PUBLIC_GROUP } from '#shared/types'
 
 const props = defineProps<{
   slug: string
@@ -11,6 +12,7 @@ const emit = defineEmits<{ close: [], changed: [] }>()
 /** Кому выдаём: всем ученикам курса или выбранным. */
 const scope = ref<'all' | 'chosen'>('all')
 const checked = ref<Set<string>>(new Set())
+const selectedGroups = ref<string[]>([PUBLIC_GROUP])
 const search = ref('')
 const students = ref<Array<{ username: string, pseudonym: string }>>([])
 const loading = ref(true)
@@ -22,7 +24,7 @@ onMounted(async () => {
   try {
     // ростер — только если есть courses.roster.view; иначе список пуст
     const [res, rosterRes] = await Promise.all([
-      $fetch<{ assignment: { type: string, audience: string[], status: string } }>(
+      $fetch<{ assignment: { type: string, audience: string[], status: string, groups?: string[] } }>(
         `/api/courses/${props.slug}/assignments/${props.assignmentSlug}`,
       ),
       $fetch<{ roster: typeof students.value }>(`/api/courses/${props.slug}/roster`).catch(() => null),
@@ -33,6 +35,7 @@ onMounted(async () => {
       scope.value = 'chosen'
       checked.value = new Set(res.assignment.audience)
     }
+    if (res.assignment.groups?.length) selectedGroups.value = res.assignment.groups
   } catch (e) {
     loadError.value = errText(e, 'Не удалось загрузить задание')
   } finally {
@@ -69,6 +72,7 @@ async function save() {
         status: 'published',
         type: scope.value === 'all' ? 'general' : 'private',
         audience: scope.value === 'chosen' ? [...checked.value] : [],
+        groups: selectedGroups.value,
       },
     })
     emit('changed')
@@ -129,6 +133,10 @@ async function save() {
           </ul>
         </template>
       </template>
+
+      <div style="margin-top: 14px;">
+        <GroupField v-model="selectedGroups" :slug="slug" />
+      </div>
 
       <p v-if="error" class="error">{{ error }}</p>
 

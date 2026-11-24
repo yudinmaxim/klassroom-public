@@ -253,6 +253,50 @@ test('посты ленты фильтруются по группам', async (
   assert.deepEqual((await texts(teacher)).length, 3)
 })
 
+test('комментарии группового поста скрыты от чужих групп', async () => {
+  const post = await store.addStreamPost(teacher, SLUG, 'только сильным', [strongId])
+  // член группы: читает и пишет
+  assert.deepEqual(await store.listStreamComments(S(1), SLUG, post.id), [])
+  await store.addStreamComment(S(1), SLUG, post.id, 'ок')
+  assert.equal((await store.listStreamComments(S(1), SLUG, post.id)).length, 1)
+  // чужая группа и безгрупповой ученик: 404 на чтение и запись
+  for (const s of [S(4), S(7)]) {
+    await assert.rejects(
+      store.listStreamComments(s, SLUG, post.id),
+      (e: { statusCode?: number }) => e.statusCode === 404,
+    )
+    await assert.rejects(
+      store.addStreamComment(s, SLUG, post.id, 'взлом'),
+      (e: { statusCode?: number }) => e.statusCode === 404,
+    )
+  }
+  // публичный пост — комментарии доступны всем
+  const pub = await store.addStreamPost(teacher, SLUG, 'всем', [PUBLIC_GROUP])
+  assert.deepEqual(await store.listStreamComments(S(7), SLUG, pub.id), [])
+  // несуществующий пост → 404
+  await assert.rejects(
+    store.listStreamComments(S(1), SLUG, 'no-such-post'),
+    (e: { statusCode?: number }) => e.statusCode === 404,
+  )
+})
+
+test('исключение из курса вычищает членство в группах', async () => {
+  // s1 состоит в strongId
+  await store.removeStudent(teacher, SLUG, 's1')
+  const groups = await store.listGroups(teacher, SLUG)
+  assert.ok(!groups.find(g => g.id === strongId)?.members.includes('s1'))
+  // исключённый из курса вообще не видит контент курса
+  await assert.rejects(
+    store.listStreamPosts(S(1), SLUG),
+    (e: { statusCode?: number }) => e.statusCode === 404,
+  )
+
+  // возвращаем s1 в курс и группу — следующие тесты зависят от состава
+  await store.addStudent(teacher, SLUG, 's1')
+  const strong = (await store.listGroups(teacher, SLUG)).find(g => g.id === strongId)
+  await store.updateGroup(teacher, SLUG, strongId, { members: [...(strong?.members ?? []), 's1'] })
+})
+
 test('ученик может постить только в public и свои группы', async () => {
   // s1 в «сильных» — может постить туда и в public
   await store.addStreamPost(S(1), SLUG, 'своим', [strongId])

@@ -198,6 +198,17 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     return ids
   }
 
+  /** Пост ленты виден actor'у? Скрытый группами или несуществующий → 404. */
+  async function assertStreamPostVisible(actor: UserPublic, norm: string, postId: string) {
+    const role = await roleOf(actor)
+    const post = await readYaml<StreamPost>(resolveDataPath(streamDir(norm), `${postId}.yml`))
+    if (!post?.id) httpError(404, 'Пост не найден')
+    if (role.scope === 'member'
+      && !contentVisibleToGroups(post.groups, await viewerGroupIds(norm, actor.username))) {
+      httpError(404, 'Пост не найден')
+    }
+  }
+
   /** Валидация списка групп для записи: только существующие + public; [] разрешён («без группы»). */
   async function assertGroupIds(norm: string, groups: string[] | undefined, allowed?: Set<string>): Promise<string[] | undefined> {
     if (groups === undefined) return undefined
@@ -1071,6 +1082,17 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         await writeCourse(f, next)
         journal.record(actor.pseudonym, `исключил ${username} из ${norm}`)
       }
+      // вычищаем username из групп курса — членство вне ростера недопустимо
+      try {
+        for (const g of await listGroupFiles(baseDir, norm)) {
+          if (g.members.includes(username)) {
+            await writeYaml(groupFilePath(baseDir, norm, g.id), {
+              ...g,
+              members: g.members.filter(u => u !== username),
+            })
+          }
+        }
+      } catch { /* нет групп */ }
       return toCourse(f, next)
     },
 
@@ -1841,6 +1863,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     async listStreamComments(actor, courseSlug, postId) {
       const norm = normalizeSlug(courseSlug)
       await requireCourseMember(actor, norm)
+      await assertStreamPostVisible(actor, norm, postId)
       const dir = streamCommentsDir(norm, postId)
       let files: string[]
       try {
@@ -1859,6 +1882,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     async addStreamComment(actor, courseSlug, postId, text) {
       const norm = normalizeSlug(courseSlug)
       await requireCourseMember(actor, norm)
+      await assertStreamPostVisible(actor, norm, postId)
       const comment: StreamComment = {
         id: `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`,
         author: actor.username,
