@@ -218,9 +218,9 @@ async function remove() {
       <p v-else class="muted">В группе пока никого нет.</p>
     </div>
 
-    <!-- боковая модалка редактирования -->
-    <div v-if="editOpen" class="edit-backdrop" @click.self="editOpen = false">
-      <aside class="edit-drawer">
+    <!-- модалка редактирования -->
+    <div v-if="editOpen" class="modal-backdrop" @click.self="editOpen = false">
+      <div class="modal" style="width: min(400px, calc(100vw - 32px));">
         <div class="modal-head">
           <h2>Редактировать группу</h2>
           <button class="icon-btn" aria-label="Закрыть" @click="editOpen = false">
@@ -242,7 +242,7 @@ async function remove() {
             {{ savingTitle ? 'Сохраняю…' : 'Сохранить' }}
           </button>
         </div>
-      </aside>
+      </div>
     </div>
 
     <ConfirmModal
@@ -293,23 +293,4 @@ async function remove() {
   font-size: 13px;
 }
 .member-combo-item:hover { background: var(--accent-soft, rgba(79, 70, 229, 0.08)); }
-
-.edit-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 60;
-  display: flex;
-  justify-content: flex-end;
-}
-.edit-drawer {
-  width: min(400px, 100vw);
-  height: 100%;
-  background: var(--card, #fff);
-  padding: 22px 24px;
-  overflow-y: auto;
-  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
-}
-.edit-drawer label { display: block; }
-.edit-drawer .modal-foot { margin-top: 18px; }
 </style>
