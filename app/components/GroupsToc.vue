@@ -32,13 +32,6 @@ const tocOpen = ref(false)
     <div class="toc-head">Группы</div>
     <nav class="toc-list">
       <NuxtLink
-        :to="`/courses/${courseSlug}/groups`"
-        class="toc-item"
-        :class="{ active: !activeGid }"
-      >
-        Обзор
-      </NuxtLink>
-      <NuxtLink
         v-for="g in groups"
         :key="g.id"
         :to="`/courses/${courseSlug}/groups/${g.id}`"
