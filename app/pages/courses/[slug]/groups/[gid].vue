@@ -136,18 +136,8 @@ async function remove() {
     <header class="page-head" style="margin-bottom: 24px;">
       <h1 class="page-title">{{ group.title }}</h1>
       <div v-if="canManage" class="page-actions">
-        <span class="tip">
-          <button class="icon-btn" aria-label="Редактировать группу" @click="editOpen = true">
-            <Icon name="lucide:pencil" />
-          </button>
-          <span class="tip-body">Редактировать</span>
-        </span>
-        <span class="tip">
-          <button class="icon-btn danger" aria-label="Удалить группу" @click="deleteOpen = true">
-            <Icon name="lucide:trash-2" />
-          </button>
-          <span class="tip-body">Удалить группу</span>
-        </span>
+        <IconBtn icon="lucide:pencil" label="Редактировать" @click="editOpen = true" />
+        <IconBtn icon="lucide:trash-2" label="Удалить группу" danger @click="deleteOpen = true" />
       </div>
     </header>
 
@@ -200,17 +190,13 @@ async function remove() {
             <td>{{ pseudo(u) }}</td>
             <td class="muted">{{ u }}</td>
             <td v-if="canManage" class="row-actions">
-              <span class="tip">
-                <button
-                  class="icon-btn danger"
-                  aria-label="Убрать из группы"
-                  :disabled="memberBusy"
-                  @click="removeMember(u)"
-                >
-                  <Icon name="lucide:trash-2" />
-                </button>
-                <span class="tip-body">Убрать</span>
-              </span>
+              <IconBtn
+                icon="lucide:trash-2"
+                label="Убрать"
+                danger
+                :disabled="memberBusy"
+                @click="removeMember(u)"
+              />
             </td>
           </tr>
         </tbody>
@@ -219,31 +205,28 @@ async function remove() {
     </div>
 
     <!-- модалка редактирования -->
-    <div v-if="editOpen" class="modal-backdrop" @click.self="editOpen = false">
-      <div class="modal" style="width: min(400px, calc(100vw - 32px));">
-        <div class="modal-head">
-          <h2>Редактировать группу</h2>
-          <button class="icon-btn" aria-label="Закрыть" @click="editOpen = false">
-            <Icon name="lucide:x" />
-          </button>
-        </div>
-        <label>
-          Название
-          <input v-model="titleDraft" @keyup.enter="saveTitle">
-        </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <div class="modal-foot">
-          <button @click="editOpen = false">Отмена</button>
-          <button
-            class="primary"
-            :disabled="savingTitle || !titleDirty"
-            @click="saveTitle"
-          >
-            {{ savingTitle ? 'Сохраняю…' : 'Сохранить' }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <BaseModal
+      v-if="editOpen"
+      title="Редактировать группу"
+      width="min(400px, calc(100vw - 32px))"
+      @close="editOpen = false"
+    >
+      <label>
+        Название
+        <input v-model="titleDraft" @keyup.enter="saveTitle">
+      </label>
+      <p v-if="error" class="error">{{ error }}</p>
+      <template #foot>
+        <button @click="editOpen = false">Отмена</button>
+        <button
+          class="primary"
+          :disabled="savingTitle || !titleDirty"
+          @click="saveTitle"
+        >
+          {{ savingTitle ? 'Сохраняю…' : 'Сохранить' }}
+        </button>
+      </template>
+    </BaseModal>
 
     <ConfirmModal
       v-if="deleteOpen"

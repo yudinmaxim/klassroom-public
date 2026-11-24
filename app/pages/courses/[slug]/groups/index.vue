@@ -74,12 +74,7 @@ function openGroup(g: CourseGroup) {
       <SectionHead>
         Группы
         <template v-if="canManage" #actions>
-          <span class="tip">
-            <button class="icon-btn" aria-label="Создать группу" @click="openCreate">
-              <Icon name="lucide:plus" />
-            </button>
-            <span class="tip-body">Создать группу</span>
-          </span>
+          <IconBtn icon="lucide:plus" label="Создать группу" @click="openCreate" />
         </template>
       </SectionHead>
 
@@ -112,34 +107,31 @@ function openGroup(g: CourseGroup) {
       <p v-else class="muted">Групп пока нет.</p>
     </div>
 
-    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
-      <div class="modal" style="width: min(400px, calc(100vw - 32px));">
-        <div class="modal-head">
-          <h2>Новая группа</h2>
-          <button class="icon-btn" aria-label="Закрыть" @click="createOpen = false">
-            <Icon name="lucide:x" />
-          </button>
-        </div>
-        <label>
-          Название
-          <input
-            v-model="newTitle"
-            placeholder="Например: Сильные"
-            @keyup.enter="create"
-          >
-        </label>
-        <p v-if="createError" class="error" style="margin-top: 8px;">{{ createError }}</p>
-        <div class="modal-foot">
-          <button @click="createOpen = false">Отмена</button>
-          <button
-            class="primary"
-            :disabled="creating || !newTitle.trim()"
-            @click="create"
-          >
-            {{ creating ? 'Создаю…' : 'Создать' }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <BaseModal
+      v-if="createOpen"
+      title="Новая группа"
+      width="min(400px, calc(100vw - 32px))"
+      @close="createOpen = false"
+    >
+      <label>
+        Название
+        <input
+          v-model="newTitle"
+          placeholder="Например: Сильные"
+          @keyup.enter="create"
+        >
+      </label>
+      <p v-if="createError" class="error" style="margin-top: 8px;">{{ createError }}</p>
+      <template #foot>
+        <button @click="createOpen = false">Отмена</button>
+        <button
+          class="primary"
+          :disabled="creating || !newTitle.trim()"
+          @click="create"
+        >
+          {{ creating ? 'Создаю…' : 'Создать' }}
+        </button>
+      </template>
+    </BaseModal>
   </div>
 </template>

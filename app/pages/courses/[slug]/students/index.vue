@@ -118,12 +118,7 @@ async function removeStudent(username: string) {
         <template v-if="canManage" #actions>
           <AppDropdown>
             <template #trigger>
-              <span class="tip">
-                <button class="icon-btn" aria-label="Действия с учащимися">
-                  <Icon name="lucide:plus" />
-                </button>
-                <span class="tip-body">Учащиеся</span>
-              </span>
+              <IconBtn icon="lucide:plus" label="Учащиеся" />
             </template>
             <template #menu="{ close }">
               <button @click="enrollOpen = true; close()">Записать учащегося на курс</button>
@@ -166,12 +161,7 @@ async function removeStudent(username: string) {
             <td v-if="canManage" class="row-actions">
               <AppDropdown>
                 <template #trigger>
-                  <span class="tip">
-                    <button class="icon-btn" aria-label="Добавить в группу" :disabled="groupBusy">
-                      <Icon name="lucide:user-plus" />
-                    </button>
-                    <span class="tip-body">В группу</span>
-                  </span>
+                  <IconBtn icon="lucide:user-plus" label="В группу" :disabled="groupBusy" />
                 </template>
                 <template #menu="{ close }">
                   <button
@@ -188,17 +178,13 @@ async function removeStudent(username: string) {
                   </button>
                 </template>
               </AppDropdown>
-              <span class="tip">
-                <button
-                  class="icon-btn danger"
-                  aria-label="Исключить из курса"
-                  :disabled="rosterBusy"
-                  @click="removeStudent(s.username)"
-                >
-                  <Icon name="lucide:trash-2" />
-                </button>
-                <span class="tip-body">Исключить</span>
-              </span>
+              <IconBtn
+                icon="lucide:trash-2"
+                label="Исключить"
+                danger
+                :disabled="rosterBusy"
+                @click="removeStudent(s.username)"
+              />
             </td>
           </tr>
         </tbody>
@@ -220,35 +206,32 @@ async function removeStudent(username: string) {
       @created="(pw) => { revealedSecret = pw ?? ''; newStudentOpen = false; refreshRoster() }"
     />
 
-    <div v-if="newGroupFor" class="modal-backdrop" @click.self="newGroupFor = ''">
-      <div class="modal" style="width: min(380px, calc(100vw - 32px));">
-        <div class="modal-head">
-          <h2>Новая группа</h2>
-          <button class="icon-btn" aria-label="Закрыть" @click="newGroupFor = ''">
-            <Icon name="lucide:x" />
-          </button>
-        </div>
-        <p class="muted" style="margin: 0 0 10px;">
-          Ученик будет добавлен в группу сразу после создания.
-        </p>
-        <input
-          v-model="newGroupTitle"
-          placeholder="Название группы…"
-          @keyup.enter="createGroupWithStudent"
+    <BaseModal
+      v-if="newGroupFor"
+      title="Новая группа"
+      width="min(380px, calc(100vw - 32px))"
+      @close="newGroupFor = ''"
+    >
+      <p class="muted" style="margin: 0 0 10px;">
+        Ученик будет добавлен в группу сразу после создания.
+      </p>
+      <input
+        v-model="newGroupTitle"
+        placeholder="Название группы…"
+        @keyup.enter="createGroupWithStudent"
+      >
+      <p v-if="newGroupError" class="error" style="margin-top: 8px;">{{ newGroupError }}</p>
+      <template #foot>
+        <button @click="newGroupFor = ''">Отмена</button>
+        <button
+          class="primary"
+          :disabled="newGroupBusy || !newGroupTitle.trim()"
+          @click="createGroupWithStudent"
         >
-        <p v-if="newGroupError" class="error" style="margin-top: 8px;">{{ newGroupError }}</p>
-        <div class="modal-foot">
-          <button @click="newGroupFor = ''">Отмена</button>
-          <button
-            class="primary"
-            :disabled="newGroupBusy || !newGroupTitle.trim()"
-            @click="createGroupWithStudent"
-          >
-            {{ newGroupBusy ? '…' : 'Создать' }}
-          </button>
-        </div>
-      </div>
-    </div>
+          {{ newGroupBusy ? '…' : 'Создать' }}
+        </button>
+      </template>
+    </BaseModal>
   </div>
   </div>
 </template>

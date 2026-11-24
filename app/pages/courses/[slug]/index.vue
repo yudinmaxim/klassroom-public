@@ -288,31 +288,23 @@ const scaleLabel: Record<GradingScale['type'], string> = {
   </footer>
 
   <!-- удаление курса: подтверждение вводом названия -->
-  <div v-if="showDelete" class="modal-backdrop" @click.self="showDelete = false">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Удаление курса">
-      <div class="modal-head">
-        <h2>Удалить курс?</h2>
-        <button class="icon-btn" aria-label="Закрыть" @click="showDelete = false">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
-      <p>
-        Курс <strong>«{{ course?.title }}»</strong> и все его материалы,
-        задания и сдачи будут удалены безвозвратно.
-      </p>
-      <label>
-        Для подтверждения введите название курса
-        <input v-model="deleteInput" :placeholder="course?.title" autocomplete="off">
-      </label>
-      <p v-if="deleteError" class="error">{{ deleteError }}</p>
-      <div class="modal-foot">
-        <button @click="showDelete = false">Отмена</button>
-        <button class="danger-btn" :disabled="!deleteReady || deleting" @click="confirmDelete">
-          {{ deleting ? 'Удаление…' : 'Удалить курс' }}
-        </button>
-      </div>
-    </div>
-  </div>
+  <BaseModal v-if="showDelete" title="Удалить курс?" @close="showDelete = false">
+    <p>
+      Курс <strong>«{{ course?.title }}»</strong> и все его материалы,
+      задания и сдачи будут удалены безвозвратно.
+    </p>
+    <label>
+      Для подтверждения введите название курса
+      <input v-model="deleteInput" :placeholder="course?.title" autocomplete="off">
+    </label>
+    <p v-if="deleteError" class="error">{{ deleteError }}</p>
+    <template #foot>
+      <button @click="showDelete = false">Отмена</button>
+      <button class="danger-btn" :disabled="!deleteReady || deleting" @click="confirmDelete">
+        {{ deleting ? 'Удаление…' : 'Удалить курс' }}
+      </button>
+    </template>
+  </BaseModal>
 
   <ConfirmModal
     v-if="leaveConfirmOpen"

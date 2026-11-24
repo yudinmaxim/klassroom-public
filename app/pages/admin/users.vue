@@ -231,9 +231,7 @@ async function copySecret() {
   <PageShell>
     <template #title>Пользователи</template>
     <template #actions>
-      <button class="icon-btn" aria-label="Создать аккаунт" @click="panelUser = null">
-        <Icon name="lucide:plus" />
-      </button>
+      <IconBtn icon="lucide:plus" label="Создать аккаунт" @click="panelUser = null" />
     </template>
 
     <div v-if="revealedSecret" class="card">
@@ -356,33 +354,18 @@ async function copySecret() {
             </td>
             <td class="muted">{{ new Date(u.createdAt).toLocaleDateString('ru-RU') }}</td>
             <td class="row-actions">
-              <span class="tip">
-                <button class="icon-btn" aria-label="Редактировать аккаунт" @click="panelUser = u">
-                  <Icon name="lucide:pencil" />
-                </button>
-                <span class="tip-body">Редактировать</span>
-              </span>
-              <span class="tip">
-                <button
-                  class="icon-btn"
-                  aria-label="Сбросить пароль"
-                  :disabled="resetting === u.username"
-                  @click="resetTarget = u; qrUser = null"
-                >
-                  <Icon name="lucide:key-round" />
-                </button>
-                <span class="tip-body">Сбросить пароль</span>
-              </span>
-              <span class="tip">
-                <button
-                  class="icon-btn"
-                  aria-label="QR-вход"
-                  @click="qrUser = u; resetTarget = null; qrImage = ''; qrUrl = ''; qrToken = ''; qrBases = []; qrBase = ''"
-                >
-                  <Icon name="lucide:qr-code" />
-                </button>
-                <span class="tip-body">QR-вход</span>
-              </span>
+              <IconBtn icon="lucide:pencil" label="Редактировать" @click="panelUser = u" />
+              <IconBtn
+                icon="lucide:key-round"
+                label="Сбросить пароль"
+                :disabled="resetting === u.username"
+                @click="resetTarget = u; qrUser = null"
+              />
+              <IconBtn
+                icon="lucide:qr-code"
+                label="QR-вход"
+                @click="qrUser = u; resetTarget = null; qrImage = ''; qrUrl = ''; qrToken = ''; qrBases = []; qrBase = ''"
+              />
             </td>
           </tr>
         </tbody>
