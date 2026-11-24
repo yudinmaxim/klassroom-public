@@ -6,11 +6,15 @@ import QRCode from 'qrcode'
 
 const { data, refresh } = await useFetch('/api/users')
 const { data: rolesData } = await useFetch('/api/roles')
+const { data: membershipsData, refresh: refreshMemberships } = await useFetch<{ memberships: Record<string, Array<{ slug: string, title: string, groups: string[] }>> }>(
+  '/api/users/memberships',
+)
 
 useBreadcrumbs().value = [{ label: 'Курсы', to: '/' }, { label: 'Пользователи' }]
 
 const users = computed(() => data.value?.users ?? [])
 const roles = computed(() => rolesData.value?.roles ?? [])
+const memberships = computed(() => membershipsData.value?.memberships ?? {})
 const roleTitle = (name: string) => roles.value.find(r => r.name === name)?.title ?? name
 
 const error = ref('')
@@ -39,6 +43,7 @@ function onSaved(generatedPassword?: string) {
   if (generatedPassword) revealedSecret.value = generatedPassword
   panelUser.value = undefined
   void refresh()
+  void refreshMemberships()
 }
 
 const resetting = ref<string | null>(null)
@@ -197,6 +202,7 @@ async function copySecret() {
             <th>Логин</th>
             <th>Псевдоним</th>
             <th>Роль</th>
+            <th>Курсы и группы</th>
             <th>Создан</th>
             <th />
           </tr>
@@ -206,6 +212,22 @@ async function copySecret() {
             <td>{{ u.username }}</td>
             <td><strong>{{ u.pseudonym }}</strong></td>
             <td>{{ roleTitle(u.role) }}</td>
+            <td>
+              <template v-if="memberships[u.username]?.length">
+                <div
+                  v-for="m in memberships[u.username]"
+                  :key="m.slug"
+                  class="membership-line"
+                >
+                  <NuxtLink :to="`/courses/${m.slug}`" class="membership-course">{{ m.title }}</NuxtLink>
+                  <span v-if="m.groups.length" class="muted">
+                    — {{ m.groups.join(', ') }}
+                  </span>
+                  <span v-else class="muted">— без групп</span>
+                </div>
+              </template>
+              <span v-else class="muted">—</span>
+            </td>
             <td class="muted">{{ new Date(u.createdAt).toLocaleDateString('ru-RU') }}</td>
             <td class="row-actions">
               <span class="tip">
@@ -261,3 +283,9 @@ async function copySecret() {
     />
   </PageShell>
 </template>
+
+<style scoped>
+.membership-line { line-height: 1.5; }
+.membership-course { color: var(--accent); text-decoration: none; }
+.membership-course:hover { text-decoration: underline; }
+</style>
