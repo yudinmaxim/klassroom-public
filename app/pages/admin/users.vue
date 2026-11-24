@@ -17,6 +17,12 @@ const roles = computed(() => rolesData.value?.roles ?? [])
 const memberships = computed(() => membershipsData.value?.memberships ?? {})
 const roleTitle = (name: string) => roles.value.find(r => r.name === name)?.title ?? name
 
+/** Уникальные названия групп пользователя по всем курсам. */
+function groupTitles(username: string): string[] {
+  const titles = (memberships.value[username] ?? []).flatMap(m => m.groups)
+  return [...new Set(titles)]
+}
+
 const error = ref('')
 
 // пароль показывается один раз, сразу после создания/сброса
@@ -215,27 +221,22 @@ async function copySecret() {
             <td>{{ roleTitle(u.role) }}</td>
             <td>
               <template v-if="memberships[u.username]?.length">
-                <div
+                <NuxtLink
                   v-for="m in memberships[u.username]"
                   :key="m.slug"
-                  class="membership-line"
-                >
-                  <NuxtLink :to="`/courses/${m.slug}`" class="membership-course">{{ m.title }}</NuxtLink>
-                </div>
+                  :to="`/courses/${m.slug}`"
+                  class="member-chip course-chip"
+                >{{ m.title }}</NuxtLink>
               </template>
               <span v-else class="muted">—</span>
             </td>
             <td>
-              <template v-if="memberships[u.username]?.length">
-                <div
-                  v-for="m in memberships[u.username]"
-                  :key="m.slug"
-                  class="membership-line"
-                >
-                  <span class="muted" style="font-size: 12px;">{{ m.title }}:</span>
-                  <span v-if="m.groups.length"> {{ m.groups.join(', ') }}</span>
-                  <span v-else class="muted"> —</span>
-                </div>
+              <template v-if="groupTitles(u.username).length">
+                <span
+                  v-for="t in groupTitles(u.username)"
+                  :key="t"
+                  class="member-chip"
+                >{{ t }}</span>
               </template>
               <span v-else class="muted">—</span>
             </td>
@@ -296,7 +297,16 @@ async function copySecret() {
 </template>
 
 <style scoped>
-.membership-line { line-height: 1.5; }
-.membership-course { color: var(--accent); text-decoration: none; }
-.membership-course:hover { text-decoration: underline; }
+.member-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--accent-soft, rgba(79, 70, 229, 0.1));
+  color: var(--accent, #4f46e5);
+  margin: 0 4px 2px 0;
+  white-space: nowrap;
+}
+.course-chip { text-decoration: none; }
+.course-chip:hover { text-decoration: underline; }
 </style>
