@@ -130,10 +130,15 @@ async function remove() {
 
 <template>
   <div v-if="group">
-    <header class="page-head">
+    <header class="page-head" style="margin-bottom: 24px;">
       <h1 class="page-title">{{ group.title }}</h1>
       <div v-if="canManage" class="page-actions">
-        <button class="small" @click="deleteOpen = true">Удалить группу</button>
+        <span class="tip">
+          <button class="icon-btn danger" aria-label="Удалить группу" @click="deleteOpen = true">
+            <Icon name="lucide:trash-2" />
+          </button>
+          <span class="tip-body">Удалить группу</span>
+        </span>
       </div>
     </header>
 
