@@ -34,83 +34,112 @@ async function load() {
 }
 watch(slug, () => { void load() }, { immediate: true })
 
-// --- создание ---
+// --- создание (модалка) ---
+const createOpen = ref(false)
 const newTitle = ref('')
 const creating = ref(false)
+const createError = ref('')
+
+function openCreate() {
+  newTitle.value = ''
+  createError.value = ''
+  createOpen.value = true
+}
 async function create() {
   if (!slug.value || !newTitle.value.trim() || creating.value) return
   creating.value = true
-  error.value = ''
+  createError.value = ''
   try {
     const g = await $fetch<CourseGroup>(`/api/courses/${slug.value}/groups`, {
       method: 'POST',
       body: { title: newTitle.value.trim() },
     })
-    newTitle.value = ''
+    createOpen.value = false
     await navigateTo(`/courses/${slug.value}/groups/${g.id}`)
   } catch (e) {
-    error.value = errText(e, 'Не удалось создать группу')
+    createError.value = errText(e, 'Не удалось создать группу')
   } finally {
     creating.value = false
   }
+}
+
+function openGroup(g: CourseGroup) {
+  void navigateTo(`/courses/${slug.value}/groups/${g.id}`)
 }
 </script>
 
 <template>
   <div>
-    <header class="page-head">
-      <h1 class="page-title">Группы</h1>
-    </header>
+    <div class="card">
+      <SectionHead>
+        Группы
+        <template v-if="canManage" #actions>
+          <span class="tip">
+            <button class="icon-btn" aria-label="Создать группу" @click="openCreate">
+              <Icon name="lucide:plus" />
+            </button>
+            <span class="tip-body">Создать группу</span>
+          </span>
+        </template>
+      </SectionHead>
 
-    <p class="muted">
-      Группа — подмножество учеников курса: для неё можно назначать свои темы,
-      задания и посты ленты. «Публичная» — техническая группа всего курса:
-      назначается новым материалам автоматически.
-    </p>
+      <p class="muted" style="margin-top: -6px;">
+        Подмножества учеников курса для отдельных тем, заданий и постов ленты.
+      </p>
 
-    <p v-if="error" class="error">{{ error }}</p>
-
-    <div v-if="canManage" class="card" style="margin-bottom: 14px;">
-      <div class="row" style="gap: 8px;">
-        <input
-          v-model="newTitle"
-          placeholder="Название новой группы…"
-          style="flex: 1;"
-          @keyup.enter="create"
-        >
-        <button class="primary" :disabled="creating || !newTitle.trim()" @click="create">
-          {{ creating ? '…' : 'Создать' }}
-        </button>
-      </div>
+      <p v-if="error" class="error">{{ error }}</p>
+      <table v-if="groups.length" class="data-table">
+        <thead>
+          <tr>
+            <th>Группа</th>
+            <th>Участников</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="g in groups"
+            :key="g.id"
+            class="is-clickable"
+            tabindex="0"
+            @click="openGroup(g)"
+            @keydown.enter="openGroup(g)"
+          >
+            <td><strong>{{ g.title }}</strong></td>
+            <td class="muted">{{ g.members.length }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">Групп пока нет.</p>
     </div>
 
-    <p v-if="!groups.length" class="muted">Групп пока нет.</p>
-
-    <div class="row" style="gap: 12px; flex-wrap: wrap;">
-      <NuxtLink
-        v-for="g in groups"
-        :key="g.id"
-        :to="`/courses/${slug}/groups/${g.id}`"
-        class="card group-card"
-      >
-        <strong>{{ g.title }}</strong>
-        <span class="muted" style="font-size: 12px;">{{ g.members.length }} участн.</span>
-      </NuxtLink>
+    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
+      <div class="modal" style="width: min(400px, calc(100vw - 32px));">
+        <div class="modal-head">
+          <h2>Новая группа</h2>
+          <button class="icon-btn" aria-label="Закрыть" @click="createOpen = false">
+            <Icon name="lucide:x" />
+          </button>
+        </div>
+        <label>
+          Название
+          <input
+            v-model="newTitle"
+            placeholder="Например: Сильные"
+            @keyup.enter="create"
+          >
+        </label>
+        <p v-if="createError" class="error" style="margin-top: 8px;">{{ createError }}</p>
+        <div class="modal-foot">
+          <button @click="createOpen = false">Отмена</button>
+          <button
+            class="primary"
+            :disabled="creating || !newTitle.trim()"
+            @click="create"
+          >
+            {{ creating ? 'Создаю…' : 'Создать' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.group-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  min-width: 200px;
-  text-decoration: none;
-  color: inherit;
-}
-.group-card:hover {
-  border-color: var(--accent);
-}
-</style>
