@@ -61,6 +61,23 @@ const hasFilters = computed(() =>
 )
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
+/** Номера страниц для пагинации: [1,2,…,X,…,last] с пропуском середин. */
+const pageNumbers = computed<(number | '…')[]>(() => {
+  const n = totalPages.value
+  const cur = page.value
+  if (n <= 7) return Array.from({ length: n }, (_, i) => i + 1)
+  const set = new Set([1, 2, n - 1, n, cur - 1, cur, cur + 1])
+  const sorted = [...set].filter(x => x >= 1 && x <= n).sort((a, b) => a - b)
+  const out: (number | '…')[] = []
+  let prev = 0
+  for (const x of sorted) {
+    if (x - prev > 1) out.push('…')
+    out.push(x)
+    prev = x
+  }
+  return out
+})
+
 // дебаунс на изменения фильтров → страница 1 + перезагрузка
 let filterTimer: ReturnType<typeof setTimeout> | undefined
 watch([filterQuery, filterRole, filterCourse, filterGroup], () => {
@@ -384,8 +401,20 @@ async function copySecret() {
           <option :value="20">20 / стр.</option>
           <option :value="50">50 / стр.</option>
         </select>
-        <button class="small" :disabled="page <= 1 || listLoading" @click="goToPage(page - 1)">←</button>
-        <button class="small" :disabled="page >= totalPages || listLoading" @click="goToPage(page + 1)">→</button>
+        <span class="pager">
+          <button class="small" :disabled="page <= 1 || listLoading" @click="goToPage(page - 1)">←</button>
+          <template v-for="(p, i) in pageNumbers" :key="i">
+            <span v-if="p === '…'" class="pager-dots">…</span>
+            <button
+              v-else
+              class="small pager-num"
+              :class="{ active: p === page }"
+              :disabled="listLoading"
+              @click="goToPage(p)"
+            >{{ p }}</button>
+          </template>
+          <button class="small" :disabled="page >= totalPages || listLoading" @click="goToPage(page + 1)">→</button>
+        </span>
       </div>
     </div>
 
@@ -422,4 +451,11 @@ async function copySecret() {
 }
 .course-chip { text-decoration: none; }
 .course-chip:hover { text-decoration: underline; }
+.pager { display: inline-flex; gap: 4px; align-items: center; }
+.pager-num.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.pager-dots { padding: 0 2px; color: var(--muted); }
 </style>
