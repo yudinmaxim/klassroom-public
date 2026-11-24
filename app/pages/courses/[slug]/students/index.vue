@@ -23,12 +23,60 @@ const { data: rosterData, refresh: refreshRoster } = await useFetch<{ roster: Ar
 const roster = computed(() => rosterData.value?.roster ?? [])
 const rosterUsernames = computed(() => roster.value.map(s => s.username))
 
-// группы курса — для колонки «Группы»
-const { groups: courseGroups } = useCourseGroups(computed(() => course.value?.slug ?? ''))
+// группы курса — для колонки «Группы» и действия «Добавить в группу»
+const { groups: courseGroups, refresh: refreshGroups } = useCourseGroups(computed(() => course.value?.slug ?? ''))
 function groupsOf(username: string): string[] {
   return (courseGroups.value ?? [])
     .filter(g => g.members.includes(username))
     .map(g => g.title)
+}
+
+// --- добавление ученика в группу ---
+const groupBusy = ref(false)
+async function addToGroup(username: string, groupId: string) {
+  const g = (courseGroups.value ?? []).find(x => x.id === groupId)
+  if (!g || g.members.includes(username) || groupBusy.value) return
+  groupBusy.value = true
+  rosterError.value = ''
+  try {
+    await $fetch(`/api/courses/${course.value?.slug}/groups/${groupId}`, {
+      method: 'PATCH',
+      body: { members: [...g.members, username] },
+    })
+    await refreshGroups()
+  } catch (e) {
+    rosterError.value = errText(e, 'Не удалось добавить в группу')
+  } finally {
+    groupBusy.value = false
+  }
+}
+
+// создание группы с предустановленным учеником
+const newGroupFor = ref('')
+const newGroupTitle = ref('')
+const newGroupBusy = ref(false)
+const newGroupError = ref('')
+function openNewGroup(username: string) {
+  newGroupFor.value = username
+  newGroupTitle.value = ''
+  newGroupError.value = ''
+}
+async function createGroupWithStudent() {
+  if (!newGroupFor.value || !newGroupTitle.value.trim() || newGroupBusy.value) return
+  newGroupBusy.value = true
+  newGroupError.value = ''
+  try {
+    await $fetch(`/api/courses/${course.value?.slug}/groups`, {
+      method: 'POST',
+      body: { title: newGroupTitle.value.trim(), members: [newGroupFor.value] },
+    })
+    newGroupFor.value = ''
+    await refreshGroups()
+  } catch (e) {
+    newGroupError.value = errText(e, 'Не удалось создать группу')
+  } finally {
+    newGroupBusy.value = false
+  }
 }
 
 // live-обновление состава по SSE-событиям
@@ -116,6 +164,30 @@ async function removeStudent(username: string) {
               <span v-else class="muted">—</span>
             </td>
             <td v-if="canManage" class="row-actions">
+              <AppDropdown>
+                <template #trigger>
+                  <span class="tip">
+                    <button class="icon-btn" aria-label="Добавить в группу" :disabled="groupBusy">
+                      <Icon name="lucide:user-plus" />
+                    </button>
+                    <span class="tip-body">В группу</span>
+                  </span>
+                </template>
+                <template #menu="{ close }">
+                  <button
+                    v-for="g in courseGroups ?? []"
+                    :key="g.id"
+                    :disabled="g.members.includes(s.username)"
+                    @click="addToGroup(s.username, g.id); close()"
+                  >
+                    {{ g.title }}
+                    <span v-if="g.members.includes(s.username)" class="muted">· уже в группе</span>
+                  </button>
+                  <button @click="openNewGroup(s.username); close()">
+                    + Новая группа…
+                  </button>
+                </template>
+              </AppDropdown>
               <span class="tip">
                 <button
                   class="icon-btn danger"
@@ -147,6 +219,36 @@ async function removeStudent(username: string) {
       @close="newStudentOpen = false"
       @created="(pw) => { revealedSecret = pw ?? ''; newStudentOpen = false; refreshRoster() }"
     />
+
+    <div v-if="newGroupFor" class="modal-backdrop" @click.self="newGroupFor = ''">
+      <div class="modal" style="width: min(380px, calc(100vw - 32px));">
+        <div class="modal-head">
+          <h2>Новая группа</h2>
+          <button class="icon-btn" aria-label="Закрыть" @click="newGroupFor = ''">
+            <Icon name="lucide:x" />
+          </button>
+        </div>
+        <p class="muted" style="margin: 0 0 10px;">
+          Ученик будет добавлен в группу сразу после создания.
+        </p>
+        <input
+          v-model="newGroupTitle"
+          placeholder="Название группы…"
+          @keyup.enter="createGroupWithStudent"
+        >
+        <p v-if="newGroupError" class="error" style="margin-top: 8px;">{{ newGroupError }}</p>
+        <div class="modal-foot">
+          <button @click="newGroupFor = ''">Отмена</button>
+          <button
+            class="primary"
+            :disabled="newGroupBusy || !newGroupTitle.trim()"
+            @click="createGroupWithStudent"
+          >
+            {{ newGroupBusy ? '…' : 'Создать' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
   </div>
 </template>
