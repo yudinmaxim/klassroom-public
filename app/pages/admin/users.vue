@@ -202,7 +202,8 @@ async function copySecret() {
             <th>Логин</th>
             <th>Псевдоним</th>
             <th>Роль</th>
-            <th>Курсы и группы</th>
+            <th>Курсы</th>
+            <th>Группы</th>
             <th>Создан</th>
             <th />
           </tr>
@@ -220,10 +221,20 @@ async function copySecret() {
                   class="membership-line"
                 >
                   <NuxtLink :to="`/courses/${m.slug}`" class="membership-course">{{ m.title }}</NuxtLink>
-                  <span v-if="m.groups.length" class="muted">
-                    — {{ m.groups.join(', ') }}
-                  </span>
-                  <span v-else class="muted">— без групп</span>
+                </div>
+              </template>
+              <span v-else class="muted">—</span>
+            </td>
+            <td>
+              <template v-if="memberships[u.username]?.length">
+                <div
+                  v-for="m in memberships[u.username]"
+                  :key="m.slug"
+                  class="membership-line"
+                >
+                  <span class="muted" style="font-size: 12px;">{{ m.title }}:</span>
+                  <span v-if="m.groups.length"> {{ m.groups.join(', ') }}</span>
+                  <span v-else class="muted"> —</span>
                 </div>
               </template>
               <span v-else class="muted">—</span>
