@@ -110,11 +110,16 @@ export const rosterBodySchema = z.object({
 /** Лимит на текст материала: ~100 страниц markdown. */
 const MAX_MD_CHARS = 200_000
 
+/**
+ * Ссылка на сущность в URL-параметре [id]: иммутабельный id (base64url,
+ * регистр значим) или legacy-slug (строчные). resolveEntityDir различает.
+ */
 export const materialSlugSchema = z
   .string()
   .trim()
-  .toLowerCase()
-  .regex(/^[a-z0-9][a-z0-9-]{1,63}$/, 'Slug материала: строчные латинские буквы, цифры, дефис; 2–64 символа')
+  .min(1, 'Пустая ссылка на сущность')
+  .max(80, 'Слишком длинная ссылка на сущность')
+  .regex(/^[A-Za-z0-9_-]+$/, 'Некорректная ссылка на сущность')
 
 export const materialTypeSchema = z
   .string()

@@ -298,12 +298,16 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     kind: 'materials' | 'assignments',
     ref: string,
   ): Promise<string | null> {
-    const norm = normalizeSlug(ref)
+    const raw = ref.trim()
     const root = kind === 'materials' ? materialsRoot(courseSlug) : assignmentsRoot(courseSlug)
-    try {
-      const st = await stat(resolveDataPath(root, norm))
-      if (st.isDirectory()) return norm
-    } catch { /* не id — пробуем slug */ }
+    // id — точное имя директории, регистр значим (base64url); без lowercase!
+    if (/^[\w-]+$/.test(raw)) {
+      try {
+        const st = await stat(resolveDataPath(root, raw))
+        if (st.isDirectory()) return raw
+      } catch { /* не id — пробуем slug */ }
+    }
+    const norm = normalizeSlug(raw)
     const idx = (await readCourseIndex(courseSlug)) ?? await refreshIndex(courseSlug)
     const hit = idx[kind]?.[norm]
     if (hit) return hit
@@ -1390,7 +1394,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
     async getMaterial(actor, courseSlug, materialSlug) {
       const norm = normalizeSlug(courseSlug)
-      const f = await loadMaterialForRead(actor, norm, normalizeSlug(materialSlug))
+      const f = await loadMaterialForRead(actor, norm, materialSlug)
       const plugin = getMaterialPlugin(f.type)
       if (!plugin) httpError(500, `Неизвестный тип материала «${f.type}»`)
 
@@ -1435,7 +1439,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
     async updateMaterial(actor, courseSlug, materialSlug, patch) {
       const norm = normalizeSlug(courseSlug)
-      const f = await loadMaterialForManage(actor, norm, normalizeSlug(materialSlug), 'materials.edit')
+      const f = await loadMaterialForManage(actor, norm, materialSlug, 'materials.edit')
       const plugin = getMaterialPlugin(f.type)
       if (!plugin) httpError(500, `Неизвестный тип материала «${f.type}»`)
 
@@ -1640,7 +1644,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
     async addAttachment(actor, courseSlug, materialSlug, file) {
       const norm = normalizeSlug(courseSlug)
-      const f = await loadMaterialForManage(actor, norm, normalizeSlug(materialSlug), 'materials.edit')
+      const f = await loadMaterialForManage(actor, norm, materialSlug, 'materials.edit')
       const name = validateAttachmentName(file.name)
 
       const dir = resolveDataPath(materialDir(norm, f.id), 'content', ATTACHMENTS_DIR)
@@ -1656,7 +1660,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
     async removeAttachment(actor, courseSlug, materialSlug, name) {
       const norm = normalizeSlug(courseSlug)
-      const f = await loadMaterialForManage(actor, norm, normalizeSlug(materialSlug), 'materials.edit')
+      const f = await loadMaterialForManage(actor, norm, materialSlug, 'materials.edit')
       const clean = validateAttachmentName(name)
       await atomicDelete(resolveDataPath(materialDir(norm, f.id), 'content', ATTACHMENTS_DIR, clean))
       journal.record(actor.pseudonym, `удалил файл ${clean} из материала ${f.slug} в ${norm}`)
@@ -1664,7 +1668,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
     async getAttachment(actor, courseSlug, materialSlug, name) {
       const norm = normalizeSlug(courseSlug)
-      const f = await loadMaterialForRead(actor, norm, normalizeSlug(materialSlug))
+      const f = await loadMaterialForRead(actor, norm, materialSlug)
       const clean = validateAttachmentName(name)
       const path = resolveDataPath(materialDir(norm, f.id), 'content', ATTACHMENTS_DIR, clean)
       const data = await readBytes(path)

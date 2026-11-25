@@ -83,7 +83,6 @@ beforeEach(async () => {
   await store.addStudent(teacher, SLUG, student.username)
   await store.addStudent(teacher, SLUG, student2.username)
   const m = await store.createMaterial(teacher, SLUG, { title: 'Тема', type: 'doc', content: '# Тема' })
-  materialSlug = m.slug
   materialRef = m.slug
 })
 
@@ -231,4 +230,19 @@ test('валидация: пустой квиз и дубли id отклоня�
 test('несуществующий квиз/материал → null/404', async () => {
   assert.equal(await store.getQuiz(teacher, SLUG, materialRef, 'nope'), null)
   await assert.rejects(store.submitQuizAttempt(teacher, SLUG, materialRef, 'nope', {}), /не найден/i)
+})
+
+test('регрессия: entity id (base64url, регистр значим) резолвится в директорию', async () => {
+  // createMaterial возвращает slug — id берём из списка
+  const list = await store.listMaterials(teacher, SLUG)
+  const m = list.find(x => x.slug === materialRef)!
+  assert.ok(m.id)
+  // id может содержать uppercase — resolveEntityDir не должен его lowercase'ить
+  const got = await store.getMaterial(teacher, SLUG, m.id)
+  assert.equal(got?.id, m.id)
+  // и по id квизы тоже работают
+  const q = await store.createQuiz(teacher, SLUG, m.id, baseQuiz)
+  assert.ok(q.id)
+  const gotQ = await store.getQuiz(student, SLUG, m.id, q.id)
+  assert.equal(gotQ?.title, 'Проверка')
 })
