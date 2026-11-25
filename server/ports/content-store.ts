@@ -1,4 +1,4 @@
-import type { Assignment, AssignmentSummary, Course, CourseGroup, CourseSummary, ExternalLink, Gradebook, GradebookSection, GradingScale, LinkStat, Material, MaterialSummary, StreamComment, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { Assignment, AssignmentSummary, Course, CourseGroup, CourseSummary, ExternalLink, Gradebook, GradebookSection, GradingScale, LinkStat, Material, MaterialSummary, Quiz, QuizAttempt, QuizSummary, StreamComment, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 
 /**
  * Порт хранилища учебного контента (specs/01-architecture.md) — первый срез:
@@ -75,6 +75,51 @@ export interface ContentStore {
 
   /** Удалить материал вместе с содержимым (materials.edit). */
   deleteMaterial(actor: UserPublic, courseSlug: string, materialSlug: string): Promise<void>
+
+  // --- квизы «Закрепление материала» (specs/13-quizzes.md) ---
+
+  /** Сводки квизов темы + статистика ученика (myAttempts/myBestScore). */
+  listQuizzes(actor: UserPublic, courseSlug: string, materialSlug: string): Promise<QuizSummary[]>
+
+  /** Квиз целиком. Ученик получает версию без решений (correct/blanks.answers/correctOrder). */
+  getQuiz(actor: UserPublic, courseSlug: string, materialSlug: string, quizId: string): Promise<Quiz | null>
+
+  /** Создать квиз (materials.edit). */
+  createQuiz(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    input: { title: string, showAnswers?: boolean, questions: Quiz['questions'] },
+  ): Promise<Quiz>
+
+  /** Обновить квиз (materials.edit). */
+  updateQuiz(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    quizId: string,
+    patch: { title?: string, showAnswers?: boolean, questions?: Quiz['questions'] },
+  ): Promise<Quiz>
+
+  /** Удалить квиз со всеми попытками (materials.edit). */
+  deleteQuiz(actor: UserPublic, courseSlug: string, materialSlug: string, quizId: string): Promise<void>
+
+  /** Сабмит попытки: авто-оценка на сервере, запись в answers/<username>.yml. */
+  submitQuizAttempt(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    quizId: string,
+    answers: Record<string, unknown>,
+  ): Promise<{ attempt: QuizAttempt, results: Record<string, { correct: boolean, score: number }> }>
+
+  /** Попытки: ученик — только свои; учитель (materials.edit) — все. */
+  listQuizAttempts(
+    actor: UserPublic,
+    courseSlug: string,
+    materialSlug: string,
+    quizId: string,
+  ): Promise<{ username: string, attempts: QuizAttempt[] }[]>
 
   /** Приложить файл к материалу (materials.edit). Возвращает имя файла. */
   addAttachment(

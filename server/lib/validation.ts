@@ -51,6 +51,7 @@ export const roleNameParamSchema = z
   .regex(/^[a-z][a-z0-9-]{1,31}$/)
 
 export const setupBodySchema = z.object({
+  setupSecret: z.string().min(1).max(256),
   username: usernameSchema,
   pseudonym: pseudonymSchema,
   password: passwordSchema,
@@ -135,6 +136,40 @@ export const externalLinksSchema = z.array(externalLinkSchema).max(50, 'Слиш
 
 /** Список групп видимости контента (id групп курса + 'public'). */
 export const groupsFieldSchema = z.array(z.string().min(1).max(64)).max(50).optional()
+
+// --- Проверки «Закрепление материала» (specs/13-quizzes.md) ---
+
+export const quizIdParamSchema = z.string().regex(/^[\w-]{1,64}$/, 'Некорректный id проверки')
+
+const quizOptionSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  text: z.string().trim().min(1, 'Пустой вариант ответа').max(500),
+})
+
+export const quizQuestionSchema = z.object({
+  id: quizIdParamSchema,
+  type: z.enum(['single', 'multi', 'truefalse', 'fill', 'order']),
+  prompt: z.string().trim().min(1, 'Пустой вопрос').max(4000),
+  points: z.number().positive('Баллы должны быть > 0').max(1000),
+  options: z.array(quizOptionSchema).max(20).optional(),
+  correct: z.union([z.string().max(64), z.array(z.string().max(64)).max(20)]).optional(),
+  blanks: z.array(z.object({ answers: z.array(z.string().trim().min(1).max(200)).min(1).max(10) })).max(20).optional(),
+  items: z.array(quizOptionSchema).max(30).optional(),
+  correctOrder: z.array(z.string().max(64)).max(30).optional(),
+})
+
+export const quizBodySchema = z.object({
+  title: z.string().trim().min(1, 'Название проверки: минимум 1 символ').max(120),
+  showAnswers: z.boolean().optional(),
+  questions: z.array(quizQuestionSchema).min(1, 'Добавьте хотя бы один вопрос').max(50),
+})
+
+export const updateQuizBodySchema = quizBodySchema.partial()
+
+/** Ответы на попытку: questionId → optionId | optionId[] | string | string[]. */
+export const quizAnswersBodySchema = z.object({
+  answers: z.record(z.string(), z.unknown()),
+})
 
 export const createMaterialBodySchema = z.object({
   title: z.string().trim().min(3, 'Название: минимум 3 символа').max(120),

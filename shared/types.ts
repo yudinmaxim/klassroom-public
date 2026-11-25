@@ -130,6 +130,80 @@ export interface ExternalLink {
   url: string
 }
 
+/** Тип вопроса квиза (specs/13-quizzes.md). */
+export type QuizQuestionType = 'single' | 'multi' | 'truefalse' | 'fill' | 'order'
+
+/** Вариант ответа вопроса single/multi/truefalse. */
+export interface QuizOption {
+  id: string
+  text: string
+}
+
+/** Пропуск в fill-вопросе: принимается любой из answers (case-insensitive). */
+export interface QuizBlank {
+  answers: string[]
+}
+
+export interface QuizQuestion {
+  id: string
+  type: QuizQuestionType
+  /** Текст вопроса (markdown). Для fill содержит {{n}} — плейсхолдеры пропусков. */
+  prompt: string
+  points: number
+  /** single/multi/truefalse: варианты. */
+  options?: QuizOption[]
+  /** single/truefalse: id верного варианта; multi: id всех верных. */
+  correct?: string | string[]
+  /** fill: пропуски по порядку {{1}}, {{2}}… */
+  blanks?: QuizBlank[]
+  /** order: элементы для сортировки. */
+  items?: QuizOption[]
+  /** order: id элементов в правильном порядке. */
+  correctOrder?: string[]
+  /** Отрендеренный html prompt — заполняется сервером в getQuiz, в yaml не хранится. */
+  promptHtml?: string
+}
+
+/** Квиз «Закрепление материала» — файл materials/<id>/quizzes/<qid>.yml. */
+export interface Quiz {
+  id: string
+  title: string
+  /** Показывать правильные ответы после сабмита. */
+  showAnswers: boolean
+  questions: QuizQuestion[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** Сводка квиза в блоке «Закрепление» темы. */
+export interface QuizSummary {
+  id: string
+  title: string
+  questionCount: number
+  totalPoints: number
+  updatedAt: string
+  /** Для ученика: число попыток и лучший балл. */
+  myAttempts?: number
+  myBestScore?: number | null
+}
+
+/** Одна попытка прохождения квиза. */
+export interface QuizAttempt {
+  submittedAt: string
+  /** Ответы: questionId → optionId | optionId[] | string | string[]. */
+  answers: Record<string, unknown>
+  score: number
+  total: number
+  /** По-вопросный результат (верно/нет, баллы) — для разбора после сабмита. */
+  results?: Record<string, { correct: boolean, score: number }>
+}
+
+/** Полная запись попыток ученика по квизу. */
+export interface QuizAnswersFile {
+  username: string
+  attempts: QuizAttempt[]
+}
+
 /** Payload плагина doc: markdown + вложения + внешние ссылки. */
 export interface DocPayload {
   content: string

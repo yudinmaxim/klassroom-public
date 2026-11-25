@@ -14,3 +14,4 @@ const jiti = createJiti(import.meta.url, {
 
 // node:test регистрирует и запускает тесты при импорте
 await jiti.import(resolve(root, 'tests/groups.test.ts'))
+await jiti.import(resolve(root, 'tests/quizzes.test.ts'))

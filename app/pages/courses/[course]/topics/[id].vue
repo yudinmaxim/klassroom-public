@@ -290,6 +290,8 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           :entity="`topic:${material.id}`"
           :show-stats="canEdit"
         />
+
+        <QuizSection :slug="slug" :material-id="material.id" />
       </div>
     </div>
 

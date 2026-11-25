@@ -1,4 +1,4 @@
-import type { AssignmentSummary, CourseGroup, ExternalLink, LinkStat, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
+import type { AssignmentSummary, CourseGroup, ExternalLink, LinkStat, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, Quiz, QuizAnswersFile, QuizAttempt, QuizSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 import { PUBLIC_GROUP } from '#shared/types'
 import { renderDocMarkdown } from '../lib/md'
 import { readdir, rename, rm, stat, type Dirent } from 'node:fs/promises'
@@ -381,6 +381,152 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
 
   function writeMaterial(courseSlug: string, f: MaterialFile): Promise<void> {
     return writeYaml(resolveDataPath(materialDir(courseSlug, f.id), 'material.yml'), f)
+  }
+
+  // --- квизы: materials/<id>/quizzes/<qid>.yml + quizzes/<qid>/answers/<user>.yml ---
+
+  function quizPath(courseSlug: string, materialId: string, quizId: string): string {
+    return resolveDataPath(materialDir(courseSlug, materialId), 'quizzes', `${quizId}.yml`)
+  }
+  function quizAnswersPath(courseSlug: string, materialId: string, quizId: string, username: string): string {
+    return resolveDataPath(materialDir(courseSlug, materialId), 'quizzes', quizId, 'answers', `${username}.yml`)
+  }
+  async function readQuizFile(courseSlug: string, materialId: string, quizId: string): Promise<Quiz | null> {
+    if (!/^[\w-]+$/.test(quizId)) return null
+    const q = await readYaml<Quiz>(quizPath(courseSlug, materialId, quizId))
+    return q?.id ? q : null
+  }
+  async function readQuizAnswers(courseSlug: string, materialId: string, quizId: string, username: string): Promise<QuizAnswersFile | null> {
+    return readYaml<QuizAnswersFile>(quizAnswersPath(courseSlug, materialId, quizId, username))
+  }
+
+  /** Валидация структуры квиза перед записью (400 на битые данные). */
+  function validateQuiz(q: Quiz): void {
+    if (!q.questions.length) httpError(400, 'Проверка без вопросов')
+    if (q.questions.length > 50) httpError(400, 'Слишком много вопросов (макс. 50)')
+    const ids = new Set<string>()
+    for (const qu of q.questions) {
+      if (!qu.id || ids.has(qu.id)) httpError(400, 'Дублирующийся id вопроса')
+      ids.add(qu.id)
+      if (!['single', 'multi', 'truefalse', 'fill', 'order'].includes(qu.type)) {
+        httpError(400, `Неизвестный тип вопроса «${qu.type}»`)
+      }
+      if (!(qu.points > 0)) httpError(400, 'Баллы вопроса должны быть > 0')
+      if ((qu.type === 'single' || qu.type === 'multi' || qu.type === 'truefalse') && !qu.options?.length) {
+        httpError(400, 'Вопросу нужны варианты ответов')
+      }
+      if (qu.type === 'fill' && !qu.blanks?.length) httpError(400, 'Fill-вопросу нужны пропуски')
+      if (qu.type === 'order' && !qu.items?.length) httpError(400, 'Order-вопросу нужны элементы')
+    }
+  }
+
+  /** Версия квиза для ученика: срезаны решения (correct/blanks.answers/correctOrder). */
+  function toStudentQuiz(q: Quiz): Quiz {
+    return {
+      ...q,
+      questions: q.questions.map(qu => ({
+        ...qu,
+        correct: undefined,
+        blanks: qu.blanks?.map(() => ({ answers: [] })),
+        correctOrder: undefined,
+      })),
+    }
+  }
+
+  /** slug → title всех материалов курса (для [[вики-ссылок]] в prompt'ах квизов). */
+  async function courseLinkTitles(courseSlug: string): Promise<Record<string, string>> {
+    const titles: Record<string, string> = {}
+    try {
+      for (const d of await readdir(materialsRoot(courseSlug), { withFileTypes: true })) {
+        if (!d.isDirectory()) continue
+        const m = await readMaterial(courseSlug, d.name)
+        if (m) titles[m.slug] = m.title
+      }
+    } catch { /* нет материалов — ок */ }
+    return titles
+  }
+
+  const normText = (s: string) => s.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru')
+
+  /** Авто-оценка одной попытки (specs/13-quizzes.md). */
+  function gradeQuizAttempt(
+    q: Quiz,
+    answers: Record<string, unknown>,
+  ): { attempt: QuizAttempt, results: Record<string, { correct: boolean, score: number }> } {
+    const results: Record<string, { correct: boolean, score: number }> = {}
+    let score = 0
+    let total = 0
+    for (const qu of q.questions) {
+      total += qu.points
+      const given = answers[qu.id]
+      let qScore = 0
+      let correct = false
+      switch (qu.type) {
+        case 'single':
+        case 'truefalse': {
+          correct = given === qu.correct
+          qScore = correct ? qu.points : 0
+          break
+        }
+        case 'multi': {
+          const want = new Set(Array.isArray(qu.correct) ? qu.correct : [qu.correct].filter(Boolean) as string[])
+          const got = new Set(Array.isArray(given) ? given as string[] : [])
+          const tp = [...got].filter(x => want.has(x)).length
+          const fp = [...got].filter(x => !want.has(x)).length
+          // частичный кредит: (верные − ложные) / |верных>, клэмп [0,1]
+          const frac = want.size ? Math.max(0, Math.min(1, (tp - fp) / want.size)) : 0
+          correct = tp === want.size && fp === 0
+          qScore = Math.round(qu.points * frac * 100) / 100
+          break
+        }
+        case 'fill': {
+          const blanks = qu.blanks ?? []
+          // ответ — массив строк по пропускам {{1}}..{{n}}
+          const givenArr = Array.isArray(given) ? given as string[] : typeof given === 'string' ? [given] : []
+          let ok = blanks.length > 0
+          for (let i = 0; i < blanks.length; i++) {
+            const want = blanks[i]!.answers.map(normText)
+            const g = normText(String(givenArr[i] ?? ''))
+            if (!want.includes(g)) { ok = false; break }
+          }
+          correct = ok
+          qScore = ok ? qu.points : 0
+          break
+        }
+        case 'order': {
+          const want = qu.correctOrder ?? []
+          const got = Array.isArray(given) ? given as string[] : []
+          // частичный кредит через LCS
+          const n = want.length
+          if (n && JSON.stringify(got) === JSON.stringify(want)) {
+            correct = true
+            qScore = qu.points
+          } else {
+            // LCS длина
+            const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(got.length + 1).fill(0))
+            for (let i = 1; i <= n; i++) {
+              for (let j = 1; j <= got.length; j++) {
+                dp[i]![j] = want[i - 1] === got[j - 1] ? dp[i - 1]![j - 1]! + 1 : Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!)
+              }
+            }
+            const lcs = dp[n]![got.length]!
+            qScore = Math.round(qu.points * (lcs / n) * 100) / 100
+          }
+          break
+        }
+      }
+      score += qScore
+      results[qu.id] = { correct, score: qScore }
+    }
+    return {
+      attempt: {
+        submittedAt: new Date().toISOString(),
+        answers,
+        score: Math.round(score * 100) / 100,
+        total,
+      },
+      results,
+    }
   }
 
   /** Прочитать материал с проверкой права чтения (или 404/403). */
@@ -1348,6 +1494,148 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
       await rm(materialDir(norm, f.id), { recursive: true, force: true })
       await refreshIndex(norm)
       journal.record(actor.pseudonym, `удалил материал ${f.slug} из ${norm}`)
+    },
+
+    // --- квизы «Закрепление материала» (specs/13-quizzes.md) ---
+
+    async listQuizzes(actor, courseSlug, materialSlug) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadMaterialForRead(actor, norm, materialSlug)
+      const role = await roleOf(actor)
+      const isTeacher = canWriteMaterial(actor, role, await readCourse(baseDir, norm) as CourseFile, 'materials.edit')
+      const dir = resolveDataPath(materialDir(norm, f.id), 'quizzes')
+      let files: string[]
+      try {
+        files = (await readdir(dir, { withFileTypes: true })).filter(d => d.isFile() && d.name.endsWith('.yml')).map(d => d.name)
+      } catch {
+        return []
+      }
+      const result: QuizSummary[] = []
+      for (const name of files) {
+        const q = await readYaml<Quiz>(resolveDataPath(dir, name))
+        if (!q?.id) continue
+        const summary: QuizSummary = {
+          id: q.id,
+          title: q.title,
+          questionCount: q.questions?.length ?? 0,
+          totalPoints: (q.questions ?? []).reduce((s, x) => s + (x.points || 0), 0),
+          updatedAt: q.updatedAt,
+        }
+        if (!isTeacher) {
+          const mine = await readQuizAnswers(norm, f.id, q.id, actor.username)
+          const attempts = mine?.attempts ?? []
+          summary.myAttempts = attempts.length
+          summary.myBestScore = attempts.length ? Math.max(...attempts.map(a => a.score)) : null
+        }
+        result.push(summary)
+      }
+      return result.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+    },
+
+    async getQuiz(actor, courseSlug, materialSlug, quizId) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadMaterialForRead(actor, norm, materialSlug)
+      const q = await readQuizFile(norm, f.id, quizId)
+      if (!q) return null
+      const role = await roleOf(actor)
+      const course = await readCourse(baseDir, norm)
+      const isTeacher = !!course && canWriteMaterial(actor, role, course, 'materials.edit')
+      const out = isTeacher ? q : toStudentQuiz(q)
+      // prompt — markdown: рендерим на сервере, чтобы клиенту не тянуть md-парсер
+      const linkTitles = await courseLinkTitles(norm)
+      for (const qu of out.questions) {
+        qu.promptHtml = renderDocMarkdown(qu.prompt, {
+          courseSlug: norm,
+          materialSlug: f.slug,
+          attachments: [],
+          linkTitles,
+        }).html
+      }
+      return out
+    },
+
+    async createQuiz(actor, courseSlug, materialSlug, input) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadMaterialForManage(actor, norm, materialSlug, 'materials.edit')
+      const id = `qz_${newEntityId().slice(0, 8)}`
+      const now = new Date().toISOString()
+      const quiz: Quiz = {
+        id,
+        title: input.title.trim() || 'Без названия',
+        showAnswers: input.showAnswers ?? true,
+        questions: input.questions ?? [],
+        createdAt: now,
+        updatedAt: now,
+      }
+      validateQuiz(quiz)
+      await writeYaml(quizPath(norm, f.id, id), quiz)
+      journal.record(actor.pseudonym, `создал проверку «${quiz.title}» в теме ${f.slug} (${norm})`)
+      return quiz
+    },
+
+    async updateQuiz(actor, courseSlug, materialSlug, quizId, patch) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadMaterialForManage(actor, norm, materialSlug, 'materials.edit')
+      const q = await readQuizFile(norm, f.id, quizId)
+      if (!q) httpError(404, 'Проверка не найдена')
+      if (patch.title !== undefined) q.title = patch.title.trim() || q.title
+      if (patch.showAnswers !== undefined) q.showAnswers = patch.showAnswers
+      if (patch.questions !== undefined) q.questions = patch.questions
+      q.updatedAt = new Date().toISOString()
+      validateQuiz(q)
+      await writeYaml(quizPath(norm, f.id, q.id), q)
+      journal.record(actor.pseudonym, `обновил проверку «${q.title}» в теме ${f.slug} (${norm})`)
+      return q
+    },
+
+    async deleteQuiz(actor, courseSlug, materialSlug, quizId) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadMaterialForManage(actor, norm, materialSlug, 'materials.edit')
+      const q = await readQuizFile(norm, f.id, quizId)
+      if (!q) httpError(404, 'Проверка не найдена')
+      // и файл квиза, и каталог с ответами
+      await rm(quizPath(norm, f.id, q.id), { force: true })
+      await rm(resolveDataPath(materialDir(norm, f.id), 'quizzes', q.id), { recursive: true, force: true })
+      journal.record(actor.pseudonym, `удалил проверку «${q.title}» в теме ${f.slug} (${norm})`)
+    },
+
+    async submitQuizAttempt(actor, courseSlug, materialSlug, quizId, answers) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadMaterialForRead(actor, norm, materialSlug)
+      const q = await readQuizFile(norm, f.id, quizId)
+      if (!q) httpError(404, 'Проверка не найдена')
+      const { attempt, results } = gradeQuizAttempt(q, answers)
+      attempt.results = results
+      const file = await readQuizAnswers(norm, f.id, q.id, actor.username) ?? { username: actor.username, attempts: [] }
+      file.attempts.push(attempt)
+      await writeYaml(quizAnswersPath(norm, f.id, q.id, actor.username), file)
+      journal.record(actor.pseudonym, `прошёл проверку «${q.title}» в теме ${f.slug}: ${attempt.score}/${attempt.total} (${norm})`)
+      return { attempt, results }
+    },
+
+    async listQuizAttempts(actor, courseSlug, materialSlug, quizId) {
+      const norm = normalizeSlug(courseSlug)
+      const f = await loadMaterialForRead(actor, norm, materialSlug)
+      const q = await readQuizFile(norm, f.id, quizId)
+      if (!q) httpError(404, 'Проверка не найдена')
+      const role = await roleOf(actor)
+      const course = await readCourse(baseDir, norm)
+      const isTeacher = !!course && canWriteMaterial(actor, role, course, 'materials.edit')
+      const answersDir = resolveDataPath(materialDir(norm, f.id), 'quizzes', q.id, 'answers')
+      let files: string[]
+      try {
+        files = (await readdir(answersDir, { withFileTypes: true })).filter(d => d.isFile() && d.name.endsWith('.yml')).map(d => d.name)
+      } catch {
+        return []
+      }
+      const result: { username: string, attempts: QuizAttempt[] }[] = []
+      for (const name of files) {
+        const username = name.replace(/\.yml$/, '')
+        if (!isTeacher && username !== actor.username) continue
+        const af = await readYaml<QuizAnswersFile>(resolveDataPath(answersDir, name))
+        if (af?.attempts?.length) result.push({ username, attempts: af.attempts })
+      }
+      return result.sort((a, b) => a.username.localeCompare(b.username))
     },
 
     async addAttachment(actor, courseSlug, materialSlug, file) {
