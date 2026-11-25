@@ -4,7 +4,7 @@ import { errText } from '#shared/errors'
 import { useCourseContext } from '~/composables/useCourseContext'
 
 /** Блок «Закрепление материала» на странице темы: список проверок + действия. */
-const props = defineProps<{ slug: string, materialId: string }>()
+const props = withDefaults(defineProps<{ slug: string, materialId: string, editable?: boolean }>(), { editable: true })
 
 const { data: coursePageData } = useCourseContext()
 const canEdit = computed(() => coursePageData.value?.canMaterials ?? false)
@@ -54,7 +54,7 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
   <section v-if="quizzes.length || canEdit" class="quiz-section">
     <div class="quiz-head">
       <h2>Закрепление материала</h2>
-      <button v-if="canEdit" class="primary" @click="openCreate">Создать проверку</button>
+      <button v-if="canEdit && editable" class="primary" @click="openCreate">Создать проверку</button>
     </div>
 
     <p v-if="deleteError" class="error">{{ deleteError }}</p>
@@ -72,8 +72,10 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
         </div>
         <div v-if="canEdit" class="quiz-actions">
           <IconBtn icon="lucide:users" label="Результаты" @click="resultsFor = q" />
-          <IconBtn icon="lucide:pencil" label="Редактировать" @click="openEdit(q)" />
-          <IconBtn icon="lucide:trash-2" label="Удалить" danger @click="deleting = q" />
+          <template v-if="editable">
+            <IconBtn icon="lucide:pencil" label="Редактировать" @click="openEdit(q)" />
+            <IconBtn icon="lucide:trash-2" label="Удалить" danger @click="deleting = q" />
+          </template>
         </div>
         <NuxtLink v-else :to="quizUrl(q)" class="btn-link">
           {{ q.myAttempts ? 'Пройти ещё раз' : 'Пройти' }}

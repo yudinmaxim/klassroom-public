@@ -291,7 +291,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           :show-stats="canEdit"
         />
 
-        <QuizSection :slug="slug" :material-id="material.id" />
+        <QuizSection :slug="slug" :material-id="material.id" :editable="false" />
       </div>
     </div>
 
