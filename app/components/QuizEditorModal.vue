@@ -299,12 +299,13 @@ onMounted(async () => {
 .qb-meta {
   display: flex;
   align-items: center;
-  gap: 18px;
+  justify-content: center;
+  gap: 24px;
   padding: 12px 4px;
   border-bottom: 1px solid var(--line);
 }
-.qb-title-field { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.qb-show { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+.qb-title-field { flex: 0 1 480px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.qb-show { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; flex: none; }
 .qb-questions {
   flex: 1;
   overflow-y: auto;
