@@ -3,30 +3,37 @@
 ## Общая структура
 
 ```
-content/                      # git-репозиторий (только учебный контент)
+content/                      # git-репозиторий (отдельный; только учебный контент)
   courses/
-    <slug>/
-      course.yml              # название, описание, шкала оценивания, настройки
+    <id>/                     # имя директории = иммутабельный id (= URL-параметр)
+      course.yml              # title, description, teacher, gradingScale, cover?, slug
+      _index.yml              # производный указатель slug → id (спека 10)
       roster.yml              # список username'ов учеников курса
-      materials/              # учебные материалы (владелец типа — плагин)
-        <slug>/
-          material.yml        # type, title, status, порядок...
-          content/            # содержимое — целиком зона плагина типа
-      attachments/            # общие вложения курса
-      assignments/
-        <slug>/
-          assignment.yml      # title, due, maxGrade, status: draft|published|closed
-          description.md
-          submissions/
-            <username>/
-              submission.yml  # статус, оценка, feedback, таймстампы
-              answer.md       # ответ ученика
-              files/          # приложенные файлы ученика
+      groups/<gid>.yml        # группы курса: title, members[], createdAt (спека 12)
+      materials/<id>/         # id = имя директории; material.yml: id, slug, type, groups?
+        material.yml
+        content/              # содержимое — целиком зона плагина типа
+        attachments/          # вложения материала
+      assignments/<id>/       # assignment.yml: id, slug, type, audience, status, due, groups?
+        assignment.yml
+        description.md
+        submissions/
+          <username>/
+            submission.yml    # статус, оценка, feedback, таймстампы
+            answer.md         # ответ ученика
+            files/            # приложенные файлы ученика
+            comments/<cid>.yml# личный тред по сдаче
+        comments/<cid>.yml     # общий тред по заданию
+      stream/<pid>.yml        # посты ленты курса + stream/<pid>/comments/<cid>.yml
+      cover.<ext>             # обложка курса (один файл)
 
 users/                        # ВНЕ content/, в git не попадает
   <username>.yml              # role: admin|teacher|student, pseudonym, argon2-хэш
+  _index.yml                  # per-user индекс (сдачи и пр.) — specs/10
 
 sessions/                     # файловые сессии (useStorage, file-driver)
+roles/<name>.yml              # собственные роли и переопределения пермишенов
+qr-tokens/<token>.yml         # одноразовые QR-токены входа (спека 09)
 ```
 
 ## Принципы

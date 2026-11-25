@@ -9,8 +9,21 @@
 
 ## Стек деплоя
 
-- Node-приложение (Nuxt 4 + Nitro) под **systemd** (автостарт, рестарт).
-- **Caddy или nginx** как reverse-proxy с TLS (Let's Encrypt).
+**Docker (основной путь, реализован):**
+
+- Образ собирается в GitHub Actions при push в `klassroom-public`
+  (`.github/workflows/docker.yml`) и пушится в
+  `ghcr.io/yudinmaxim/klassroom-public` с тегами `latest`/`X.Y.Z`/`<sha>`.
+- На сервере — `compose.prod.yml` из репозитория + `DEPLOY.md`.
+- Данные — bind-mount'ы `./content ./users ./sessions ./roles ./qr-tokens`;
+  контейнер stateless.
+- **HTTPS обязателен**: session-кука `Secure` в production — нужен
+  reverse-proxy (Caddy / Cloudflare Tunnel / nginx) перед `127.0.0.1:3000`.
+
+**Альтернатива — systemd (без Docker):**
+
+- `node .output/server/index.mjs` под systemd (автостарт, рестарт).
+- Caddy или nginx как reverse-proxy с TLS (Let's Encrypt).
 - Порт приложения слушает только localhost; наружу — только proxy.
 
 ## Бэкапы
