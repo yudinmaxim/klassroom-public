@@ -1,0 +1,17 @@
+services:
+  klassroom:
+    build: .
+    image: klassroom:latest
+    container_name: klassroom
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # Те же относительные пути, что и в dev — содержимое см. в repo корне.
+    # При первом запуске каталоги создадутся пустыми; git-репозиторий для
+    # content/ журнал инициализирует сам при первой мутации.
+    volumes:
+      - ./content:/app/content
+      - ./users:/app/users
+      - ./sessions:/app/sessions
+      - ./roles:/app/roles
+      - ./qr-tokens:/app/qr-tokens

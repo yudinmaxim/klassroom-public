@@ -1,0 +1,23 @@
+# Контекст сборки: только код. Данные и артефакты — volume'ы, в образ не попадают.
+.git
+node_modules
+.nuxt
+.output
+.data
+
+# runtime-данные (монтируются снаружи)
+content
+users
+sessions
+roles
+qr-tokens
+
+# dev/test
+specs
+tests
+scripts
+.docs
+*.log
+.env
+.env.*
+!.env.example
