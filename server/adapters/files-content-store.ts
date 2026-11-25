@@ -1706,6 +1706,8 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
           myStatus = mine ? mine.status : 'none'
         }
         const summary = toAssignmentSummary(f, users.length, myStatus)
+        // audience — только менеджерам (ученику список «кому выдано» не нужен)
+        if (manager && f.type === 'private') summary.audience = [...f.audience]
         if (mine) {
           // индикации для ученика: оценка + время последнего комментария
           summary.myGrade = mine.grade

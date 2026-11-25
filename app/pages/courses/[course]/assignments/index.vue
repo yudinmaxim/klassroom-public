@@ -28,6 +28,9 @@ interface AssignmentRow {
   myGrade?: number | null
   myLastCommentAt?: string | null
   updatedAt: string
+  groups?: string[]
+  audience?: string[]
+  audienceNames?: string[]
 }
 const assignments = ref<AssignmentRow[]>([])
 const assignmentsError = ref('')
@@ -110,7 +113,7 @@ async function unpublishAssignment(a: AssignmentRow) {
   <div class="course-content">
     <div class="card">
       <SectionHead>
-        Домашние задания
+        Задания
         <template v-if="canAssignments" #actions>
           <IconBtn
             icon="lucide:plus"
@@ -125,7 +128,8 @@ async function unpublishAssignment(a: AssignmentRow) {
         <thead>
           <tr>
             <th>Задание</th>
-            <th>Тип</th>
+            <th>Группы</th>
+            <th>Для кого</th>
             <th>Дедлайн</th>
             <th>Статус</th>
             <th v-if="canAssignments" />
@@ -142,14 +146,24 @@ async function unpublishAssignment(a: AssignmentRow) {
           >
             <td>
               <strong>{{ a.title }}</strong>
-              <GroupChips :slug="course?.slug ?? ''" :groups="a.groups" />
               <span
                 v-if="!canAssignments && chatHasUnread(course?.slug ?? '', a.id, a.myLastCommentAt)"
                 class="unread-dot"
                 title="Есть новые комментарии к сдаче"
               />
             </td>
-            <td class="muted">{{ a.type === 'private' ? 'частное' : 'общее' }}</td>
+            <td>
+              <GroupChips :slug="course?.slug ?? ''" :groups="a.groups ?? []" />
+            </td>
+            <td class="muted">
+              <template v-if="a.type === 'private'">
+                <template v-if="canAssignments && a.audienceNames?.length">
+                  {{ a.audienceNames.join(', ') }}
+                </template>
+                <template v-else>частное</template>
+              </template>
+              <template v-else>все</template>
+            </td>
             <td class="muted">{{ a.due ?? '—' }}</td>
             <td>
               {{ assignmentStatusLabel(a) }}

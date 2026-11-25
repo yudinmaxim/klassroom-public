@@ -245,6 +245,10 @@ export interface AssignmentSummary {
   updatedAt: string
   /** Группы видимости; пусто = «без группы» (ученикам скрыто). */
   groups: string[]
+  /** Audience частного задания (usernames). Заполняется только менеджерам — ученикам не отдаём. */
+  audience?: string[]
+  /** Те же audience псевдонимами — заполняет API для отображения. */
+  audienceNames?: string[]
 }
 
 /** Задание целиком: метаданные + отрендеренное описание. */
