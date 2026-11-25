@@ -141,6 +141,7 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card, transparent);
+  max-width: 480px;
 }
 .quiz-info { flex: 1; min-width: 0; }
 .quiz-title { font-weight: 600; }
