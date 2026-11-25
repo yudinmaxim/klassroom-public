@@ -257,18 +257,8 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         </p>
       </div>
       <div v-if="!editing && canEdit" class="page-actions">
-        <span class="tip">
-          <button class="icon-btn" aria-label="Редактировать тему" @click="startEdit">
-            <Icon name="lucide:pencil" />
-          </button>
-          <span class="tip-body">Редактировать</span>
-        </span>
-        <span class="tip">
-          <button class="icon-btn danger" aria-label="Удалить тему" :disabled="deleting" @click="deleteOpen = true">
-            <Icon name="lucide:trash-2" />
-          </button>
-          <span class="tip-body">Удалить</span>
-        </span>
+        <IconBtn icon="lucide:pencil" label="Редактировать" @click="startEdit" />
+        <IconBtn icon="lucide:trash-2" label="Удалить" danger :disabled="deleting" @click="deleteOpen = true" />
       </div>
     </header>
 

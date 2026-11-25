@@ -69,23 +69,14 @@ async function resetRole(role: RoleDef) {
             <td class="muted">{{ SCOPE_TITLES[r.scope] }}</td>
             <td>{{ r.name === 'admin' ? 'все' : r.permissions.length }}</td>
             <td v-if="r.name !== 'admin'" class="row-actions">
-              <span class="tip">
-                <button class="icon-btn" aria-label="Редактировать роль" @click="panelRole = r">
-                  <Icon name="lucide:pencil" />
-                </button>
-                <span class="tip-body">Редактировать</span>
-              </span>
-              <span class="tip">
-                <button
-                  class="icon-btn danger"
-                  :aria-label="r.builtin ? 'Сбросить к системной' : 'Удалить роль'"
-                  :disabled="busy"
-                  @click="resetRole(r)"
-                >
-                  <Icon name="lucide:trash-2" />
-                </button>
-                <span class="tip-body">{{ r.builtin ? 'Сбросить к системной' : 'Удалить' }}</span>
-              </span>
+              <IconBtn icon="lucide:pencil" label="Редактировать" @click="panelRole = r" />
+              <IconBtn
+                icon="lucide:trash-2"
+                :label="r.builtin ? 'Сбросить к системной' : 'Удалить'"
+                danger
+                :disabled="busy"
+                @click="resetRole(r)"
+              />
             </td>
           </tr>
         </tbody>

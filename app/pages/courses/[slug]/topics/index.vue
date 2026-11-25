@@ -66,16 +66,11 @@ async function confirmDeleteMaterial() {
       <SectionHead>
         Темы
         <template v-if="canMaterials" #actions>
-          <span class="tip">
-            <button
-              class="icon-btn"
-              aria-label="Добавить тему"
-              @click="navigateTo(`/courses/${course?.slug}/topics/new`)"
-            >
-              <Icon name="lucide:plus" />
-            </button>
-            <span class="tip-body">Добавить тему</span>
-          </span>
+          <IconBtn
+            icon="lucide:plus"
+            label="Добавить тему"
+            @click="navigateTo(`/courses/${course?.slug}/topics/new`)"
+          />
         </template>
       </SectionHead>
 
@@ -103,26 +98,8 @@ async function confirmDeleteMaterial() {
             </td>
             <td class="muted">{{ m.type === 'doc' ? 'конспект' : m.type }}</td>
             <td v-if="canMaterials" class="row-actions">
-              <span class="tip">
-                <button
-                  class="icon-btn"
-                  aria-label="Редактировать тему"
-                  @click.stop="editMaterial(m)"
-                >
-                  <Icon name="lucide:pencil" />
-                </button>
-                <span class="tip-body">Редактировать</span>
-              </span>
-              <span class="tip">
-                <button
-                  class="icon-btn danger"
-                  aria-label="Удалить тему"
-                  @click.stop="deleteTarget = m"
-                >
-                  <Icon name="lucide:trash-2" />
-                </button>
-                <span class="tip-body">Удалить</span>
-              </span>
+              <IconBtn icon="lucide:pencil" label="Редактировать" @click.stop="editMaterial(m)" />
+              <IconBtn icon="lucide:trash-2" label="Удалить" danger @click.stop="deleteTarget = m" />
             </td>
           </tr>
         </tbody>

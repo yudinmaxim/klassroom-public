@@ -111,16 +111,11 @@ async function unpublishAssignment(a: AssignmentRow) {
       <SectionHead>
         Домашние задания
         <template v-if="canAssignments" #actions>
-          <span class="tip">
-            <button
-              class="icon-btn"
-              aria-label="Добавить задание"
-              @click="navigateTo(`/courses/${course?.slug}/assignments/new`)"
-            >
-              <Icon name="lucide:plus" />
-            </button>
-            <span class="tip-body">Добавить задание</span>
-          </span>
+          <IconBtn
+            icon="lucide:plus"
+            label="Добавить задание"
+            @click="navigateTo(`/courses/${course?.slug}/assignments/new`)"
+          />
         </template>
       </SectionHead>
 
@@ -160,48 +155,26 @@ async function unpublishAssignment(a: AssignmentRow) {
               <template v-if="!canAssignments && a.myGrade != null"> · оценка: <strong>{{ a.myGrade }}</strong></template>
             </td>
             <td v-if="canAssignments" class="row-actions">
-              <span v-if="a.status === 'draft'" class="tip">
-                <button
-                  class="icon-btn"
-                  aria-label="Выдать задание"
-                  :disabled="publishBusy === a.slug"
-                  @click.stop="openPublish(a)"
-                >
-                  <Icon name="lucide:send" />
-                </button>
-                <span class="tip-body">Выдать</span>
-              </span>
-              <span v-else class="tip">
-                <button
-                  class="icon-btn"
-                  aria-label="Снять с выдачи"
-                  :disabled="publishBusy === a.slug"
-                  @click.stop="unpublishAssignment(a)"
-                >
-                  <Icon name="lucide:eye-off" />
-                </button>
-                <span class="tip-body">Снять с выдачи</span>
-              </span>
-              <span class="tip">
-                <button
-                  class="icon-btn"
-                  aria-label="Редактировать задание"
-                  @click.stop="navigateTo(`/courses/${course?.slug}/assignments/${a.slug}?edit=1`)"
-                >
-                  <Icon name="lucide:pencil" />
-                </button>
-                <span class="tip-body">Редактировать</span>
-              </span>
-              <span class="tip">
-                <button
-                  class="icon-btn danger"
-                  aria-label="Удалить задание"
-                  @click.stop="deleteTarget = a"
-                >
-                  <Icon name="lucide:trash-2" />
-                </button>
-                <span class="tip-body">Удалить</span>
-              </span>
+              <IconBtn
+                v-if="a.status === 'draft'"
+                icon="lucide:send"
+                label="Выдать"
+                :disabled="publishBusy === a.slug"
+                @click.stop="openPublish(a)"
+              />
+              <IconBtn
+                v-else
+                icon="lucide:eye-off"
+                label="Снять с выдачи"
+                :disabled="publishBusy === a.slug"
+                @click.stop="unpublishAssignment(a)"
+              />
+              <IconBtn
+                icon="lucide:pencil"
+                label="Редактировать"
+                @click.stop="navigateTo(`/courses/${course?.slug}/assignments/${a.slug}?edit=1`)"
+              />
+              <IconBtn icon="lucide:trash-2" label="Удалить" danger @click.stop="deleteTarget = a" />
             </td>
           </tr>
         </tbody>

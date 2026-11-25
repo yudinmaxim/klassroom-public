@@ -115,18 +115,13 @@ const error = ref('')
 // пароль показывается один раз, сразу после создания/сброса
 const revealedSecret = ref('')
 
-// индикация «скопировано» на кнопках копирования
-const copiedSecret = ref(false)
+// индикация «скопировано» на кнопке копирования QR-ссылки
 const copiedQr = ref(false)
 let copiedTimer: ReturnType<typeof setTimeout> | undefined
-function flashCopied(which: 'secret' | 'qr') {
-  if (which === 'secret') copiedSecret.value = true
-  else copiedQr.value = true
+function flashCopied() {
+  copiedQr.value = true
   clearTimeout(copiedTimer)
-  copiedTimer = setTimeout(() => {
-    copiedSecret.value = false
-    copiedQr.value = false
-  }, 1500)
+  copiedTimer = setTimeout(() => { copiedQr.value = false }, 1500)
 }
 
 // undefined — панель закрыта, null — создание, объект — редактирование
@@ -183,7 +178,7 @@ async function renderQr() {
 watch(qrBase, () => { void renderQr() })
 
 async function copyQrUrl() {
-  if (await copyText(qrUrl.value)) flashCopied('qr')
+  if (await copyText(qrUrl.value)) flashCopied()
 }
 
 function closeQr() {
@@ -222,9 +217,7 @@ async function generateQr() {
   }
 }
 
-async function copySecret() {
-  if (await copyText(revealedSecret.value)) flashCopied('secret')
-}
+
 </script>
 
 <template>
@@ -234,16 +227,7 @@ async function copySecret() {
       <IconBtn icon="lucide:plus" label="Создать аккаунт" @click="panelUser = null" />
     </template>
 
-    <div v-if="revealedSecret" class="card">
-      <h2>Пароль передан один раз — запишите его сейчас</h2>
-      <div class="secret">{{ revealedSecret }}</div>
-      <p class="row" style="margin-top: 10px;">
-        <button class="small" @click="copySecret">
-          {{ copiedSecret ? 'Скопировано ✓' : 'Скопировать' }}
-        </button>
-        <button class="small" @click="revealedSecret = ''">Скрыть</button>
-      </p>
-    </div>
+    <SecretReveal v-if="revealedSecret" :secret="revealedSecret" @hide="revealedSecret = ''" />
 
     <div v-if="qrUser" class="card">
       <div class="row">

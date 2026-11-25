@@ -128,11 +128,7 @@ async function removeStudent(username: string) {
         </template>
       </SectionHead>
 
-      <p v-if="revealedSecret" class="muted" style="margin-bottom: 6px;">
-        Пароль нового ученика (виден один раз):
-      </p>
-      <div v-if="revealedSecret" class="secret" style="margin-bottom: 10px;">{{ revealedSecret }}</div>
-      <button v-if="revealedSecret" class="small" style="margin-bottom: 12px;" @click="revealedSecret = ''">Скрыть</button>
+      <SecretReveal v-if="revealedSecret" :secret="revealedSecret" @hide="revealedSecret = ''" />
 
       <p v-if="rosterError" class="error" style="margin-bottom: 12px;">{{ rosterError }}</p>
       <table v-if="roster.length" class="data-table">
