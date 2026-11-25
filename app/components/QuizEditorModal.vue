@@ -304,7 +304,8 @@ onMounted(async () => {
   border-bottom: 1px solid var(--line);
 }
 .qb-title-field { flex: 0 1 480px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.qb-show { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; flex: none; }
+/* чекбокс центрируем по полю ввода (40px), а не по всему label+input блоку */
+.qb-show { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; flex: none; align-self: flex-end; padding-bottom: 9px; }
 .qb-questions {
   flex: 1;
   overflow-y: auto;
