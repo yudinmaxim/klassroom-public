@@ -60,7 +60,14 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
     <p v-if="deleteError" class="error">{{ deleteError }}</p>
 
     <ul v-if="quizzes.length" class="quiz-list">
-      <li v-for="q in quizzes" :key="q.id" class="quiz-item">
+      <li
+        v-for="q in quizzes"
+        :key="q.id"
+        class="quiz-item"
+        tabindex="0"
+        @click="navigateTo(quizUrl(q))"
+        @keydown.enter="navigateTo(quizUrl(q))"
+      >
         <div class="quiz-info">
           <NuxtLink :to="quizUrl(q)" class="quiz-title">{{ q.title }}</NuxtLink>
           <p class="muted quiz-meta">
@@ -70,14 +77,14 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
             </template>
           </p>
         </div>
-        <div v-if="canEdit" class="quiz-actions">
+        <div v-if="canEdit" class="quiz-actions" @click.stop>
           <IconBtn icon="lucide:users" label="Результаты" @click="resultsFor = q" />
           <template v-if="editable">
             <IconBtn icon="lucide:pencil" label="Редактировать" @click="openEdit(q)" />
             <IconBtn icon="lucide:trash-2" label="Удалить" danger @click="deleting = q" />
           </template>
         </div>
-        <NuxtLink v-else :to="quizUrl(q)" class="btn-link">
+        <NuxtLink v-else :to="quizUrl(q)" class="btn-link" @click.stop>
           {{ q.myAttempts ? 'Пройти ещё раз' : 'Пройти' }}
         </NuxtLink>
       </li>
@@ -142,7 +149,9 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
   border-radius: 10px;
   background: var(--card, transparent);
   max-width: 480px;
+  cursor: pointer;
 }
+.quiz-item:hover { border-color: var(--accent); }
 .quiz-info { flex: 1; min-width: 0; }
 .quiz-title { font-weight: 600; }
 .quiz-meta { margin: 2px 0 0; font-size: 12.5px; }

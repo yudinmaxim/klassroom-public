@@ -24,6 +24,8 @@ const { data: coursePageData } = useCourseContext()
 const canEdit = computed(() => coursePageData.value?.canMaterials ?? false)
 
 const material = computed(() => data.value?.material ?? null)
+// Вложенные страницы темы (прохождение проверки и т.п.) рендерятся через <NuxtPage/>
+const isChildPage = computed(() => route.name !== 'courses-course-topics-id')
 const docPayload = computed<DocPayload | null>(() =>
   material.value?.type === 'doc' ? (material.value.payload as DocPayload) : null,
 )
@@ -246,7 +248,8 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 </script>
 
 <template>
-  <div v-if="material" class="course-page">
+  <NuxtPage v-if="isChildPage" />
+  <div v-else-if="material" class="course-page">
   <div class="course-content">
     <header v-if="!editing" class="page-head topic-hero">
       <div class="topic-hero-text">
