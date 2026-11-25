@@ -299,7 +299,6 @@ onMounted(async () => {
 .qb-meta {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 24px;
   padding: 12px 4px;
   border-bottom: 1px solid var(--line);
