@@ -1,0 +1,32 @@
+# Продакшен-запуск klassroom — для администратора сервера.
+# Инструкция: DEPLOY.md в этом же репозитории.
+#
+#   mkdir -p content users sessions roles qr-tokens
+#   docker compose -f compose.prod.yml pull
+#   docker compose -f compose.prod.yml up -d
+#
+# Обновление: docker compose -f compose.prod.yml pull && up -d
+# Пин версии: замени :latest на :X.Y.Z (теги — в GitHub Packages klassroom-public)
+
+services:
+  klassroom:
+    image: ghcr.io/yudinmaxim/klassroom-public:latest
+    container_name: klassroom
+    restart: unless-stopped
+    # Наружу не публикуем: снаружи ходит reverse-proxy (Caddy/nginx/CF Tunnel)
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      TZ: Europe/Moscow # часовой пояс сервера; убери строку при желании
+    volumes:
+      - ./content:/app/content       # wiki-контент, отдельный git-репозиторий
+      - ./users:/app/users           # аккаунты (секреты — бэкапить!)
+      - ./sessions:/app/sessions     # сессии
+      - ./roles:/app/roles           # переопределения ролей
+      - ./qr-tokens:/app/qr-tokens   # одноразовые QR-токены входа
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # healthcheck уже внутри образа; статус: docker inspect klassroom --format '{{.State.Health.Status}}'

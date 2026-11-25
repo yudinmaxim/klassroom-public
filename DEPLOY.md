@@ -12,38 +12,22 @@
 
 ## 1. Данные
 
-Создай каталоги и положи `docker-compose.yml` (пример ниже) в любую папку,
+Готовый `compose.prod.yml` лежит в репозитории — скачай его в любую папку,
 например `/opt/klassroom`:
-
-```yaml
-services:
-  klassroom:
-    image: ghcr.io/yudinmaxim/klassroom-public:latest   # или :X.Y.Z для пина
-    container_name: klassroom
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:3000:3000"        # только localhost — снаружи ходит прокси
-    environment:
-      TZ: Europe/Moscow              # опционально, часовой пояс
-    volumes:
-      - ./content:/app/content       # wiki-контент (git-репозиторий)
-      - ./users:/app/users           # аккаунты — секреты!
-      - ./sessions:/app/sessions     # сессии
-      - ./roles:/app/roles           # переопределения ролей
-      - ./qr-tokens:/app/qr-tokens   # одноразовые QR-токены
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "3" }
-```
 
 ```bash
 mkdir -p /opt/klassroom && cd /opt/klassroom
-# вставь yaml выше в docker-compose.yml
+# скачай compose.prod.yml из репозитория (raw) или скопируй вручную
 mkdir -p content users sessions roles qr-tokens
-docker compose pull
-docker compose up -d
-docker compose logs -f        # Ctrl+C — логи дальше пишутся
+docker compose -f compose.prod.yml pull
+docker compose -f compose.prod.yml up -d
+docker compose -f compose.prod.yml logs -f   # Ctrl+C — логи дальше пишутся
 ```
+
+Состав compose-файла (если нужно понять, что он делает): образ
+`ghcr.io/yudinmaxim/klassroom-public`, порт `127.0.0.1:3000`, volume'ы
+`./content`, `./users`, `./sessions`, `./roles`, `./qr-tokens` → те же пути
+в `/app`, `restart: unless-stopped`, ротация логов.
 
 Приложение поднимется за несколько секунд, healthcheck внутри образа.
 Открой `http://127.0.0.1:3000/setup` **через прокси/туннель** (см. шаг 2) —
@@ -97,9 +81,9 @@ cloudflared tunnel --url http://127.0.0.1:3000
 
 ```bash
 cd /opt/klassroom
-docker compose pull          # latest
-docker compose up -d
-docker compose logs -f | head
+docker compose -f compose.prod.yml pull
+docker compose -f compose.prod.yml up -d
+docker compose -f compose.prod.yml logs -f | head
 ```
 
 Для контролируемых обновлений пинь версию в compose:
@@ -119,7 +103,7 @@ tar czf klassroom-backup-$(date +%F).tgz content users sessions roles qr-tokens
 origin <private-repo>` и пушить для off-site копии (журнал коммитит каждую
 мутацию от лица автора).
 
-Восстановление: распаковать архив в те же пути, `docker compose restart`.
+Восстановление: распаковать архив в те же пути, `docker compose -f compose.prod.yml restart`.
 
 ## 6. Если что-то не так
 
