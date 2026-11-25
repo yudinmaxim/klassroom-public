@@ -1,7 +1,7 @@
 import type { AssignmentSummary, CourseGroup, ExternalLink, LinkStat, RoleDef, Course, CourseSummary, Gradebook, GradebookSection, GradingScale, Material, MaterialSummary, StreamFeedPost, StreamPost, Submission, SubmissionComment, SubmissionVersion, UserPublic } from '#shared/types'
 import { PUBLIC_GROUP } from '#shared/types'
 import { renderDocMarkdown } from '../lib/md'
-import { readdir, rename, rm, type Dirent } from 'node:fs/promises'
+import { readdir, rename, rm, stat, type Dirent } from 'node:fs/promises'
 import { createHash, randomBytes } from 'node:crypto'
 import { slugify } from '../lib/slug'
 import { httpError } from '../lib/errors'
@@ -291,13 +291,19 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
     return idx
   }
 
-  /** Резолв slug → id (имя директории). Промах индекса → пересборка и повтор. */
+  /** Резолв ref → директория сущности. Принимает id (= имя директории, приоритет)
+   *  и legacy-slug через _index.yml. Промах индекса → пересборка и повтор. */
   async function resolveEntityDir(
     courseSlug: string,
     kind: 'materials' | 'assignments',
     ref: string,
   ): Promise<string | null> {
     const norm = normalizeSlug(ref)
+    const root = kind === 'materials' ? materialsRoot(courseSlug) : assignmentsRoot(courseSlug)
+    try {
+      const st = await stat(resolveDataPath(root, norm))
+      if (st.isDirectory()) return norm
+    } catch { /* не id — пробуем slug */ }
     const idx = (await readCourseIndex(courseSlug)) ?? await refreshIndex(courseSlug)
     const hit = idx[kind]?.[norm]
     if (hit) return hit
@@ -712,7 +718,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
   }
 
   function toAssignmentSummary(f: AssignmentFile, submissionCount: number, myStatus?: AssignmentSummary['myStatus']): AssignmentSummary {
-    return { slug: f.slug, title: f.title, type: f.type, status: f.status, due: f.due, submissionCount, myStatus, updatedAt: f.updatedAt, groups: normalizeGroups(f.groups) }
+    return { id: f.id, slug: f.slug, title: f.title, type: f.type, status: f.status, due: f.due, submissionCount, myStatus, updatedAt: f.updatedAt, groups: normalizeGroups(f.groups) }
   }
 
   // --- тред комментариев и вложения сдачи: submissions/<user>/{comments,attachments} ---
@@ -1231,7 +1237,7 @@ export function createFilesContentStore(baseDir: string, journal: GitJournal, ro
         const f = await readMaterial(norm, d.name)
         if (!f) continue
         if (viewerGroups && !contentVisibleToGroups(f.groups, viewerGroups)) continue
-        result.push({ slug: f.slug, title: f.title, type: f.type, updatedAt: f.updatedAt, groups: normalizeGroups(f.groups) })
+        result.push({ id: d.name, slug: f.slug, title: f.title, type: f.type, updatedAt: f.updatedAt, groups: normalizeGroups(f.groups) })
       }
       return result.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
     },

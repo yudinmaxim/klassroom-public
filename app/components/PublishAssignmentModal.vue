@@ -4,7 +4,7 @@ import { PUBLIC_GROUP } from '#shared/types'
 
 const props = defineProps<{
   slug: string
-  assignmentSlug: string
+  assignmentId: string
   title: string
 }>()
 const emit = defineEmits<{ close: [], changed: [] }>()
@@ -25,7 +25,7 @@ onMounted(async () => {
     // ростер — только если есть courses.roster.view; иначе список пуст
     const [res, rosterRes] = await Promise.all([
       $fetch<{ assignment: { type: string, audience: string[], status: string, groups?: string[] } }>(
-        `/api/courses/${props.slug}/assignments/${props.assignmentSlug}`,
+        `/api/courses/${props.slug}/assignments/${props.assignmentId}`,
       ),
       $fetch<{ roster: typeof students.value }>(`/api/courses/${props.slug}/roster`).catch(() => null),
     ])
@@ -66,7 +66,7 @@ async function save() {
   busy.value = true
   error.value = ''
   try {
-    await $fetch(`/api/courses/${props.slug}/assignments/${props.assignmentSlug}`, {
+    await $fetch(`/api/courses/${props.slug}/assignments/${props.assignmentId}`, {
       method: 'PATCH',
       body: {
         status: 'published',

@@ -105,7 +105,7 @@ function avgClass(avg: number | null) {
             <tr>
               <th v-if="s.book.canSeeAll" class="gb-student">Ученик</th>
               <th v-for="a in s.book.assignments" :key="a.id" class="gb-asg" :title="a.due ? `до ${new Date(a.due).toLocaleDateString('ru')}` : ''">
-                <NuxtLink :to="`/courses/${s.course.slug}/assignments/${a.slug}`" class="gb-asg-link">
+                <NuxtLink :to="`/courses/${s.course.slug}/assignments/${a.id}`" class="gb-asg-link">
                   <span class="gb-asg-title">{{ a.title }}</span>
                   <span v-if="a.due" class="gb-asg-due">до {{ new Date(a.due).toLocaleDateString('ru') }}</span>
                 </NuxtLink>

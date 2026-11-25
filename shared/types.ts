@@ -95,6 +95,8 @@ export interface TocItem {
 
 /** Материал в списке курса. */
 export interface MaterialSummary {
+  /** Иммутабельный id = имя директории (используется в URL). */
+  id: string
   slug: string
   title: string
   type: string
@@ -151,6 +153,8 @@ export type AssignmentStatus = 'draft' | 'published'
 
 /** Краткое представление задания в списке курса. */
 export interface AssignmentSummary {
+  /** Иммутабельный id = имя директории (используется в URL). */
+  id: string
   slug: string
   title: string
   type: AssignmentType

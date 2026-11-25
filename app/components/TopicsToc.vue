@@ -5,10 +5,10 @@
  */
 const props = defineProps<{
   courseSlug: string
-  activeSlug?: string
+  activeId?: string
 }>()
 
-interface TocMaterial { slug: string, title: string }
+interface TocMaterial { id: string, slug: string, title: string }
 
 // lazy: не блокируем рендер страницы (await useFetch суспендил бы весь layout)
 const { data } = useLazyFetch<{ materials: TocMaterial[] }>(
@@ -34,10 +34,10 @@ const tocOpen = ref(false)
     <nav v-if="materials.length" class="toc-list">
       <NuxtLink
         v-for="m in materials"
-        :key="m.slug"
-        :to="`/courses/${courseSlug}/topics/${m.slug}`"
+        :key="m.id"
+        :to="`/courses/${courseSlug}/topics/${m.id}`"
         class="toc-item"
-        :class="{ active: m.slug === activeSlug }"
+        :class="{ active: m.id === activeId }"
         :title="m.title"
       >
         {{ m.title }}
