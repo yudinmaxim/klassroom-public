@@ -30,14 +30,7 @@ async function save() {
 </script>
 
 <template>
-  <div class="side-backdrop" @click.self="emit('close')">
-    <aside class="side-panel" role="dialog" aria-modal="true" aria-label="Новый курс">
-      <div class="modal-head">
-        <h2>Новый курс</h2>
-        <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
+  <SidePanel title="Новый курс" @close="emit('close')">
 
       <form class="form" @submit.prevent="save">
         <label>
@@ -54,6 +47,5 @@ async function save() {
           {{ busy ? 'Создание…' : 'Создать курс' }}
         </button>
       </form>
-    </aside>
-  </div>
+  </SidePanel>
 </template>

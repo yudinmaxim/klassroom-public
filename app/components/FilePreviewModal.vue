@@ -139,8 +139,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div v-if="file" class="modal-backdrop" @click.self="emit('close')">
-    <div class="modal preview-modal" role="dialog" aria-modal="true" :aria-label="file.name">
+  <BaseModal
+    v-if="file"
+    :title="file.name"
+    width="min(960px, calc(100vw - 32px))"
+    height="min(82vh, 900px)"
+    @close="emit('close')"
+  >
+    <template #head>
       <div class="modal-head">
         <h2 class="preview-name">{{ file.name }}</h2>
         <div class="row" style="gap: 8px;">
@@ -170,6 +176,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
           </button>
         </div>
       </div>
+    </template>
 
       <div class="preview-body">
         <img v-if="kind === 'image'" :src="file.url" :alt="file.name" class="preview-img">
@@ -203,15 +210,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
           <a class="primary" :href="file.url" download>Скачать файл</a>
         </div>
       </div>
-    </div>
-  </div>
+  </BaseModal>
 </template>
 
 <style scoped>
-.preview-modal {
-  width: min(960px, calc(100vw - 32px));
-  height: min(82vh, 900px);
-}
 .preview-count { font-size: 12px; white-space: nowrap; }
 .tip-file { overflow-wrap: anywhere; }
 .dl {

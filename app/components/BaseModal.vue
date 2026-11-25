@@ -4,7 +4,7 @@
  * #default — содержимое, #foot — кнопки действий (в .modal-foot).
  * Закрытие: клик по фону, кнопка-крестик, emit('close').
  */
-defineProps<{ title: string, width?: string }>()
+defineProps<{ title: string, width?: string, height?: string }>()
 const emit = defineEmits<{ close: [] }>()
 </script>
 
@@ -15,14 +15,16 @@ const emit = defineEmits<{ close: [] }>()
       role="dialog"
       aria-modal="true"
       :aria-label="title"
-      :style="width ? { width } : undefined"
+      :style="width || height ? { width, height } : undefined"
     >
-      <div class="modal-head">
-        <h2>{{ title }}</h2>
-        <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
+      <slot name="head">
+        <div class="modal-head">
+          <h2>{{ title }}</h2>
+          <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
+            <Icon name="lucide:x" />
+          </button>
+        </div>
+      </slot>
       <slot />
       <div v-if="$slots.foot" class="modal-foot">
         <slot name="foot" />

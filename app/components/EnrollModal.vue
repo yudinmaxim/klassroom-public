@@ -72,14 +72,7 @@ async function save() {
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="emit('close')">
-    <div class="modal" role="dialog" aria-modal="true">
-      <div class="modal-head">
-        <h2>Зачисление на курс</h2>
-        <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
+  <BaseModal title="Зачисление на курс" @close="emit('close')">
 
       <input
         v-model="search"
@@ -109,12 +102,11 @@ async function save() {
 
       <p v-if="error" class="error">{{ error }}</p>
 
-      <div class="modal-foot">
+      <template #foot>
         <button @click="emit('close')">Отмена</button>
         <button class="primary" :disabled="busy || loading" @click="save">
           {{ busy ? 'Сохранение…' : 'Сохранить' }}
         </button>
-      </div>
-    </div>
-  </div>
+      </template>
+  </BaseModal>
 </template>

@@ -41,14 +41,11 @@ async function save() {
 </script>
 
 <template>
-  <div class="side-backdrop" @click.self="emit('close')">
-    <aside class="side-panel" role="dialog" aria-modal="true" :aria-label="isEdit ? 'Редактирование роли' : 'Новая роль'">
-      <div class="modal-head">
-        <h2>{{ isEdit ? `Роль: ${role?.title}` : 'Новая роль' }}</h2>
-        <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
+  <SidePanel
+    :title="isEdit ? `Роль: ${role?.title}` : 'Новая роль'"
+    :label="isEdit ? 'Редактирование роли' : 'Новая роль'"
+    @close="emit('close')"
+  >
 
       <form class="form" @submit.prevent="save">
         <label>
@@ -98,6 +95,5 @@ async function save() {
           <button type="button" @click="emit('close')">Отмена</button>
         </div>
       </form>
-    </aside>
-  </div>
+  </SidePanel>
 </template>

@@ -35,14 +35,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="side-backdrop" @click.self="emit('close')">
-    <aside class="side-panel" role="dialog" aria-modal="true" aria-label="Новый ученик">
-      <div class="modal-head">
-        <h2>Новый ученик</h2>
-        <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
+  <SidePanel title="Новый ученик" @close="emit('close')">
 
       <p class="muted">
         Аккаунт будет создан и сразу зачислен на курс; пароль покажем один раз —
@@ -63,6 +56,5 @@ async function submit() {
           {{ busy ? 'Создание…' : 'Создать и зачислить' }}
         </button>
       </form>
-    </aside>
-  </div>
+  </SidePanel>
 </template>
