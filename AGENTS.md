@@ -79,6 +79,38 @@ Markdown/YAML в `content/` (отдельный git-репозиторий), п�
 - Проверки прав — только на сервере (API/адаптер); фронт не дублирует
   permission-логику, только прячет недоступные кнопки по флагам из ответа.
 
+## Git-репозитории и релизы
+
+- `origin` = `github.com/yudinmaxim/klassroom` — **приватный** рабочий репо.
+- `public` = `github.com/yudinmaxim/klassroom-public` — **публичное зеркало**
+  приватного (без «лишней истории»): `main` перезаписывается `--force`,
+  это норма, а не ошибка.
+- Docker-образ собирается **только в public**: workflow `.github/workflows/docker.yml`
+  имеет guard `github.repository == 'yudinmaxim/klassroom-public'` — в приватном
+  репо job пропускается. Образ пушится в `ghcr.io/yudinmaxim/klassroom-public`.
+- Теги образа: push в main → `latest` + `<sha>`; git-тег `vX.Y.Z` →
+  `X.Y.Z`, `X.Y`, `X` (semver).
+
+### Команда релиза
+
+Пользователь может попросить «запускай в публичку сборку X.Y.Z» — выполнить:
+
+```bash
+scripts/release-public.sh X.Y.Z
+```
+
+Скрипт сам: проверит semver, создаст тег `vX.Y.Z` на текущем HEAD (если нет),
+сделает `git push public main --force` и `git push public vX.Y.Z --force`.
+Перед этим вся работа должна быть закоммичена и запушена в `origin`.
+
+Ручной эквивалент:
+
+```bash
+git push origin main              # приватный
+git push public main --force      # зеркало
+git tag vX.Y.Z && git push public vX.Y.Z --force
+```
+
 ## Код
 
 - Проверки перед коммитом: `npx eslint app/ shared/ server/`,
