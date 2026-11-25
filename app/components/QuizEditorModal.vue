@@ -202,7 +202,7 @@ onMounted(async () => {
           Название проверки
           <input v-model="title" maxlength="120" placeholder="Например: Проверка по теме">
         </label>
-        <label class="qb-show">
+        <label class="check qb-show">
           <input v-model="showAnswers" type="checkbox">
           Показывать правильные ответы после проверки
         </label>

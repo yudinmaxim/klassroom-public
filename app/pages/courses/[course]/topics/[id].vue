@@ -343,6 +343,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
         <div style="margin-top: 14px;">
           <GroupField v-model="form.groups" :slug="slug" />
         </div>
+        <QuizSection :slug="slug" :material-id="material.id" />
       </div>
 
     </div>
