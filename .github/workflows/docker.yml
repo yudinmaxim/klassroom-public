@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   image:
+    # Образ собираем только в публичном репозитории klassroom-public;
+    # приватный klassroom — просто рабочая копия.
+    if: github.repository == 'yudinmaxim/klassroom-public'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
