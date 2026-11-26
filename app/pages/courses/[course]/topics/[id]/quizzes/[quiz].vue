@@ -176,6 +176,17 @@ function retry() {
   reviewedAttempt.value = null
 }
 
+function typeHint(qu: QuizQuestion): string {
+  switch (qu.type) {
+    case 'single': return 'Выберите один ответ'
+    case 'truefalse': return 'Выберите: верно или неверно'
+    case 'multi': return 'Выберите один или несколько ответов'
+    case 'fill': return 'Впишите пропущенные слова в поля'
+    case 'order': return 'Расставьте элементы в правильном порядке: нажимайте на них в нужной последовательности'
+    default: return ''
+  }
+}
+
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
 </script>
 
@@ -227,6 +238,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
               <span v-html="qu.promptHtml ?? qu.prompt" />
             <span class="muted"> · {{ qu.points }} б.</span>
           </legend>
+          <p class="quiz-hint muted">{{ typeHint(qu) }}</p>
 
           <!-- single / truefalse -->
           <template v-if="qu.type === 'single' || qu.type === 'truefalse'">
@@ -354,6 +366,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
   padding: 14px 16px;
 }
 .quiz-q legend { padding: 0 6px; font-weight: 600; }
+.quiz-hint { margin: 6px 0 10px; font-size: 13px; }
 .quiz-opt { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; }
 .quiz-fill { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; line-height: 2; }
 .quiz-fill-input {
