@@ -180,23 +180,6 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
     height="min(860px, 90vh)"
     @close="emit('close')"
   >
-    <template #head>
-      <div class="modal-head qr-head">
-        <h2>{{ quiz?.title ?? 'Проверка' }}</h2>
-        <div v-if="mine.length" class="qr-attempts">
-          <button
-            v-for="(a, i) in [...mine].reverse()"
-            :key="i"
-            class="qr-attempt"
-            :title="fmtDate(a.submittedAt)"
-            @click="reviewedAttempt = a; showReview = true"
-          >{{ mine.length - i }}: {{ a.score }}/{{ a.total }}</button>
-        </div>
-        <button class="icon-btn" aria-label="Закрыть" @click="emit('close')">
-          <Icon name="lucide:x" />
-        </button>
-      </div>
-    </template>
     <div v-if="loading && !quiz" class="muted quiz-runner-loading">Загрузка…</div>
     <div v-else-if="loadError" class="error quiz-runner-loading">Проверка не найдена</div>
     <div v-else-if="quiz" class="quiz-runner">
@@ -316,6 +299,17 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           </button>
         </form>
 
+        <!-- История попыток -->
+        <section v-if="mine.length" class="quiz-history">
+          <h2>Мои попытки</h2>
+          <ul>
+            <li v-for="(a, i) in [...mine].reverse()" :key="i">
+              <button class="linklike" @click="reviewedAttempt = a; showReview = true">
+                Попытка {{ mine.length - i }}: {{ a.score }}/{{ a.total }} · {{ fmtDate(a.submittedAt) }}
+              </button>
+            </li>
+          </ul>
+        </section>
       </div>
     </div>
 
@@ -436,26 +430,8 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 .quiz-review-prompt { margin: 0 0 4px; }
 .quiz-review-ans { margin: 0; font-size: 13.5px; }
 .quiz-result-actions { margin-top: 14px; }
-.qr-head { gap: 14px; }
-.qr-head h2 { flex-shrink: 0; }
-.qr-attempts {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 2px 0;
-}
-.qr-attempt {
-  flex-shrink: 0;
-  padding: 3px 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-soft);
-  color: var(--muted);
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.qr-attempt:hover { border-color: var(--accent); color: var(--accent); }
+.quiz-history { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 14px; }
+.quiz-history h2 { font-size: 16px; margin: 0 0 8px; }
+.quiz-history ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.linklike { background: none; border: none; color: var(--accent, #36c); cursor: pointer; font: inherit; padding: 2px 0; text-align: left; }
 </style>
