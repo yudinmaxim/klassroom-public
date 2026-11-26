@@ -370,12 +370,11 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 .quiz-q-title { margin: 0 0 10px; font-weight: 600; padding-right: 56px; }
 .quiz-q-points {
   position: absolute;
-  top: 10px;
-  right: 12px;
-  padding: 2px 10px;
-  border-radius: 12px;
+  top: 0;
+  right: 0;
+  padding: 4px 12px 4px 14px;
+  border-radius: 0 11px 0 10px;
   background: var(--bg-soft);
-  border: 1px solid var(--line);
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
