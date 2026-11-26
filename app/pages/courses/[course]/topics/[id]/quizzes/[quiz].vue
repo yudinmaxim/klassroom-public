@@ -364,6 +364,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 14px 16px;
+  background: var(--card);
 }
 .quiz-q legend { padding: 0 6px; font-weight: 600; }
 .quiz-hint { margin: 6px 0 10px; font-size: 13px; }
