@@ -94,6 +94,27 @@ function isCorrect(qu: QuizQuestion, optId: string): boolean {
   if (qu.type === 'multi') return Array.isArray(qu.correct) && qu.correct.includes(optId)
   return qu.correct === optId
 }
+
+// Навигация по полям ответов: Tab/Shift+Tab и стрелки вверх/вниз
+function focusSiblingOption(el: HTMLElement, dir: -1 | 1): boolean {
+  const row = el.closest('.qb-option')
+  const rows = row?.parentElement
+    ? [...row.parentElement.querySelectorAll<HTMLElement>(':scope > .qb-option')]
+    : []
+  const target = rows[rows.indexOf(row!) + dir]
+    ?.querySelector<HTMLInputElement>('.qb-option-text')
+  if (!target) return false
+  target.focus()
+  target.select()
+  return true
+}
+function onOptionKeydown(e: KeyboardEvent) {
+  const el = e.target as HTMLElement
+  const dir = e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey) ? 1
+    : e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey) ? -1
+    : 0
+  if (dir && focusSiblingOption(el, dir)) e.preventDefault()
+}
 function toggleCorrect(qu: QuizQuestion, optId: string, checked: boolean) {
   if (qu.type === 'multi') {
     const cur = Array.isArray(qu.correct) ? [...qu.correct] : []
@@ -230,6 +251,10 @@ onMounted(async () => {
             :placeholder="qu.type === 'fill' ? 'Текст вопроса. Пропуски — {{1}}, {{2}}…' : 'Текст вопроса (markdown)'"
             @input="qu.type === 'fill' && syncBlanks(qu)"
           />
+          <p v-if="['single', 'multi', 'truefalse'].includes(qu.type)" class="qb-hint muted">
+            Укажите правильные ответы, используя контроллы слева от вариантов.
+            Tab или стрелки ↑↓ — переход между полями ответов.
+          </p>
 
           <!-- single / multi / truefalse -->
           <div v-if="['single', 'multi', 'truefalse'].includes(qu.type)" class="qb-options">
@@ -240,7 +265,7 @@ onMounted(async () => {
                 :checked="isCorrect(qu, opt.id)"
                 @change="toggleCorrect(qu, opt.id, ($event.target as HTMLInputElement).checked)"
               >
-              <input v-model="opt.text" class="qb-option-text" placeholder="Вариант ответа">
+              <input v-model="opt.text" class="qb-option-text" placeholder="Вариант ответа" @keydown="onOptionKeydown">
               <IconBtn icon="lucide:x" label="Убрать вариант" @click="removeOption(qu, oi)" />
             </div>
             <button v-if="qu.type !== 'truefalse'" class="qb-add" @click="addOption(qu)">+ вариант</button>
@@ -262,7 +287,7 @@ onMounted(async () => {
             <p class="muted" style="margin: 4px 0;">Перечислите элементы в правильном порядке — ученик увидит их перемешанными.</p>
             <div v-for="(it, ii) in qu.items" :key="it.id" class="qb-option">
               <span class="qb-order-num">{{ ii + 1 }}</span>
-              <input v-model="it.text" class="qb-option-text" placeholder="Элемент">
+              <input v-model="it.text" class="qb-option-text" placeholder="Элемент" @keydown="onOptionKeydown">
               <IconBtn icon="lucide:x" label="Убрать элемент" @click="qu.items?.splice(ii, 1); syncOrder(qu)" />
             </div>
             <div class="qb-order-tools">
@@ -339,6 +364,7 @@ onMounted(async () => {
   background: transparent;
   color: inherit;
 }
+.qb-hint { margin: 6px 0 0; font-size: 12.5px; }
 .qb-options, .qb-blanks, .qb-order { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .qb-option { display: flex; align-items: center; gap: 8px; }
 .qb-option-text { flex: 1; }
