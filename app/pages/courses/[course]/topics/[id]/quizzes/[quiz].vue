@@ -232,12 +232,12 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 
       <!-- Форма прохождения -->
       <form v-else class="quiz-form" @submit.prevent="submit">
-        <fieldset v-for="qu in quiz.questions" :key="qu.id" class="quiz-q">
-          <legend>
+        <div v-for="qu in quiz.questions" :key="qu.id" class="quiz-q">
+          <p class="quiz-q-title">
             <!-- eslint-disable-next-line vue/no-v-html -- promptHtml санитизирован сервером -->
-              <span v-html="qu.promptHtml ?? qu.prompt" />
+            <span v-html="qu.promptHtml ?? qu.prompt" />
             <span class="muted"> · {{ qu.points }} б.</span>
-          </legend>
+          </p>
           <p class="quiz-hint muted">{{ typeHint(qu) }}</p>
 
           <!-- single / truefalse -->
@@ -305,7 +305,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
               </span>
             </div>
           </template>
-        </fieldset>
+        </div>
 
         <p v-if="submitError" class="error">{{ submitError }}</p>
         <button type="submit" class="primary" :disabled="submitting">
@@ -366,7 +366,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
   padding: 14px 16px;
   background: var(--card);
 }
-.quiz-q legend { padding: 0 6px; font-weight: 600; }
+.quiz-q-title { margin: 0 0 10px; font-weight: 600; }
 .quiz-hint { margin: 6px 0 10px; font-size: 13px; }
 .quiz-opt { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; }
 .quiz-fill { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; line-height: 2; }
