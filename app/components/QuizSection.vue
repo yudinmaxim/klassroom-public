@@ -18,6 +18,7 @@ const editorOpen = ref(false)
 const editing = ref<QuizSummary | null>(null)
 const deleting = ref<QuizSummary | null>(null)
 const resultsFor = ref<QuizSummary | null>(null)
+const taking = ref<QuizSummary | null>(null)
 const deleteError = ref('')
 
 function openCreate() {
@@ -47,7 +48,6 @@ async function confirmDelete() {
 }
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
-const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.materialId}/quizzes/${q.id}`
 </script>
 
 <template>
@@ -65,11 +65,11 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
         :key="q.id"
         class="quiz-item"
         tabindex="0"
-        @click="navigateTo(quizUrl(q))"
-        @keydown.enter="navigateTo(quizUrl(q))"
+        @click="taking = q"
+        @keydown.enter="taking = q"
       >
         <div class="quiz-info">
-          <NuxtLink :to="quizUrl(q)" class="quiz-title">{{ q.title }}</NuxtLink>
+          <span class="quiz-title">{{ q.title }}</span>
           <p class="muted quiz-meta">
             {{ q.questionCount }} вопр. · {{ q.totalPoints }} б. · обновлена {{ fmtDate(q.updatedAt) }}
             <template v-if="!canEdit && q.myAttempts">
@@ -84,9 +84,9 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
             <IconBtn icon="lucide:trash-2" label="Удалить" danger @click="deleting = q" />
           </template>
         </div>
-        <NuxtLink v-else :to="quizUrl(q)" class="btn-link" @click.stop>
+        <button v-else class="btn-link" @click.stop="taking = q">
           {{ q.myAttempts ? 'Пройти ещё раз' : 'Пройти' }}
-        </NuxtLink>
+        </button>
       </li>
     </ul>
     <p v-else class="muted">Проверок пока нет — материал можно пройти без самопроверки.</p>
@@ -98,6 +98,14 @@ const quizUrl = (q: QuizSummary) => `/courses/${props.slug}/topics/${props.mater
       :quiz-id="editing?.id ?? null"
       @saved="onSaved"
       @close="editorOpen = false; editing = null"
+    />
+    <QuizRunnerModal
+      v-if="taking"
+      :slug="slug"
+      :material-id="materialId"
+      :quiz-id="taking.id"
+      @submitted="refresh()"
+      @close="taking = null"
     />
     <QuizResultsModal
       v-if="resultsFor"
