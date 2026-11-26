@@ -17,6 +17,13 @@ const { data } = useLazyFetch<{ materials: TocMaterial[] }>(
 const materials = computed(() => data.value?.materials ?? [])
 
 const tocOpen = ref(false)
+
+// Тултип с полным названием — только когда строка обрезана ellipsis'ом
+function onItemHover(e: MouseEvent) {
+  const el = e.currentTarget as HTMLElement
+  if (el.scrollWidth > el.clientWidth) el.title = el.textContent?.trim() ?? ''
+  else el.removeAttribute('title')
+}
 </script>
 
 <template>
@@ -38,7 +45,7 @@ const tocOpen = ref(false)
         :to="`/courses/${courseSlug}/topics/${m.id}`"
         class="toc-item"
         :class="{ active: m.id === activeId }"
-        :title="m.title"
+        @mouseenter="onItemHover"
       >
         {{ m.title }}
       </NuxtLink>

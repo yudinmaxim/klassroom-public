@@ -16,6 +16,13 @@ const { data } = useLazyFetch<GroupItem[]>(
 const groups = computed(() => data.value ?? [])
 
 const tocOpen = ref(false)
+
+// Тултип с полным названием — только когда строка обрезана ellipsis'ом
+function onItemHover(e: MouseEvent) {
+  const el = e.currentTarget as HTMLElement
+  if (el.scrollWidth > el.clientWidth) el.title = el.textContent?.trim() ?? ''
+  else el.removeAttribute('title')
+}
 </script>
 
 <template>
@@ -37,7 +44,7 @@ const tocOpen = ref(false)
         :to="`/courses/${courseSlug}/groups/${g.id}`"
         class="toc-item"
         :class="{ active: g.id === activeGid }"
-        :title="g.title"
+        @mouseenter="onItemHover"
       >
         {{ g.title }}
       </NuxtLink>
