@@ -18,6 +18,7 @@ services:
       - "127.0.0.1:3000:3000"
     environment:
       TZ: Europe/Moscow # часовой пояс сервера; убери строку при желании
+      NUXT_SETUP_SECRET: ${SETUP_SECRET:?Задайте SETUP_SECRET в .env перед запуском}
     volumes:
       - ./content:/app/content       # wiki-контент, отдельный git-репозиторий
       - ./users:/app/users           # аккаунты (секреты — бэкапить!)

@@ -3,10 +3,11 @@ import { errText } from '#shared/errors'
 
 const { data: setupInfo } = await useFetch('/api/setup')
 const setupAvailable = computed(() => setupInfo.value?.available ?? false)
+const setupConfigured = computed(() => setupInfo.value?.configured ?? false)
 
 useBreadcrumbs().value = []
 
-const form = reactive({ username: '', pseudonym: '', password: '' })
+const form = reactive({ setupSecret: '', username: '', pseudonym: '', password: '' })
 const error = ref('')
 const busy = ref(false)
 
@@ -34,6 +35,10 @@ async function submit() {
         <p class="muted">Создайте администратора — он заведёт учителей и учеников.</p>
         <form class="form" @submit.prevent="submit">
           <label>
+            Секрет настройки
+            <input v-model="form.setupSecret" type="password" autocomplete="off" required>
+          </label>
+          <label>
             Логин
             <input v-model="form.username" autocomplete="username" required>
           </label>
@@ -50,8 +55,11 @@ async function submit() {
         </form>
       </template>
       <template v-else>
-        <p>Администратор уже создан.</p>
-        <NuxtLink to="/login">Перейти ко входу →</NuxtLink>
+        <template v-if="setupConfigured">
+          <p>Администратор уже создан.</p>
+          <NuxtLink to="/login">Перейти ко входу →</NuxtLink>
+        </template>
+        <p v-else>Первичная настройка отключена: администратор сервера должен задать SETUP_SECRET.</p>
       </template>
     </div>
   </div>

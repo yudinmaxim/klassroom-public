@@ -53,6 +53,8 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Секрет первичной настройки (задаётся через NUXT_SETUP_SECRET).
+    setupSecret: '',
     // каталог аккаунтов users/ — вне content/, в git не попадает (specs/02-data-model.md)
     usersDir: './users',
     // роли (переопределения и собственные) — specs/08-roles-permissions.md

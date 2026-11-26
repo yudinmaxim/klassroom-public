@@ -19,6 +19,9 @@
 mkdir -p /opt/klassroom && cd /opt/klassroom
 # скачай compose.prod.yml из репозитория (raw) или скопируй вручную
 mkdir -p content users sessions roles qr-tokens
+# Создай длинный случайный секрет первичной настройки и сохрани его в .env
+printf 'SETUP_SECRET=%s\n' "$(openssl rand -hex 32)" > .env
+chmod 600 .env
 docker compose -f compose.prod.yml pull
 docker compose -f compose.prod.yml up -d
 docker compose -f compose.prod.yml logs -f   # Ctrl+C — логи дальше пишутся
@@ -71,7 +74,7 @@ cloudflared tunnel --url http://127.0.0.1:3000
 
 ## 3. Первый запуск
 
-1. Открой `https://<твой-домен>/setup` → создай администратора.
+1. Введи секрет из `/opt/klassroom/.env` на странице `https://<твой-домен>/setup` и создай администратора. Секрет блокирует первичное создание аккаунта; после первого аккаунта `/setup` закрывается автоматически.
 2. Дальше — через админку: курсы, пользователи (логин/пароль или QR-вход),
    роли.
 3. `content/` при первой записи сам инициализируется как git-репозиторий —
