@@ -735,7 +735,7 @@ const pseudo = (u: string) => subsNames.value[u] ?? u
     <PublishAssignmentModal
       v-if="publishOpen && assignment"
       :slug="slug"
-      :assignment-slug="aid"
+      :assignment-id="aid"
       :title="assignment.title"
       @close="publishOpen = false"
       @changed="publishOpen = false; refresh()"
