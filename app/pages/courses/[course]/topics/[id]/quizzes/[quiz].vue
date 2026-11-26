@@ -236,8 +236,8 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
           <p class="quiz-q-title">
             <!-- eslint-disable-next-line vue/no-v-html -- promptHtml санитизирован сервером -->
             <span v-html="qu.promptHtml ?? qu.prompt" />
-            <span class="muted"> · {{ qu.points }} б.</span>
           </p>
+          <span class="quiz-q-points">{{ qu.points }} б.</span>
           <p class="quiz-hint muted">{{ typeHint(qu) }}</p>
 
           <!-- single / truefalse -->
@@ -361,12 +361,25 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleString('ru-RU', { dateSty
 .quiz-page { max-width: 780px; }
 .quiz-form { display: flex; flex-direction: column; gap: 18px; }
 .quiz-q {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 5px 16px 14px;
   background: var(--card);
 }
-.quiz-q-title { margin: 0 0 10px; font-weight: 600; }
+.quiz-q-title { margin: 0 0 10px; font-weight: 600; padding-right: 56px; }
+.quiz-q-points {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
 .quiz-hint { margin: 6px 0 10px; font-size: 13px; }
 .quiz-opt { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; }
 .quiz-fill { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; line-height: 2; }
